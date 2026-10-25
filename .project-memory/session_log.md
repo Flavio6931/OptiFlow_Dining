@@ -343,6 +343,19 @@
   - `python web/manage.py test core`: 9/9 pruebas unitarias aprobadas (`OK`).
   - `npx pyright web services`: 0 errores, 0 advertencias.
 
+## Sesión - 2026-10-25 (Sincronización y Subida Completa a GitHub)
+- **Solicitud del Usuario:**
+  - *"Sube las modificaciones a mi github"*
+- **Configuración de Cuenta:**
+  - Cuenta GitHub vinculada: **Josue2004exe** (`alexpc778@gmail.com`).
+  - Repositorio remoto: `https://github.com/Josue2004exe/OptiFlow_Dining`.
+- **Acciones Realizadas:**
+  - Validación previa: suite de pruebas ejecutada con éxito (`9/9 OK`) y verificación de tipos en Pyright (`0 errores`).
+  - Staging y Commit: 64 archivos confirmados en commit `36ba59b` (*feat: modernizacion integral Dark Hospitality, modulo camara chef opencv, plano cad 2d y simplificacion ejecutiva de paneles*).
+  - Push exitoso: Cambios subidos a la rama remota `main`.
+- **Verificación:**
+  - `git status`: Working tree limpio, rama sincronizada con `origin/main`.
+
 
 
 

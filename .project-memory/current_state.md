@@ -56,6 +56,7 @@
   4. Dos Paneles Equilibrados y Respirables: Semáforo directo de pasillos con tiempos promedio de permanencia por zona vs Feed narrativo de recorridos recientes y acceso sutil a Cámara Chef OpenCV.
 - [x] Optimización Single-Screen Viewport de Landing / Inicio (`/`): Corrección del desbordamiento vertical y scroll involuntario que causaba un espacio vacío residual al rodar hacia abajo. Ajustado el contenedor a `height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;` con distribución armónica (navbar fija arriba, titular y características centrados, footer integrado al pie sin barras de desplazamiento).
 - [x] Sincronización de Estáticos y Reinicio de Servidor: Recompilados los archivos estáticos (`collectstatic`) y reiniciado el proceso en puerto 8000 para despacho inmediato.
+- [x] Sincronización y Despliegue en GitHub: Confirmados y enviados todos los cambios funcionales, visuales, microservicios y plantillas al repositorio remoto (`https://github.com/Josue2004exe/OptiFlow_Dining`) en la rama `main` (commit `36ba59b`).
 
 ## Próximos Pasos Recomendados
 1. Levantar los 3 servicios locales usando `iniciar.cmd` o `iniciar.ps1` (Django :8000, Rutas :8001, Visión :8002).
