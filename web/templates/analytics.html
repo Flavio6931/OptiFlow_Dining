@@ -1,6 +1,200 @@
-{% extends 'base.html' %}{% block content %}
-<div class="page-header"><div><div class="eyebrow dark-eyebrow">M3 · ANALÍTICA OPERATIVA</div><h1>Indicadores operativos</h1><p>Visualiza los resultados obtenidos de las actividades registradas.</p></div><span class="header-pill">↗ Datos acumulados</span></div>
-<div class="stats-grid four"><div class="stat-card"><span class="stat-icon orange"><svg class="ic"><use href="#i-route"/></svg></span><div class="stat-value">{{ total_routes }}</div><div class="stat-label">Rutas consultadas</div><small>Consultas registradas</small></div><div class="stat-card"><span class="stat-icon red"><svg class="ic"><use href="#i-alert"/></svg></span><div class="stat-value">{{ critical_count }}</div><div class="stat-label">Zonas críticas</div><small>Estado actual del salón</small></div><div class="stat-card"><span class="stat-icon blue"><svg class="ic"><use href="#i-refresh"/></svg></span><div class="stat-value">{{ recalculated }}</div><div class="stat-label">Rutas alternativas</div><small>Recalculadas</small></div><div class="stat-card"><span class="stat-icon green"><svg class="ic"><use href="#i-check"/></svg></span><div class="stat-value">{{ completed }}</div><div class="stat-label">Tareas finalizadas</div><small>Confirmadas por usuarios</small></div></div>
-<div class="two-column analytic-grid"><section class="panel-card"><div class="card-heading"><div><h2>Comparación de actividad</h2><p>Conteos reales acumulados</p></div></div><div class="bar-chart" data-values="{{ total_routes }},{{ recalculated }},{{ completed }}"><div class="bar-col"><div class="bar-track"><span class="bar-fill bar-orange"></span></div><strong>{{ total_routes }}</strong><small>Consultas</small></div><div class="bar-col"><div class="bar-track"><span class="bar-fill bar-blue"></span></div><strong>{{ recalculated }}</strong><small>Alternativas</small></div><div class="bar-col"><div class="bar-track"><span class="bar-fill bar-green"></span></div><strong>{{ completed }}</strong><small>Finalizadas</small></div></div><p class="chart-caption">Los valores se incrementan al consultar, recalcular o finalizar rutas.</p></section><section class="panel-card"><div class="card-heading"><div><h2>Actividad reciente</h2><p>Últimos recorridos registrados</p></div></div><div class="activity-list">{% for item in last_routes %}<div class="activity-item"><span class="activity-symbol">↗</span><div><strong>{{ item.destination|upper }} · {{ item.get_task_type_display }}</strong><small>{{ item.user.username }} · {{ item.created_at|date:'d/m H:i' }}</small></div><span class="status-pill {% if item.recalculated %}moderada{% else %}normal{% endif %}">{% if item.recalculated %}Alternativa{% else %}Normal{% endif %}</span></div>{% empty %}<div class="empty-state">Aún no hay actividad. Las rutas consultadas aparecerán aquí.</div>{% endfor %}</div></section></div>
-<div class="info-box bottom-info">ⓘ Los indicadores mostrados provienen de la base de datos. Tiempos reales de traslado y cruces físicos requieren sensores o registros adicionales, tal como se plantea en los requisitos.</div>
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow dark-eyebrow">MÓDULO DE INDICADORES</div>
+    <h1>Rendimiento del Salón</h1>
+    <p>Resumen claro del movimiento en las mesas y los tiempos de atención.</p>
+  </div>
+  <div class="header-status-pill">
+    <span class="live-beacon-dot"></span>
+    <span>Turno de hoy</span>
+  </div>
+</div>
+
+<!-- 3 Tarjetas Claras y Directas -->
+<div class="simple-kpi-grid">
+  <!-- Tarjeta 1: Rutas Atendidas -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon orange"><svg class="ic"><use href="#i-route"/></svg></span>
+      <span class="kpi-badge">RUTAS</span>
+    </div>
+    <div class="simple-kpi-number">{{ total_routes }}</div>
+    <div class="simple-kpi-title">Rutas atendidas hoy</div>
+    <p class="simple-kpi-desc">
+      {% if total_routes > 0 %}
+        {{ direct_routes }} directas · {{ recalculated }} con desvío
+      {% else %}
+        Aún no se han enviado pedidos a las mesas hoy.
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Tarjeta 2: Zonas con Demora -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon {% if critical_count > 0 %}red{% else %}green{% endif %}">
+        <svg class="ic"><use href="#i-alert"/></svg>
+      </span>
+      <span class="kpi-badge {% if critical_count > 0 %}badge-warn{% else %}badge-ok{% endif %}">
+        {% if critical_count > 0 %}ATENCIÓN{% else %}DESPEJADO{% endif %}
+      </span>
+    </div>
+    <div class="simple-kpi-number">{{ critical_count }}</div>
+    <div class="simple-kpi-title">Zonas con demora</div>
+    <p class="simple-kpi-desc">
+      {% if critical_count > 0 %}
+        Hay zonas lentas donde los meseros deben tomar caminos alternos.
+      {% else %}
+        Todo el salón tiene paso libre sin cuellos de botella.
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Tarjeta 3: Mesas Ocupadas -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon green"><svg class="ic"><use href="#i-layout"/></svg></span>
+      <span class="kpi-badge">MESAS</span>
+    </div>
+    <div class="simple-kpi-number">{{ tables_occupied }} <span class="denom">/ {{ tables_total }}</span></div>
+    <div class="simple-kpi-title">Mesas ocupadas</div>
+    <p class="simple-kpi-desc">
+      {{ tables_available }} mesas libres listas para recibir clientes.
+    </p>
+  </div>
+</div>
+
+<!-- Dos Secciones Principales: Semáforo de Zonas + Resumen de Pedidos -->
+<div class="two-column simple-grid">
+  <!-- Columna 1: Semáforo de Zonas -->
+  <div class="panel-card">
+    <div class="card-heading">
+      <div>
+        <h2>¿Cómo están las zonas del restaurante?</h2>
+        <p>Semáforo visual de tiempos de espera en los pasillos</p>
+      </div>
+      {% if role == 'gerente' or role == 'capitan' or role == 'admin' %}
+        <a href="{% url 'saturation' %}" class="card-link-action">Ajustar tiempos ➔</a>
+      {% endif %}
+    </div>
+
+    <div class="zone-traffic-list">
+      {% for zone in zones %}
+        <div class="zone-traffic-item zone-border-{{ zone.level }}">
+          <div class="traffic-left">
+            <span class="traffic-avatar traffic-avatar-{{ zone.level }}">{{ zone.code }}</span>
+            <div class="traffic-info">
+              <strong>Zona {{ zone.code }}</strong>
+              <span class="traffic-time">Tiempo de permanencia: {{ zone.dwell_minutes|floatformat:1 }} min</span>
+            </div>
+          </div>
+          <div class="traffic-right">
+            {% if zone.level == 'normal' %}
+              <span class="traffic-pill pill-normal">🟢 Paso rápido</span>
+            {% elif zone.level == 'moderada' %}
+              <span class="traffic-pill pill-moderada">🟡 Tráfico medio</span>
+            {% else %}
+              <span class="traffic-pill pill-critica">🔴 Lento / Demora</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="zone-simple-legend">
+      <span>🟢 <strong>Rápido:</strong> Sin demoras</span>
+      <span>🟡 <strong>Medio:</strong> Atención normal</span>
+      <span>🔴 <strong>Lento:</strong> Ruta desviada automáticamente</span>
+    </div>
+  </div>
+
+  <!-- Columna 2: Distribución de Pedidos y Rutas -->
+  <div class="panel-card">
+    <div class="card-heading">
+      <div>
+        <h2>Resumen de viajes y tareas</h2>
+        <p>Qué tipo de pedidos han llevado los meseros</p>
+      </div>
+    </div>
+
+    {% if total_routes > 0 %}
+      <div class="route-simple-summary">
+        <div class="summary-stat-row">
+          <span class="row-label"><span class="dot-bullet green"></span> Rutas por camino directo</span>
+          <strong class="row-val text-green">{{ direct_routes }}</strong>
+        </div>
+        <div class="summary-stat-row">
+          <span class="row-label"><span class="dot-bullet yellow"></span> Rutas con desvío (evitando zonas lentas)</span>
+          <strong class="row-val text-yellow">{{ recalculated }}</strong>
+        </div>
+        <div class="summary-stat-row">
+          <span class="row-label"><span class="dot-bullet orange"></span> Entregas de comida a mesas</span>
+          <strong class="row-val text-orange">{{ entregas_count }}</strong>
+        </div>
+        <div class="summary-stat-row">
+          <span class="row-label"><span class="dot-bullet purple"></span> Retiros de platos / vajilla</span>
+          <strong class="row-val text-purple">{{ retiros_count }}</strong>
+        </div>
+        <div class="summary-stat-row">
+          <span class="row-label"><span class="dot-bullet blue"></span> Distancia promedio por viaje</span>
+          <strong class="row-val">{{ avg_distance }} metros</strong>
+        </div>
+      </div>
+    {% else %}
+      <div class="simple-empty-box">
+        <div class="empty-icon-circle"><svg class="ic"><use href="#i-route"/></svg></div>
+        <h3>Sin viajes registrados hoy</h3>
+        <p>Cuando los meseros consulten rutas desde la cocina hacia las mesas, verás aquí cuántos platos se entregaron y qué tan rápido llegaron.</p>
+        {% if role == 'mesero' or role == 'capitan' or role == 'admin' %}
+          <a href="{% url 'routes' %}" class="btn btn-primary" style="margin-top: 14px;">
+            Consultar una ruta ahora <span>→</span>
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Historial Reciente de Recorridos -->
+<div class="panel-card" style="margin-top: 24px;">
+  <div class="card-heading">
+    <div>
+      <h2>Historial reciente de viajes</h2>
+      <p>Los últimos pedidos consultados por el personal</p>
+    </div>
+  </div>
+
+  {% if last_routes %}
+    <div class="simple-feed-list">
+      {% for r in last_routes %}
+        <div class="simple-feed-row">
+          <div class="feed-left">
+            <span class="feed-arrow-badge">➔</span>
+            <div>
+              <strong>{{ r.origin }} hacia {{ r.destination }}</strong>
+              <small>{{ r.get_task_type_display }} · Solicitado por {{ r.user.first_name|default:r.user.username }}</small>
+            </div>
+          </div>
+          <div class="feed-right">
+            {% if r.recalculated %}
+              <span class="badge-tag tag-warning">Desviada por zona lenta ({{ r.distance }}m)</span>
+            {% else %}
+              <span class="badge-tag tag-success">Camino directo ({{ r.distance }}m)</span>
+            {% endif %}
+            <span class="feed-time">{{ r.created_at|timesince }} atrás</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="feed-none-msg">
+      <span>ⓘ Aún no se han realizado viajes en este turno. Las consultas aparecerán aquí automáticamente.</span>
+    </div>
+  {% endif %}
+</div>
 {% endblock %}
+
+

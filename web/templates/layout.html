@@ -1,5 +1,148 @@
-{% extends 'base.html' %}{% block content %}
-<div class="page-header"><div><div class="eyebrow dark-eyebrow">M1 · MODELO ESPACIAL</div><h1>Plano y mesas</h1><p>Gestiona la disponibilidad de mesas de tu salón principal.</p></div><span class="header-pill">▦ Layout 2D</span></div>
-<div class="two-column"><section class="panel-card map-card"><div class="card-heading"><div><h2>Distribución del salón</h2><p>Esquema topológico de accesos y mesas</p></div></div><div class="map-surface"><svg id="floor-plan" class="floor-plan" viewBox="0 0 960 610" role="img" aria-label="Plano topológico de ocho mesas"></svg></div><div class="map-footer">● 8 mesas representadas <span>Modelo espacial de demostración</span></div></section><section class="panel-card"><div class="card-heading"><div><h2>Estado de mesas</h2><p>Cambios guardados en la base de datos</p></div></div><div class="table-control-list">{% for table in tables_state %}<div class="table-control"><div class="table-icon">▥</div><div><strong>Mesa {{ table.code|slice:'-2:' }}</strong><small>Asignación operativa</small></div><select class="table-status-select" data-code="{{ table.code }}" aria-label="Estado de {{ table.code }}"><option value="disponible" {% if table.state == 'disponible' %}selected{% endif %}>Disponible</option><option value="activa" {% if table.state == 'activa' %}selected{% endif %}>Activa</option><option value="ocupada" {% if table.state == 'ocupada' %}selected{% endif %}>Ocupada</option></select></div>{% endfor %}</div><div class="info-box compact"><span>ⓘ</span> Los estados quedan persistidos. La edición libre del plano y la zonificación automática son funcionalidades previstas para una siguiente iteración.</div></section></div>
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow dark-eyebrow">M1 · MODELO ESPACIAL Y GESTIÓN</div>
+    <h1>Plano y mesas</h1>
+    <p>Supervisa en tiempo real la distribución, accesos y disponibilidad del salón principal.</p>
+  </div>
+  <div class="header-pill">
+    <span class="live-dot-indicator"></span>
+    <span>Layout CAD 2D</span>
+  </div>
+</div>
+
+<!-- Barra de Resumen Ejecutivo y KPIs del Salón -->
+<div class="layout-kpi-grid">
+  <div class="layout-kpi-card">
+    <div class="kpi-icon-badge kpi-slate">▦</div>
+    <div class="layout-kpi-info">
+      <span class="layout-kpi-label">Mesas Registradas</span>
+      <strong class="layout-kpi-value" id="kpi-total-tables">{{ enriched_tables|length }}</strong>
+      <span class="layout-kpi-sub">Capacidad para {{ total_capacity }} comensales</span>
+    </div>
+  </div>
+
+  <div class="layout-kpi-card">
+    <div class="kpi-icon-badge kpi-emerald">●</div>
+    <div class="layout-kpi-info">
+      <span class="layout-kpi-label">Disponibles</span>
+      <strong class="layout-kpi-value text-emerald" id="kpi-available-tables">{{ available_count }}</strong>
+      <span class="layout-kpi-sub">Listas para asignación</span>
+    </div>
+  </div>
+
+  <div class="layout-kpi-card">
+    <div class="kpi-icon-badge kpi-blue">◐</div>
+    <div class="layout-kpi-info">
+      <span class="layout-kpi-label">Mesas Activas</span>
+      <strong class="layout-kpi-value text-blue" id="kpi-active-tables">{{ active_count }}</strong>
+      <span class="layout-kpi-sub">Servicio en curso</span>
+    </div>
+  </div>
+
+  <div class="layout-kpi-card">
+    <div class="kpi-icon-badge kpi-orange">▲</div>
+    <div class="layout-kpi-info">
+      <span class="layout-kpi-label">Mesas Ocupadas</span>
+      <strong class="layout-kpi-value text-orange" id="kpi-occupied-tables">{{ occupied_count }}</strong>
+      <span class="layout-kpi-sub" id="kpi-occupancy-sub">{{ occupancy_pct }}% de ocupación</span>
+    </div>
+  </div>
+</div>
+
+<div class="two-column layout-split-grid">
+  <!-- Panel Izquierdo: Plano Arquitectónico del Salón -->
+  <section class="panel-card map-card layout-blueprint-panel">
+    <div class="card-heading">
+      <div>
+        <h2>Distribución arquitectónica del salón</h2>
+        <p>Topología con pasillos, accesos, zonas A/B/C y mesas interactivas</p>
+      </div>
+      <span class="step-bubble"><span class="radar-dot active"></span> LIVE SYNC</span>
+    </div>
+
+    <!-- Lienzo del Plano Vectorial SVG -->
+    <div class="map-surface layout-map-surface">
+      <svg id="floor-plan" class="floor-plan layout-floor-plan" viewBox="0 0 960 610" role="img" aria-label="Plano topológico interactivo del restaurante"></svg>
+    </div>
+
+    <!-- Barra de Leyenda del Plano -->
+    <div class="map-footer layout-map-legend">
+      <div class="legend-items-wrap">
+        <span class="legend-chip"><span class="legend-color-dot dot-disponible"></span> Disponible</span>
+        <span class="legend-chip"><span class="legend-color-dot dot-activa"></span> Activa</span>
+        <span class="legend-chip"><span class="legend-color-dot dot-ocupada"></span> Ocupada</span>
+        <span class="legend-chip"><span class="legend-color-dot dot-cocina"></span> Cocina</span>
+        <span class="legend-chip"><span class="legend-color-dot dot-entrada"></span> Acceso</span>
+      </div>
+      <span class="legend-tip">✦ Haz clic en cualquier mesa para seleccionarla</span>
+    </div>
+  </section>
+
+  <!-- Panel Derecho: Lista Operativa de Mesas -->
+  <section class="panel-card layout-control-panel">
+    <div class="card-heading">
+      <div>
+        <h2>Estado operativo de mesas</h2>
+        <p>Persistencia directa en SQLite y sincronización bidireccional</p>
+      </div>
+    </div>
+
+    <!-- Filtros Rápidos de Visualización -->
+    <div class="table-filter-chips" id="table-filter-group">
+      <button type="button" class="table-filter-btn active" data-filter="all">Todas (<span id="count-filter-all">{{ enriched_tables|length }}</span>)</button>
+      <button type="button" class="table-filter-btn" data-filter="disponible">Disponibles (<span id="count-filter-disponible">{{ available_count }}</span>)</button>
+      <button type="button" class="table-filter-btn" data-filter="activa">Activas (<span id="count-filter-activa">{{ active_count }}</span>)</button>
+      <button type="button" class="table-filter-btn" data-filter="ocupada">Ocupadas (<span id="count-filter-ocupada">{{ occupied_count }}</span>)</button>
+    </div>
+
+    <!-- Cuadrícula de Tarjetas de Mesas -->
+    <div class="table-control-list layout-table-cards" id="table-control-container">
+      {% for table in enriched_tables %}
+        <div class="table-control table-state-card state-{{ table.state }}"
+             id="card-{{ table.code }}"
+             data-code="{{ table.code }}"
+             data-state="{{ table.state }}"
+             data-zone="{{ table.zone }}"
+             data-seats="{{ table.seats }}">
+          <div class="table-icon-pill">
+            <span class="table-seats-badge">👥 {{ table.seats }}</span>
+          </div>
+
+          <div class="table-meta-box">
+            <div class="table-title-row">
+              <strong class="table-code-name">{{ table.label }}</strong>
+              <span class="table-zone-pill">Zona {{ table.zone }}</span>
+            </div>
+            <div class="table-state-status-pill pill-{{ table.state }}" id="pill-{{ table.code }}">
+              <span class="status-beacon-dot"></span>
+              <span class="status-label-text">{{ table.state|capfirst }}</span>
+            </div>
+          </div>
+
+          <div class="table-action-box">
+            <select class="table-status-select select-{{ table.state }}"
+                    data-code="{{ table.code }}"
+                    id="select-{{ table.code }}"
+                    aria-label="Estado operativo de {{ table.label }}">
+              <option value="disponible" {% if table.state == 'disponible' %}selected{% endif %}>Disponible</option>
+              <option value="activa" {% if table.state == 'activa' %}selected{% endif %}>Activa</option>
+              <option value="ocupada" {% if table.state == 'ocupada' %}selected{% endif %}>Ocupada</option>
+            </select>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="info-box compact layout-info-note">
+      <span>ⓘ</span>
+      Los estados seleccionados se guardan inmediatamente en la base de datos y se reflejan en el plano interactivo de navegación y rutas de entrega.
+    </div>
+  </section>
+</div>
+
 {{ layout|json_script:"floor-layout" }}
+<script id="tables-state-data" type="application/json">{{ tables_map_json|safe }}</script>
 {% endblock %}

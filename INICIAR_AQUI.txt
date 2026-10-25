@@ -1,36 +1,31 @@
-OPTIFLOW DINING · CÓMO ABRIR EL PROYECTO
-========================================
+====================================================================
+           OPTIFLOW DINING · INICIO RÁPIDO
+====================================================================
 
-1. DESCOMPRIME OptiFlow_Dining.zip.
+Bienvenido a OptiFlow Dining. Tienes dos formas de iniciar el sistema:
 
-2. INSTALA Docker Desktop si todavía no lo tienes.
-   https://www.docker.com/products/docker-desktop/
+1. FORMA AUTOMÁTICA (CON UN SOLO CLIC):
+   Haz doble clic sobre el archivo:
+   iniciar.cmd
 
-3. ABRE una terminal en la carpeta OptiFlow_Dining:
+   (O si usas PowerShell, ejecuta: .\iniciar.ps1)
+   Esto levantará automáticamente en ventanas separadas:
+   - Web Django (:8000)
+   - Rutas Dijkstra FastAPI (:8001)
+   - Visión OpenCV FastAPI (:8002)
 
-   python scripts/generate_env.py
-   docker compose up --build -d
+2. GUÍA COMPLETA Y COMANDOS MANUALES:
+   Abre el archivo de texto:
+   COMANDOS_INICIO.txt
+   Allí tienes todos los comandos para copiar y pegar individualmente.
 
-4. ENTRA a http://localhost:8000
-   Haz clic en CREAR CUENTA, regístrate y prueba las rutas.
+3. ACCESO WEB:
+   - Aplicación: http://127.0.0.1:8000/
+   - Administrador: http://127.0.0.1:8000/admin/
+   - Rutas API: http://127.0.0.1:8001/docs
+   - Visión API: http://127.0.0.1:8002/docs
 
-5. PARA PROBAR LOS MÓDULOS DE CAPITÁN Y GERENTE:
-
-   docker compose exec web python manage.py createsuperuser
-
-   Abre http://localhost:8000/admin/ y cambia el rol
-   del usuario desde Profiles.
-
-6. PARA DETENER LOS SERVICIOS:
-
-   docker compose down
-
-ARCHIVOS ÚTILES:
-- vista_previa.html: abre una vista visual estática del diseño, sin backend.
-- README.md: guía completa y despliegue opcional en AWS.
-- web/: código de Django + HTML/CSS/JavaScript.
-- services/routing/: microservicio de rutas.
-- services/vision/: microservicio OpenCV.
-
-NOTA: el código no se encuentra publicado todavía en un servidor AWS.
-Amazon S3 se puede activar con la variable AWS_S3_BUCKET y un rol IAM.
+4. CREDENCIALES POR DEFECTO:
+   Usuario:     admin
+   Contraseña:  1234
+====================================================================

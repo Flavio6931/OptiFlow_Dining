@@ -1,0 +1,87 @@
+====================================================================
+           OPTIFLOW DINING - GUIA DE COMANDOS DE INICIO
+====================================================================
+
+Este archivo contiene los comandos directos para levantar los 3 servicios
+del proyecto en tu computadora local con Windows.
+
+--------------------------------------------------------------------
+OPCION 1: INICIO AUTOMATICO (RECOMENDADO)
+--------------------------------------------------------------------
+Puedes iniciar los 3 servicios al mismo tiempo con un solo clic:
+
+A) Desde el Explorador de Archivos de Windows:
+   - Haz DOBLE CLIC en el archivo:
+     iniciar.cmd
+
+B) Desde PowerShell:
+   - Abre PowerShell en esta carpeta y ejecuta:
+     .\iniciar.ps1
+
+Esto abrira 3 ventanas de terminal independientes, una para cada servicio.
+
+--------------------------------------------------------------------
+OPCION 2: INICIO MANUAL (TERMINAL POR TERMINAL)
+--------------------------------------------------------------------
+Si prefieres iniciar cada servicio manualmente, abre 3 terminales en la 
+carpeta raiz del proyecto (c:\Users\Flavio\Desktop\H4CK\Flavio\OptiFlow_Dining):
+
+--- TERMINAL 1: APLICACION WEB DJANGO (PUERTO 8000) ---
+Comando:
+.venv\Scripts\python web/manage.py runserver 8000
+
+--- TERMINAL 2: MICROSERVICIO DE RUTAS FASTAPI (PUERTO 8001) ---
+Comando:
+.venv\Scripts\python -m uvicorn services.routing.main:app --port 8001
+
+--- TERMINAL 3: MICROSERVICIO DE VISION OPENCV FASTAPI (PUERTO 8002) ---
+Comando:
+.venv\Scripts\python -m uvicorn services.vision.main:app --port 8002
+
+--------------------------------------------------------------------
+ENLACES PARA ABRIR EN EL NAVEGADOR
+--------------------------------------------------------------------
+Una vez que los 3 servicios esten corriendo, entra a:
+
+1. Aplicacion Web OptiFlow:
+   http://127.0.0.1:8000/
+
+2. Panel de Administracion Django:
+   http://127.0.0.1:8000/admin/
+
+3. Documentacion Interactiva de Rutas (Swagger):
+   http://127.0.0.1:8001/docs
+
+4. Documentacion Interactiva de Vision (Swagger):
+   http://127.0.0.1:8002/docs
+
+--------------------------------------------------------------------
+CREDENCIALES DE ACCESO
+--------------------------------------------------------------------
+Usuario:     admin
+Contraseña:  1234
+
+(Tambien puedes registrar una nueva cuenta desde el boton "CREAR CUENTA"
+en la pagina principal).
+
+--------------------------------------------------------------------
+COMO DETENER LOS SERVICIOS
+--------------------------------------------------------------------
+- Si usaste iniciar.cmd o iniciar.ps1:
+  Simplemente cierra las 3 ventanas de terminal que se abrieron.
+
+- Si los iniciaste manualmente:
+  Presiona CTRL + C en cada una de las 3 terminales.
+
+--------------------------------------------------------------------
+COMANDOS UTILES ADICIONALES
+--------------------------------------------------------------------
+- Crear un nuevo superusuario administrador:
+  .venv\Scripts\python web/manage.py createsuperuser
+
+- Ejecutar las pruebas unitarias:
+  .venv\Scripts\python web/manage.py test core
+
+- Recargar datos de demostracion (mesas y zonas):
+  .venv\Scripts\python web/manage.py seed_demo
+====================================================================

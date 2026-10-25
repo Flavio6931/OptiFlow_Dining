@@ -1,0 +1,16 @@
+{
+  "include": [
+    "web",
+    "services"
+  ],
+  "extraPaths": [
+    "web",
+    "services/routing",
+    "services/vision"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "off",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

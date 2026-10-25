@@ -1,4 +1,97 @@
-{% extends 'public.html' %}{% block content %}
-<div class="auth-layout"><div class="auth-hero"><a class="brand" href="{% url 'landing' %}"><span class="brand-mark">◎</span><span>OPTIFLOW<small>DINING</small></span></a><div class="auth-hero-content"><div class="eyebrow"><span class="signal-dot"></span> PLATAFORMA DE GESTIÓN OPERATIVA</div><h1>Haz que cada<br><em>movimiento cuente.</em></h1><p>Un entorno más inteligente para que tu equipo trabaje conectado, seguro y eficiente.</p><div class="auth-quote">“Cada recorrido importa. Cada segundo suma.”</div></div><div class="auth-hero-footer">OPTIFLOW DINING <span>© 2026</span></div></div>
-<div class="auth-panel"><div class="auth-card"><div class="auth-badge">◈ ACCESO SEGURO</div><h2>Bienvenido de nuevo</h2><p>Ingresa tus credenciales para continuar.</p><div class="demo-credentials-card"><div class="demo-credentials-header">🔑 Acceso predeterminado:</div><div class="demo-credentials-box"><div>Usuario: <strong class="demo-code">admin</strong></div><div>Contraseña: <strong class="demo-code">1234</strong></div></div><button type="button" class="btn-autofill" id="btn-autofill-admin">Autocompletar admin / 1234</button></div><form method="post" novalidate class="auth-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">{% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}<label for="id_username">Nombre de usuario</label>{{ form.username }}{{ form.username.errors }}<label for="id_password">Contraseña</label><div class="password-field">{{ form.password }}<button type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>{{ form.password.errors }}<button type="submit" class="btn btn-primary btn-full">Iniciar sesión <span>→</span></button></form><div class="auth-divider"><span>¿Aún no tienes una cuenta?</span></div><a class="btn btn-outline btn-full" href="{% url 'register' %}">Crear una cuenta nueva</a><p class="auth-caption">Acceso protegido con autenticación de Django.</p></div></div></div>
+{% extends 'public.html' %}
+{% load static %}
+
+{% block content %}
+<div class="auth-split-wrapper">
+  <!-- Columna Izquierda: Branding & Experiencia Visual -->
+  <div class="auth-split-hero">
+    <!-- Logotipo OptiFlow Dining con Isotipo Oficial y Tipografía Slanted -->
+    <a class="auth-brand-lockup" href="{% url 'landing' %}">
+      <div class="brand-spiral-icon">
+        <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" class="brand-logo-img">
+      </div>
+      <div class="brand-text-stack">
+        <span class="brand-name">OPTIFLOW</span>
+        <span class="brand-tag">DINING</span>
+      </div>
+    </a>
+
+    <!-- Mensaje Hero Principal -->
+    <div class="auth-hero-main">
+      <h1 class="auth-headline">
+        Accede a tu<br>
+        <span class="text-orange-glow">Panel de Control</span>
+      </h1>
+      <p class="auth-sub-switch">
+        ¿Aún no tienes una cuenta? <a href="{% url 'register' %}">Regístrate aquí.</a>
+      </p>
+
+      <div class="auth-accent-line"></div>
+
+      <p class="auth-hero-description">
+        Supervisión en tiempo real de salones, optimización de recorridos con algoritmo Dijkstra y control de capacidad.
+      </p>
+
+      <div class="auth-hero-action">
+        <a href="{% url 'landing' %}" class="btn-info-pill">
+          Información <span class="arrow-pill">➔</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Pie del Hero -->
+    <div class="auth-hero-foot">
+      <span>OPTIFLOW DINING</span>
+      <span>© 2026</span>
+    </div>
+  </div>
+
+  <!-- Columna Derecha: Tarjeta Flotante de Inicio de Sesión -->
+  <div class="auth-split-card-area">
+    <div class="auth-floating-card">
+      <h2 class="auth-card-heading">Iniciar Sesión</h2>
+
+      <form method="post" class="auth-modern-form" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        {% if form.non_field_errors %}
+          <div class="alert-error-box">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="form-field-group">
+          <label for="id_username">Usuario</label>
+          {{ form.username }}
+          {{ form.username.errors }}
+        </div>
+
+        <div class="form-field-group">
+          <label for="id_password">Contraseña</label>
+          <div class="password-pill-wrap">
+            {{ form.password }}
+            <button type="button" class="btn-toggle-eye" data-toggle-password aria-label="Mostrar u ocultar contraseña">
+              <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          {{ form.password.errors }}
+        </div>
+
+        <button type="submit" class="btn-orange-pill">
+          Ingresar
+        </button>
+      </form>
+
+      <div class="auth-bottom-nav">
+        <a href="{% url 'register' %}" class="auth-switch-link">
+          <span class="ring-dot"></span> Regístrate
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

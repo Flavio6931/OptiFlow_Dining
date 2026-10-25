@@ -6,6 +6,9 @@
   <title>OptiFlow Dining · Vista previa interactiva de apartados</title>
   
   <!-- Estilos CSS separados por módulos -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,800;1,900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="web/static/css/app.css">
   <link rel="stylesheet" href="web/static/css/vista_previa.css">
 
@@ -63,27 +66,13 @@
         <h2>Bienvenido de nuevo</h2>
         <p>Ingresa tus credenciales para continuar.</p>
 
-        <div class="demo-credentials-card">
-          <div class="demo-credentials-header">
-            <svg class="ic"><use href="#i-users"/></svg>
-            Credenciales de acceso predeterminadas:
-          </div>
-          <div class="demo-credentials-box">
-            <div>Usuario: <strong class="demo-code">admin</strong></div>
-            <div>Contraseña: <strong class="demo-code">1234</strong></div>
-          </div>
-          <button type="button" class="btn-autofill" onclick="fillLoginCredentials('admin', '1234')">
-            Autocompletar admin / 1234
-          </button>
-        </div>
-
         <form class="auth-form" onsubmit="handleLoginSubmit(event)">
           <label for="login-username">Nombre de usuario</label>
-          <input id="login-username" type="text" value="admin" required autocomplete="username">
+          <input id="login-username" type="text" placeholder="Ingresa tu usuario" required autocomplete="username">
           
           <label for="login-password">Contraseña</label>
           <div class="password-field">
-            <input id="login-password" type="password" value="1234" required autocomplete="current-password">
+            <input id="login-password" type="password" placeholder="Ingresa tu contraseña" required autocomplete="current-password">
             <button type="button" onclick="togglePasswordVisibility('login-password', this)" aria-label="Mostrar contraseña">◉</button>
           </div>
 
@@ -98,7 +87,7 @@
         <a class="btn btn-outline btn-full text-center" href="http://127.0.0.1:8000/login/" target="_blank">
           Abrir Login oficial en Django (http://127.0.0.1:8000/login/) ↗
         </a>
-        <p class="auth-caption">Acceso administrativo predeterminado: admin / 1234.</p>
+        <p class="auth-caption">Acceso protegido con autenticación de Django.</p>
       </div>
     </div>
   </div>
@@ -111,8 +100,13 @@
   <!-- Barra lateral de navegación -->
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="javascript:void(0)" onclick="switchApartado('dashboard')">
-      <span class="brand-mark">◎</span>
-      <span>OPTIFLOW<small>DINING</small></span>
+      <div class="brand-spiral-icon">
+        <img src="web/static/img/optiflow_icon.png" alt="OptiFlow Dining Logo" class="brand-logo-img">
+      </div>
+      <div class="brand-text-stack">
+        <span class="brand-name">OPTIFLOW</span>
+        <span class="brand-tag">DINING</span>
+      </div>
     </a>
     
     <div class="workspace">

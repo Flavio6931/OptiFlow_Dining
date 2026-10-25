@@ -1,13 +1,218 @@
-{% extends 'base.html' %}{% block content %}
-<div class="page-header"><div><div class="eyebrow dark-eyebrow">PANEL DE CONTROL <span>·</span> SALÓN PRINCIPAL</div><h1>¡Hola, {{ request.user.first_name|default:request.user.username }}! <span class="wave">✦</span></h1><p>Todo lo que necesitas para mantener el servicio en movimiento.</p></div><div class="date-chip">◷ {% now "d M Y" %}</div></div>
-<div class="welcome-banner"><div class="banner-copy"><span class="banner-tag">✧ TU ESPACIO DE TRABAJO</span><h2>El mejor servicio empieza<br>con una buena ruta.</h2><p>Organiza tu operación y consulta el estado del salón.</p>{% if role == 'mesero' or role == 'capitan' or role == 'admin' %}<a href="{% url 'routes' %}" class="btn btn-primary">Consultar rutas <span>→</span></a>{% else %}<a href="{% url 'analytics' %}" class="btn btn-primary">Ver indicadores <span>→</span></a>{% endif %}</div><div class="banner-graphic"><div class="banner-ring r1"></div><div class="banner-ring r2"></div><div class="banner-ring r3"></div><span class="banner-pin">⌁</span><span class="banner-path">·······↗</span></div></div>
-<div class="section-heading"><div><h2>Resumen de operación</h2><p>Indicadores basados en registros actuales del sistema</p></div><span class="subtle-link">Datos del salón</span></div>
-<div class="stats-grid"><div class="stat-card"><span class="stat-icon orange"><svg class="ic"><use href="#i-route"/></svg></span><div class="stat-value">{{ total_routes }}</div><div class="stat-label">Rutas consultadas</div><small>Solicitudes registradas</small></div><div class="stat-card"><span class="stat-icon red"><svg class="ic"><use href="#i-alert"/></svg></span><div class="stat-value">{{ congestion_count }}</div><div class="stat-label">Zonas críticas</div><small>De 3 zonas supervisadas</small></div><div class="stat-card"><span class="stat-icon blue"><svg class="ic"><use href="#i-refresh"/></svg></span><div class="stat-value">{{ recalculated }}</div><div class="stat-label">Rutas recalculadas</div><small>Alternativas consultadas</small></div></div>
-<div class="section-heading section-heading-spaced"><div><h2>Accesos rápidos</h2><p>Elige lo que quieres hacer hoy</p></div></div>
-<div class="quick-grid">
-{% if role == 'mesero' or role == 'capitan' or role == 'admin' %}<a class="quick-card" href="{% url 'routes' %}"><span class="quick-icon"><svg class="ic"><use href="#i-route"/></svg></span><strong>Consultar rutas</strong><p>Encuentra el mejor recorrido a cada mesa.</p><span class="quick-action">Abrir módulo <b>↗</b></span></a>{% endif %}
-{% if role == 'capitan' or role == 'gerente' or role == 'admin' %}<a class="quick-card" href="{% url 'saturation' %}"><span class="quick-icon rose"><svg class="ic"><use href="#i-activity"/></svg></span><strong>Saturación del salón</strong><p>Detecta cuellos de botella y zonas críticas.</p><span class="quick-action">Abrir módulo <b>↗</b></span></a><a class="quick-card" href="{% url 'analytics' %}"><span class="quick-icon purple"><svg class="ic"><use href="#i-chart"/></svg></span><strong>Indicadores</strong><p>Analiza el movimiento y los resultados.</p><span class="quick-action">Abrir módulo <b>↗</b></span></a>{% endif %}
-{% if role == 'capitan' or role == 'admin' %}<a class="quick-card" href="{% url 'vision' %}"><span class="quick-icon blue"><svg class="ic"><use href="#i-eye"/></svg></span><strong>Visión con OpenCV</strong><p>Procesa imágenes para estimar presencia.</p><span class="quick-action">Abrir módulo <b>↗</b></span></a>{% endif %}
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header simple-dashboard-header">
+  <div>
+    <div class="eyebrow dark-eyebrow">PANEL PRINCIPAL <span>·</span> OPERACIÓN EN VIVO</div>
+    <h1>¡Hola, {{ display_name|default:request.user.username }}! <span class="wave">✦</span></h1>
+    <p>Resumen claro del estado del salón, ocupación de mesas y flujo de servicio.</p>
+  </div>
+  <div class="header-actions-wrap">
+    <div class="header-status-pill">
+      <span class="live-beacon-dot"></span>
+      <span>Turno Activo</span>
+    </div>
+    {% if role == 'mesero' or role == 'capitan' or role == 'admin' %}
+      <a href="{% url 'routes' %}" class="btn btn-primary simple-header-btn">
+        <span>+ Nueva ruta</span> <span>→</span>
+      </a>
+    {% elif role == 'gerente' %}
+      <a href="{% url 'analytics' %}" class="btn btn-primary simple-header-btn">
+        <span>Ver indicadores</span> <span>→</span>
+      </a>
+    {% endif %}
+  </div>
 </div>
-<div class="panel-card activity-card"><div class="card-heading"><h3>Estado de las zonas</h3><span class="micro-label">NIVELES ACTUALES</span></div><div class="zones-overview">{% for zone in zones %}<div class="zone-overview-row"><span class="zone-letter">{{ zone.code }}</span><div><strong>Zona {{ zone.code }}</strong><small>Permanencia {{ zone.dwell_minutes|floatformat:1 }} min</small></div><span class="status-pill {{ zone.level }}">{{ zone.get_level_display }}</span></div>{% endfor %}</div></div>
+
+<!-- 4 Tarjetas Claras de Operación -->
+<div class="simple-kpi-grid four-cards">
+  <!-- Tarjeta 1: Mesas -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon green">
+        <svg class="ic"><use href="#i-layout"/></svg>
+      </span>
+      <span class="kpi-badge badge-ok">En sala</span>
+    </div>
+    <div class="simple-kpi-number">{{ tables_occupied }} <span class="denom">/ {{ tables_total }}</span></div>
+    <div class="simple-kpi-title">Mesas ocupadas</div>
+    <p class="simple-kpi-desc">
+      <strong>{{ tables_available }} libres</strong> · {{ tables_active }} con pedido activo
+    </p>
+  </div>
+
+  <!-- Tarjeta 2: Rutas / Viajes -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon orange">
+        <svg class="ic"><use href="#i-route"/></svg>
+      </span>
+      <span class="kpi-badge">Servicio</span>
+    </div>
+    <div class="simple-kpi-number">{{ total_routes }}</div>
+    <div class="simple-kpi-title">Viajes atendidos</div>
+    <p class="simple-kpi-desc">
+      {% if total_routes > 0 %}
+        <strong>{{ total_routes }} rutas hoy</strong> · {{ recalculated }} con desvío
+      {% else %}
+        Sin viajes registrados hoy
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Tarjeta 3: Pasillos / Tráfico -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon {% if congestion_count > 0 %}red{% else %}green{% endif %}">
+        <svg class="ic"><use href="{% if congestion_count > 0 %}#i-alert{% else %}#i-check{% endif %}"/></svg>
+      </span>
+      {% if congestion_count > 0 %}
+        <span class="kpi-badge badge-warn">Atención</span>
+      {% else %}
+        <span class="kpi-badge badge-ok">Despejado</span>
+      {% endif %}
+    </div>
+    <div class="simple-kpi-number">
+      {% if congestion_count > 0 %}
+        {{ congestion_count }} <span class="denom">demora</span>
+      {% else %}
+        0 <span class="denom">demoras</span>
+      {% endif %}
+    </div>
+    <div class="simple-kpi-title">Tráfico en pasillos</div>
+    <p class="simple-kpi-desc">
+      {% if congestion_count > 0 %}
+        {{ congestion_count }} zona con demora · Desvío automático
+      {% else %}
+        <strong>{{ zones_normal_count }} de {{ zones|length }} zonas</strong> con tránsito fluido
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Tarjeta 4: Comensales Detectados -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon blue">
+        <svg class="ic"><use href="#i-eye"/></svg>
+      </span>
+      <span class="kpi-badge">Visión</span>
+    </div>
+    <div class="simple-kpi-number">{{ recent_people_count }} <span class="denom">pax</span></div>
+    <div class="simple-kpi-title">Comensales detectados</div>
+    <p class="simple-kpi-desc">
+      {% if recent_vision %}
+        Último escaneo: {{ recent_vision.created_at|timesince }} atrás
+      {% else %}
+        Cámara lista para escanear
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- Dos Paneles Operativos Equilibrados -->
+<div class="dashboard-split-layout">
+  <!-- Panel 1: Estado de las Zonas (Semáforo de Pasillos) -->
+  <div class="panel-card dashboard-zones-card">
+    <div class="card-heading">
+      <div>
+        <h3>Estado de los pasillos</h3>
+        <p>Tiempo de permanencia y fluidez por cada zona del salón</p>
+      </div>
+      {% if role == 'capitan' or role == 'gerente' or role == 'admin' %}
+        <a href="{% url 'saturation' %}" class="card-link-action">Ajustar saturación <span>→</span></a>
+      {% endif %}
+    </div>
+
+    <div class="zone-traffic-list">
+      {% for zone in zones %}
+        <div class="zone-traffic-item">
+          <div class="zone-traffic-left">
+            <span class="zone-pill-code">{{ zone.code }}</span>
+            <div class="zone-info-text">
+              <strong>Zona {{ zone.code }}</strong>
+              <small>{{ zone.dwell_minutes|floatformat:1 }} min de permanencia promedio</small>
+            </div>
+          </div>
+
+          <div class="zone-traffic-right">
+            {% if zone.level == 'normal' %}
+              <span class="traffic-pill pill-green">🟢 Rápido</span>
+            {% elif zone.level == 'moderada' %}
+              <span class="traffic-pill pill-yellow">🟡 Moderado</span>
+            {% else %}
+              <span class="traffic-pill pill-red">🔴 Demora</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="zone-bottom-status">
+      {% if congestion_count > 0 %}
+        <span class="status-note note-warn">⚠️ Hay {{ congestion_count }} zona con demora. El sistema calcula desvíos automáticamente.</span>
+      {% else %}
+        <span class="status-note note-ok">✔ Tránsito fluido en todos los pasillos. Sin retrasos en las entregas.</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Panel 2: Actividad del Turno -->
+  <div class="panel-card dashboard-feed-card">
+    <div class="card-heading">
+      <div>
+        <h3>Actividad del turno</h3>
+        <p>Últimos recorridos de servicio atendidos</p>
+      </div>
+      <span class="live-beacon-tag">
+        <span class="live-dot"></span> EN VIVO
+      </span>
+    </div>
+
+    <div class="simple-feed-list">
+      {% if last_routes %}
+        {% for r in last_routes %}
+          <div class="simple-feed-row">
+            <div class="feed-left">
+              <span class="feed-arrow-badge">➔</span>
+              <div>
+                <strong>{{ r.origin }} hacia {{ r.destination }}</strong>
+                <small>{{ r.get_task_type_display|default:"Servicio" }} · Pedido por {{ r.user.first_name|default:r.user.username }}</small>
+              </div>
+            </div>
+            <div class="feed-right">
+              {% if r.recalculated %}
+                <span class="badge-tag tag-warning">Con desvío</span>
+              {% else %}
+                <span class="badge-tag tag-success">Directa</span>
+              {% endif %}
+              <span class="feed-time">{{ r.created_at|timesince }} atrás</span>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="simple-empty-box compact-empty-box">
+          <div class="empty-icon-wrap">🧭</div>
+          <h3>Sin viajes registrados hoy</h3>
+          <p>Cuando los meseros calculen recorridos entre cocina y mesas, aparecerán aquí en tiempo real.</p>
+          {% if role == 'mesero' or role == 'capitan' or role == 'admin' %}
+            <a href="{% url 'routes' %}" class="btn btn-outline-sm">Calcular primera ruta ➔</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Mini Banner Cámara Chef -->
+    {% if role == 'capitan' or role == 'admin' %}
+      <div class="mini-chef-cam-banner">
+        <div class="mini-cam-left">
+          <span class="mini-cam-icon">📸</span>
+          <div>
+            <strong>Cámara y Visión OpenCV</strong>
+            <small>Detección en tiempo real con escaneo de salón</small>
+          </div>
+        </div>
+        <a href="{% url 'vision' %}" class="btn btn-sm btn-ghost-accent">Abrir cámara ➔</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
