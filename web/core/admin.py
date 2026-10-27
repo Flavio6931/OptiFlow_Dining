@@ -1,6 +1,13 @@
 """Configuración del panel de administración nativo de Django."""
 from django.contrib import admin
-from .models import Profile, RouteConsultation, TableState, VisionAnalysis, Zone
+from .models import (
+    AdminNotification,
+    Profile,
+    RouteConsultation,
+    TableState,
+    VisionAnalysis,
+    Zone,
+)
 
 
 @admin.register(Profile)
@@ -30,6 +37,7 @@ class RouteConsultationAdmin(admin.ModelAdmin):
     """Auditoría y registro histórico de consultas de rutas."""
     list_display = (
         'user',
+        'assigned_waiter',
         'origin',
         'destination',
         'recalculated',
@@ -38,6 +46,13 @@ class RouteConsultationAdmin(admin.ModelAdmin):
         'created_at',
     )
     list_filter = ('recalculated', 'congested', 'completed')
+
+
+@admin.register(AdminNotification)
+class AdminNotificationAdmin(admin.ModelAdmin):
+    """Notificaciones para administradores."""
+    list_display = ('title', 'read', 'created_at')
+    list_filter = ('read',)
 
 
 admin.site.register(VisionAnalysis)

@@ -60,7 +60,18 @@ class RouteConsultation(models.Model):
         ('entrega', 'Entrega de comida'),
         ('retiro', 'Retiro de vajilla'),
     ]
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='requested_routes',
+    )
+    assigned_waiter = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_routes',
+    )
     origin = models.CharField(max_length=20)
     destination = models.CharField(max_length=20)
     task_type = models.CharField(max_length=12, choices=TASK_TYPES, default='entrega')
@@ -86,3 +97,18 @@ class VisionAnalysis(models.Model):
 
     def __str__(self):
         return f'{self.filename}: {self.people_count} detecciones'
+
+
+class AdminNotification(models.Model):
+    """Notificaciones y avisos operativos para administradores y capitanes."""
+    title = models.CharField(max_length=140)
+    message = models.TextField()
+    read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.title} ({"Leída" if self.read else "Pendiente"})'
+

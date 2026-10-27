@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, Q, Sum
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -21,7 +21,14 @@ from rest_framework.response import Response
 
 from .forms import LoginForm, RegisterForm
 from .layout import get_layout
-from .models import Profile, RouteConsultation, TableState, VisionAnalysis, Zone
+from .models import (
+    AdminNotification,
+    Profile,
+    RouteConsultation,
+    TableState,
+    VisionAnalysis,
+    Zone,
+)
 from .serializers import (
     RouteConsultationSerializer,
     RouteRequestSerializer,
@@ -70,15 +77,28 @@ def page_context(request, page_title, active):
     user = request.user
     full_name = user.get_full_name() or user.username
     layout = get_layout()
+    tables_state = list(TableState.objects.order_by('code'))
+    states_dict = {t.code: t.state for t in tables_state}
+    user_role = role_for(user)
+
+    unread_notifications_count = 0
+    notifications = []
+    if user.is_authenticated and user_role in ('admin', 'capitan'):
+        unread_notifications_count = AdminNotification.objects.filter(read=False).count()
+        notifications = list(AdminNotification.objects.filter(read=False)[:5])
+
     return {
         'page_title': page_title,
         'active': active,
-        'role': role_for(user),
+        'role': user_role,
         'display_name': full_name,
         'layout': layout,
         'layout_json': json.dumps(layout, ensure_ascii=False),
         'zones': list(Zone.objects.order_by('code')),
-        'tables_state': list(TableState.objects.order_by('code')),
+        'tables_state': tables_state,
+        'tables_map_json': json.dumps(states_dict, ensure_ascii=False),
+        'unread_notifications_count': unread_notifications_count,
+        'notifications': notifications,
     }
 
 
@@ -160,6 +180,15 @@ def dashboard(request):
     recent_vision = VisionAnalysis.objects.order_by('-created_at').first()
     efficiency_rate = round(((routes - recalculated) / routes) * 100, 1) if routes > 0 else 100.0
 
+    user_role = context['role']
+    last_routes = list(RouteConsultation.objects.select_related('user', 'assigned_waiter').order_by('-created_at')[:8])
+    assigned_to_me = []
+    if user_role == 'mesero':
+        assigned_to_me = list(RouteConsultation.objects.select_related('user', 'assigned_waiter').filter(
+            assigned_waiter=request.user,
+            completed=False,
+        ).order_by('-created_at')[:6])
+
     context.update({
         'total_routes': routes,
         'recalculated': recalculated,
@@ -172,7 +201,8 @@ def dashboard(request):
         'tables_active': tables_active,
         'tables_occupied': tables_occupied,
         'occupancy_pct': occupancy_pct,
-        'last_routes': RouteConsultation.objects.select_related('user').order_by('-created_at')[:4],
+        'last_routes': last_routes,
+        'assigned_to_me': assigned_to_me,
         'recent_vision': recent_vision,
         'recent_people_count': recent_vision.people_count if recent_vision else 0,
     })
@@ -183,7 +213,29 @@ def dashboard(request):
 def routes_view(request):
     """Vista de consulta interactiva de rutas."""
     context = page_context(request, 'Consultar rutas', 'routes')
-    context['recent_routes'] = RouteConsultation.objects.filter(user=request.user).order_by('-created_at')[:5]
+    user_role = context['role']
+    waiters = []
+    assigned_to_me = []
+
+    if user_role in ('capitan', 'admin'):
+        waiters = list(User.objects.filter(
+            Q(profile__role='mesero') | Q(is_superuser=False)
+        ).exclude(id=request.user.id).order_by('first_name', 'username'))
+        recent_routes = list(RouteConsultation.objects.select_related('user', 'assigned_waiter').order_by('-created_at')[:8])
+    else:
+        recent_routes = list(RouteConsultation.objects.select_related('user', 'assigned_waiter').filter(
+            Q(user=request.user) | Q(assigned_waiter=request.user)
+        ).order_by('-created_at')[:8])
+        assigned_to_me = list(RouteConsultation.objects.select_related('user', 'assigned_waiter').filter(
+            assigned_waiter=request.user,
+            completed=False,
+        ).order_by('-created_at'))
+
+    context.update({
+        'waiters': waiters,
+        'recent_routes': recent_routes,
+        'assigned_to_me': assigned_to_me,
+    })
     return render(request, 'routes.html', context)
 
 
@@ -395,8 +447,14 @@ def api_route(request):
             status=http_code,
         )
 
+    assigned_waiter_id = data.get('assigned_waiter')
+    assigned_waiter = None
+    if assigned_waiter_id and role_for(request.user) in ('admin', 'capitan'):
+        assigned_waiter = User.objects.filter(id=assigned_waiter_id).first()
+
     record = RouteConsultation.objects.create(
         user=request.user,
+        assigned_waiter=assigned_waiter,
         origin=origin,
         destination=destination,
         task_type=task_type,
@@ -406,6 +464,13 @@ def api_route(request):
         congested=result['congested'],
     )
     result['route_id'] = record.id
+    result['created_at'] = record.created_at.strftime('%d/%m/%Y %H:%M')
+    result['task_type_display'] = record.get_task_type_display()
+    result['destination_label'] = destination.upper()
+    result['assigned_waiter_name'] = (
+        assigned_waiter.get_full_name() or assigned_waiter.username
+        if assigned_waiter else ''
+    )
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -413,7 +478,13 @@ def api_route(request):
 @drf_role_required('mesero', 'capitan')
 def api_complete(request, pk):
     """API DRF para marcar una consulta de ruta como finalizada."""
-    record = get_object_or_404(RouteConsultation, pk=pk, user=request.user)
+    if role_for(request.user) in ('admin', 'capitan'):
+        record = get_object_or_404(RouteConsultation, pk=pk)
+    else:
+        record = get_object_or_404(
+            RouteConsultation,
+            Q(pk=pk) & (Q(user=request.user) | Q(assigned_waiter=request.user)),
+        )
     record.completed = True
     record.save(update_fields=['completed'])
     return Response(
@@ -446,6 +517,7 @@ def api_update_zone(request, code):
         'success': True,
         'code': zone.code,
         'level': zone.level,
+        'level_display': zone.get_level_display(),
         'dwell_minutes': minutes,
         'alert': level == 'critica' and minutes > 4,
     }, status=status.HTTP_200_OK)
@@ -516,12 +588,102 @@ def api_vision(request):
         s3_key = ''
         result['aws_warning'] = 'No se pudo guardar la imagen en AWS S3. Revisa el bucket y los permisos IAM.'
 
+    # Propagación automática de afluencia OpenCV a niveles de saturación de zonas (Req 3 & 8)
+    updated_zones_info = []
+    zone_counts = result.get('zone_counts', {})
+    for code, count in zone_counts.items():
+        zone_obj = Zone.objects.filter(code=code.upper()).first()
+        if zone_obj:
+            if count >= 3:
+                zone_obj.level = 'critica'
+                zone_obj.dwell_minutes = max(zone_obj.dwell_minutes, 4.5)
+            elif count >= 1:
+                if zone_obj.level != 'critica':
+                    zone_obj.level = 'moderada'
+                    zone_obj.dwell_minutes = max(zone_obj.dwell_minutes, 2.5)
+            else:
+                if zone_obj.dwell_minutes <= 2.0:
+                    zone_obj.level = 'normal'
+            zone_obj.save(update_fields=['level', 'dwell_minutes', 'updated_at'])
+            updated_zones_info.append({
+                'code': zone_obj.code,
+                'level': zone_obj.level,
+                'level_display': zone_obj.get_level_display(),
+                'dwell_minutes': round(zone_obj.dwell_minutes, 1),
+                'people_count': count,
+            })
+
     VisionAnalysis.objects.create(
         user=request.user,
         filename=uploaded.name[:180],
         people_count=result['people_count'],
-        zone_counts=result['zone_counts'],
+        zone_counts=zone_counts,
         s3_key=s3_key,
     )
     result['aws_saved'] = bool(s3_key)
+    result['s3_key'] = s3_key
+    if s3_key:
+        result['s3_status'] = f'Evidencia archivada en AWS S3 ({s3_key})'
+    elif result.get('aws_warning'):
+        result['s3_status'] = 'Almacenamiento local (falló conexión a AWS S3)'
+    else:
+        result['s3_status'] = 'Almacenamiento local (AWS S3 no configurado)'
+
+    result['updated_zones'] = updated_zones_info
+    result['sync_notice'] = (
+        'Saturación de zonas sincronizada con OpenCV. El ruteo Dijkstra esquivará '
+        'automáticamente los pasillos con mayor aglomeración.'
+    )
     return Response(result, status=status.HTTP_200_OK)
+
+
+@login_required
+def profile_view(request):
+    """Vista de perfil y estadísticas de cuenta para meseros y administradores."""
+    context = page_context(request, 'Mi Perfil', 'profile')
+    user = request.user
+    role = context['role']
+
+    # Estadísticas operativas del usuario actual
+    total_completed = RouteConsultation.objects.filter(
+        Q(user=user) | Q(assigned_waiter=user),
+        completed=True,
+    ).count()
+
+    total_assigned = RouteConsultation.objects.filter(assigned_waiter=user).count()
+    assigned_pending = RouteConsultation.objects.filter(assigned_waiter=user, completed=False).count()
+    recent_activity = RouteConsultation.objects.select_related('user', 'assigned_waiter').filter(
+        Q(user=user) | Q(assigned_waiter=user),
+    ).order_by('-created_at')[:6]
+
+    admin_stats = {}
+    all_notifications = []
+    if role in ('admin', 'capitan'):
+        admin_stats = {
+            'total_waiters': User.objects.filter(profile__role='mesero').count(),
+            'total_routes_system': RouteConsultation.objects.count(),
+            'unread_notifications': AdminNotification.objects.filter(read=False).count(),
+        }
+        all_notifications = list(AdminNotification.objects.order_by('-created_at')[:10])
+
+    context.update({
+        'profile_user': user,
+        'total_completed': total_completed,
+        'total_assigned': total_assigned,
+        'assigned_pending': assigned_pending,
+        'recent_activity': recent_activity,
+        'admin_stats': admin_stats,
+        'all_notifications': all_notifications,
+    })
+    return render(request, 'profile.html', context)
+
+
+@api_view(['POST'])
+@drf_role_required('capitan')
+def api_mark_notification_read(request, pk):
+    """API para marcar una notificación administrativa como leída."""
+    notif = get_object_or_404(AdminNotification, pk=pk)
+    notif.read = True
+    notif.save(update_fields=['read'])
+    return Response({'success': True, 'id': notif.id})
+

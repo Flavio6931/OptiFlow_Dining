@@ -108,6 +108,21 @@
   </div>
 </div>
 
+{% if assigned_to_me %}
+  <div class="assigned-pending-banner">
+    <div class="assigned-banner-left">
+      <span class="assigned-pulse-icon">⚡</span>
+      <div>
+        <h4>Tienes {{ assigned_to_me|length }} tarea{{ assigned_to_me|pluralize }} asignada{{ assigned_to_me|pluralize }} para tu turno</h4>
+        <p>Capitanía te ha asignado servicios de entrega y retiro pendientes de atención.</p>
+      </div>
+    </div>
+    <div class="assigned-banner-right">
+      <a href="{% url 'routes' %}" class="btn btn-primary btn-sm">Ver y atender tareas en el mapa ➔</a>
+    </div>
+  </div>
+{% endif %}
+
 <!-- Dos Paneles Operativos Equilibrados -->
 <div class="dashboard-split-layout">
   <!-- Panel 1: Estado de las Zonas (Semáforo de Pasillos) -->
@@ -160,7 +175,7 @@
     <div class="card-heading">
       <div>
         <h3>Actividad del turno</h3>
-        <p>Últimos recorridos de servicio atendidos</p>
+        <p>Recorridos de servicio y trazabilidad de meseros</p>
       </div>
       <span class="live-beacon-tag">
         <span class="live-dot"></span> EN VIVO
@@ -172,17 +187,26 @@
         {% for r in last_routes %}
           <div class="simple-feed-row">
             <div class="feed-left">
-              <span class="feed-arrow-badge">➔</span>
+              <span class="feed-arrow-badge {% if r.completed %}completed-badge{% endif %}">➔</span>
               <div>
-                <strong>{{ r.origin }} hacia {{ r.destination }}</strong>
-                <small>{{ r.get_task_type_display|default:"Servicio" }} · Pedido por {{ r.user.first_name|default:r.user.username }}</small>
+                <strong>{{ r.origin|title }} hacia {{ r.destination|upper }}</strong>
+                <div class="feed-meta-row">
+                  <span class="feed-author">Pedido por {{ r.user.get_full_name|default:r.user.username }}</span>
+                  {% if r.assigned_waiter %}
+                    <span class="feed-assigned-badge">
+                      👤 Asignado a: <strong>{{ r.assigned_waiter.get_full_name|default:r.assigned_waiter.username }}</strong>
+                    </span>
+                  {% endif %}
+                </div>
               </div>
             </div>
             <div class="feed-right">
-              {% if r.recalculated %}
+              {% if r.completed %}
+                <span class="badge-tag tag-success">✓ Finalizada</span>
+              {% elif r.recalculated %}
                 <span class="badge-tag tag-warning">Con desvío</span>
               {% else %}
-                <span class="badge-tag tag-success">Directa</span>
+                <span class="badge-tag tag-neutral">En curso</span>
               {% endif %}
               <span class="feed-time">{{ r.created_at|timesince }} atrás</span>
             </div>

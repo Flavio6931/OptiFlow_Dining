@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <!-- Subtle circular boundary halo -->
+  <circle cx="100" cy="100" r="96" fill="rgba(6, 18, 38, 0.65)" stroke="rgba(56, 189, 248, 0.25)" stroke-width="1.5"/>
+  
+  <!-- Outer orange ring -->
+  <circle cx="100" cy="86" r="46" fill="none" stroke="#ff7b3d" stroke-width="11" stroke-linecap="round"/>
+  
+  <!-- Inner orange ring -->
+  <circle cx="100" cy="86" r="26" fill="none" stroke="#ff7b3d" stroke-width="11" stroke-linecap="round"/>
+  
+  <!-- OPTIFLOW text -->
+  <text x="100" y="160" text-anchor="middle" fill="#ffffff" font-family="'Montserrat', 'Inter', system-ui, sans-serif" font-size="15" font-weight="750" letter-spacing="3.5">OPTIFLOW</text>
+</svg>

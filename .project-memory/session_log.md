@@ -356,6 +356,133 @@
 - **Verificación:**
   - `git status`: Working tree limpio, rama sincronizada con `origin/main`.
 
+## Sesión - 2026-10-26 (Implementación Fase 1: Sincronización de Mesas, Nodos Interactivos, Mapa de Calor y Cero F5)
+- **Documento de Requerimientos:**
+  - Inspección del archivo Word `Página principal más diseño una instrucción al sistema.docx` con extracción de 12 requerimientos y 4 imágenes de la plataforma.
+- **Acciones Realizadas (Fase 1):**
+  - **Sincronización de Mesas en Rutas:** Modificado [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py) (`page_context`) para proveer `tables_map_json` a [routes.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/routes.html). El mapa de rutas ahora lee los estados reales de BD y colorea las mesas (verde Disponible, azul Activa, naranja Ocupada).
+  - **Interactividad en Puntos Rojos (!):** Actualizado [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js) para envolver los nodos de congestión en grupos SVG interactivos con halo pulsante (`pulseRing`). Al hacer clic en un punto rojo, se despliega el modal `#congestion-modal` con diagnóstico del pasillo y sector, motivo del riesgo de demora y botón directo de desvío Dijkstra.
+  - **Mapa de Calor Coherente con Sectores:** En [saturation.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/saturation.html), vinculadas las zonas con sus nombres de salón y mesas (Zona A: Salón Jardín · 01/05; Zona B: Pasillo Central · 02/06; Zona C: Salón Terraza · 03/04/07/08), con umbrales legibles y sincronización dinámica del selector al cambiar minutos.
+  - **Reactividad Instantánea Cero F5:** En [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js), inserción reactiva inmediata de la nueva fila en `#recent-routes-tbody` con animación `rowSlideIn`. Actualización instantánea de la píldora a "Finalizada" al completar tarea. Actualización reactiva de las tarjetas de calor y alertas en `/saturacion/` sin `location.reload()`.
+  - **Mensajería Asistida en 3 Partes:** Rediseñado `#route-feedback` con badges Dark Hospitality, iconos y estructura guiada (Qué ocurrió, Por qué, Qué acción tomar).
+  - **Estilos y Estáticos:** Creados estilos modales, halo de congestión y animación de filas en [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css) y ejecutado `collectstatic`.
+- **Verificación:**
+  - `python web/manage.py test core`: 9/9 pruebas unitarias aprobadas (`OK`).
+  - `collectstatic`: 2 archivos estáticos copiados y post-procesados.
+
+## Sesión - 2026-10-26 (Implementación Fase 2: Perfil de Usuario, Asignación de Meseros y Notificaciones Admin)
+- **Objetivo:**
+  - Desarrollar los requerimientos 5, 7 y 9 del documento de especificaciones técnicas: vista de perfil con métricas personales, validación estricta de registro, sistema de notificaciones administrativas con campana en topbar, asignación de rutas por capitanes/administración, y atención rápida de tareas para meseros.
+- **Acciones Realizadas (Fase 2):**
+  - **Modelos y Migración de Base de Datos:**
+    - Creado modelo `AdminNotification` (`title`, `message`, `read`, `created_at`) en [models.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/models.py).
+    - Agregado campo `assigned_waiter` (ForeignKey opcional a `User`, related_name `assigned_routes`) en `RouteConsultation`.
+    - Generada migración `0002_adminnotification_routeconsultation_assigned_waiter_and_more.py` y aplicada exitosamente con `python web/manage.py migrate`.
+    - Registrado `AdminNotification` en el panel de [admin.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/admin.py).
+  - **Serializadores DRF y Formularios:**
+    - Actualizados [serializers.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/serializers.py) (`RouteRequestSerializer` y `RouteConsultationSerializer`) para recibir y serializar `assigned_waiter`.
+    - En [forms.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/forms.py), agregada validación estricta mediante expresiones regulares en `clean_first_name`, `clean_last_name`, `clean_username` y `clean_email`. Disparo automático de `AdminNotification` alertando a la administración del nuevo registro.
+  - **Vistas y Endpoints:**
+    - En [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py):
+      - `page_context`: provee `notifications` no leídas y `unread_notifications_count` al topbar.
+      - `profile_view`: vista `/perfil/` con identidad, avatar, estadísticas de cumplimiento, avisos y tareas asignadas.
+      - `api_mark_notification_read`: endpoint POST `/api/notificaciones/<id>/leer/` para marcar leída asíncronamente.
+      - `api_route`: almacena `assigned_waiter` y retorna `assigned_waiter_name`.
+      - `api_complete`: autoriza tanto al solicitante como al mesero asignado para finalizar la tarea.
+  - **Plantillas HTML Integradas:**
+    - [base.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/base.html): Campana de notificaciones con badge animado y dropdown interactivo; chip de usuario interactivo vinculado a `/perfil/`; enlace directo en el sidebar.
+    - [profile.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/profile.html): Vista de perfil Dark Hospitality completa.
+    - [routes.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/routes.html): Bloque de tareas asignadas para meseros con botón de carga inmediata (`Atender ➔`); selector de asignación de mesero para capitanes/admin; columna de Responsable en el historial.
+    - [dashboard.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/dashboard.html): Banner de tareas asignadas para meseros; feed de actividad con nombres limpios y badges de autor ("Pedido por admin") y mesero asignado ("Asignado a: Daniel Gallego").
+  - **Interacciones JavaScript y Estilos CSS:**
+    - [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js): Envío de `assigned_waiter`, renderizado reactivo de la fila de historial con badge de asignación, soporte para quick-load de tareas asignadas (`.btn-quick-load`), y apertura/cierre y marcado de avisos leídos sin F5.
+    - [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css): Estilos para campana, dropdown, badges de asignación, vista de perfil y banners.
+  - **Suite de Pruebas Automatizadas:**
+    - Creadas 3 nuevas pruebas en [tests.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/tests.py) para creación de notificaciones en registro, asignación de rutas y finalización por mesero, y consulta de perfil/marcado de notificaciones.
+- **Verificación:**
+  - `python web/manage.py test core`: 12/12 pruebas unitarias aprobadas (`OK`).
+  - `python web/manage.py collectstatic --noinput`: Estáticos recolectados y listos.
+
+## Sesión - 2026-10-26 (Implementación Fase 3: Conexión OpenCV-Dijkstra, AWS S3 y Optimización Touch-First)
+- **Objetivo:**
+  - Desarrollar y verificar los requerimientos 3, 8, 10 y 11 del documento de especificaciones técnicas: impacto automático de afluencia detectada por OpenCV en las zonas de saturación y rutas de Dijkstra, sincronización en vivo con alertas asistidas, integración y verificación de almacenamiento en la nube AWS S3, y diseño responsive touch-first para meseros en tablets y smartphones.
+- **Acciones Realizadas (Fase 3):**
+  - **Conexión OpenCV ➔ Saturación ➔ Dijkstra (Req 3 & 8):**
+    - En [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py) (`api_vision`): el conteo de personas por sector (`zone_counts`) actualiza automáticamente los registros `Zone` correspondientes en BD (niveles Normal, Moderada, Crítica y minutos de permanencia proporcionales).
+    - En [main.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/services/routing/main.py) (microservicio de ruteo): Dijkstra mapea dinámicamente cada zona crítica a sus nodos espaciales neurálgicos (`1,2` para Zona A, `2,2` para Zona B, `3,2` para Zona C), permitiendo recalcular y esquivar trayectos saturados de forma quirúrgica.
+    - En [vision.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/vision.html) y [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js): implementado banner reactivo `#vision-sync-alert` y desglose visual enriquecido por sectores físicos (`Salón Jardín`, `Pasillo Central`, `Salón Terraza`) con píldoras de semáforo.
+  - **Gestión y Verificación de AWS S3 (Req 10):**
+    - Verificación del bucket S3 en `api_vision` y `services.py`. Si S3 está activo, almacena la evidencia digital encriptada; si no está configurado, activa fallback local no invasivo mostrando el estado exacto en `#vision-s3-status`.
+  - **Optimización Táctil (Touch-First) Mobile y Tablet (Req 11):**
+    - En [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css): asegurada el área táctil mínima universal de 44px (WCAG 2.5.5 / 2.5.8), `touch-action: manipulation` para suprimir retardos de tap, menú hamburguesa de 44x44px, apilamiento vertical suave de controles y mapas para tablets de sala (iPad, Surface) y teléfonos móviles sin cortes ni scroll horizontal desbordado.
+  - **Suite de Pruebas Automatizadas:**
+    - Agregada prueba `test_vision_propagates_to_zone_and_dijkstra` en [tests.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/tests.py) validando la actualización de `Zone.level` a 'critica' tras detección de 4 comensales y el desvío automático de Dijkstra con `avoid_congestion=True`.
+- **Verificación:**
+  - `python web/manage.py test core`: 13/13 pruebas unitarias aprobadas (`OK`).
+  - `python web/manage.py collectstatic --noinput`: Estáticos recolectados y listos.
+  - Servidor local verificado respondiendo HTTP 200 en `http://localhost:8000/`.
+
+## Sesión - 2026-10-26 (Ajuste Visual de Espaciado en Tarjetas de Perfil y Widgets)
+- **Problema Reportado:**
+  - Tras implementar la cuadrícula 2x2 para las métricas operativas, la separación vertical entre tarjetas acumulaba doble margen (flex `gap: 24px` + `margin-bottom: 24px` = 48px), generando un vacío visual excesivo.
+- **Acciones Realizadas:**
+  - En [profile.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/profile.html):
+    - Reducido el gap de `.profile-left-col` a `14px` y eliminado el `margin-bottom` residual de `.profile-user-card` (`margin-bottom: 0`).
+    - Configurado el espaciado interno de `.profile-kpi-grid` a `row-gap: 12px; column-gap: 12px; margin-top: 14px;` para una distribución compacta y armónica de los 4 widgets de métricas.
+  - En [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css):
+    - Homogeneizado `.profile-left-col, .profile-right-col` con `gap: 14px`.
+    - Ajustado `.profile-kpi-grid` con `row-gap: 12px; column-gap: 12px; margin-top: 14px;`.
+  - En [base.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/base.html):
+    - Actualizado parámetro cache-busting a `?v=20261026_profile_balanced`.
+  - Recopilados los archivos estáticos con `collectstatic --noinput` (415 archivos post-procesados).
+- **Verificación:**
+  - Suite de pruebas de Django: 13/13 pruebas aprobadas (`OK`).
+  - Verificación en consola de Django Shell: `/perfil/` responde HTTP 200 con espaciado equilibrado (`gap: 14px`).
+
+## Sesión - 2026-10-26 (Configuración Definitiva del Logotipo en Login: Isotipo Espiral con Tenedores Estático)
+- **Solicitud del Usuario:**
+  - *"siguie igual quiero que sea igual a de la segunda imagen"* (señalando el isotipo oficial en espiral con tenedores).
+- **Acciones Realizadas:**
+  - En [login.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/login.html) y [register.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/register.html):
+    - Reemplazados los SVGs experimentales por el isotipo oficial exacto de la segunda imagen: **`optiflow_icon.png` (espiral anaranjada con tenedores)**, tanto en el header como dentro de la tarjeta de login (`.auth-card-logo`).
+  - En [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css):
+    - Mantenido `brandLogoSlowSpin 26s linear infinite` en `.brand-logo-img` para el topbar y sidebar general (con movimiento continuo).
+    - Desactivada la animación de forma específica y estricta en el login (`.auth-brand-lockup .brand-logo-img` y `.auth-card-logo` con `animation: none !important; transform: none !important;`), manteniéndolo estático y nítido.
+  - En [public.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/public.html):
+    - Actualizado link de CSS a `?v=20261026_logo_spiral_static`.
+  - Ejecutado `collectstatic --noinput` (419 archivos post-procesados).
+- **Verificación:**
+  - Suite de pruebas unitarias: **13/13 pruebas aprobadas (OK)**.
+  - Verificación en Django Shell: `/login/` responde HTTP 200 con dos instancias de `optiflow_icon.png` estáticas.
+
+## Sesión - 2026-10-26 (Integración del Logotipo Espiral en Radar de Landing: Órbita Central Estática)
+- **Solicitud del Usuario:**
+  - *"donde dice optiflow ponle este logo"* (adjuntando captura de la landing page señalando el círculo orbital donde dice "OPTIFLOW" junto con la imagen del isotipo espiral oficial con tenedores `optiflow_icon.png`).
+- **Acciones Realizadas:**
+  - En [landing.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/landing.html):
+    - Reemplazado el símbolo concéntrico de texto `◎` dentro de `.orbit-center` por el isotipo oficial `<img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Logo" class="landing-orbit-logo">`, manteniendo debajo la etiqueta `<small>OPTIFLOW</small>`.
+  - En [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css):
+    - Añadida regla para `.landing-orbit-logo` (96px x 96px, resplandor drop-shadow naranja `#ff713a`, `animation: none !important; transform: none !important;`).
+    - Confirmada la rotación continua suave (`brandLogoSlowSpin 26s`) para el logotipo de marca en topbar y sidebar.
+  - En [public.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/public.html):
+    - Actualizado query param de caché a `?v=20261026_orbit_logo`.
+  - Ejecutado `collectstatic --noinput` (419 archivos post-procesados).
+- **Verificación:**
+  - Suite de pruebas: **13/13 pruebas aprobadas (OK)**.
+  - Verificación HTTP en `http://localhost:8000/`: Respuesta 200 con imagen `optiflow_icon` en `.orbit-center` estática sin giros.
+- **Calibración a 92px y Desacoplamiento del Nombre:**
+  - Se escaló el logo a **92px** para mayor presencia visual en la órbita.
+  - Se neutralizó el `margin-top: -10px` heredado en `.orbit-center small` aplicando `margin: 0 !important; margin-top: 10px !important;` y flex vertical explícito en el contenedor, eliminando por completo cualquier solapamiento sobre las letras de `OPTIFLOW`.
+
+
+
+
+
+
+
+
+
+
 
 
 

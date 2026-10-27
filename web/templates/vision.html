@@ -155,11 +155,30 @@
     </div>
 
     <div id="vision-results" hidden>
-      <div class="vision-metric">
-        <span>Personas detectadas (estimación)</span>
-        <strong id="vision-people">0</strong>
+      <div id="vision-sync-alert" class="vision-sync-banner" hidden>
+        <span class="sync-icon">⚡</span>
+        <div class="sync-text">
+          <strong id="vision-sync-title">Zonas Sincronizadas con OpenCV</strong>
+          <p id="vision-sync-desc"></p>
+        </div>
       </div>
-      <div class="vision-zones" id="vision-zone-counts"></div>
+
+      <div class="vision-metric-row">
+        <div class="vision-metric">
+          <span>Personas detectadas</span>
+          <strong id="vision-people">0</strong>
+        </div>
+        <div class="vision-s3-box">
+          <span class="s3-label">Evidencia Digital:</span>
+          <div id="vision-s3-status" class="vision-s3-badge">Almacenamiento local</div>
+        </div>
+      </div>
+
+      <div class="vision-zones-wrapper">
+        <div class="vision-zones-title">Distribución por sectores y niveles:</div>
+        <div class="vision-zones" id="vision-zone-counts"></div>
+      </div>
+
       <div class="annotated-image-wrapper">
         <img id="vision-annotated" class="vision-image" alt="Fotografía con rectángulos de detección generados por OpenCV">
       </div>

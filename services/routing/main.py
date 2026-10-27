@@ -113,8 +113,21 @@ def route(request: RouteRequest) -> Dict[str, Any]:
 
     start = ORIGINS[request.origin]
     end = TABLES[request.destination]
-    has_congestion = any(request.zone_levels.get(zone) == 'critica' for zone in ('B', 'C'))
-    risky = CONGESTION if has_congestion else set()
+
+    # Mapeo espacial de nodos neurálgicos por zona topológica:
+    zone_risk_nodes: Dict[str, Set[str]] = {
+        'A': {'1,2'},
+        'B': {'2,2'},
+        'C': {'3,2'},
+    }
+    risky: Set[str] = set()
+    for z_code, z_level in request.zone_levels.items():
+        if z_level == 'critica' and z_code in zone_risk_nodes:
+            risky.update(zone_risk_nodes[z_code])
+
+    # Si no se especificó nivel por zona, usar la congestión demo si B o C tienen alerta
+    if not risky and any(request.zone_levels.get(zone) == 'critica' for zone in ('B', 'C')):
+        risky = set(CONGESTION)
 
     path = shortest(start, end, risky if request.avoid_congestion else set())
     if path is None:

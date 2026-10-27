@@ -11,6 +11,7 @@ class RouteRequestSerializer(serializers.Serializer):
     destination = serializers.CharField(max_length=20, default='mesa08')
     task_type = serializers.ChoiceField(choices=['entrega', 'retiro'], default='entrega')
     avoid_congestion = serializers.BooleanField(default=False)
+    assigned_waiter = serializers.IntegerField(required=False, allow_null=True)
 
     def validate(self, attrs):
         """Valida que origen y destino existan en el layout del restaurante."""
@@ -35,6 +36,7 @@ class RouteConsultationSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'user',
+            'assigned_waiter',
             'origin',
             'destination',
             'task_type',

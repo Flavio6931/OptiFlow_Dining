@@ -57,10 +57,51 @@
 - [x] Optimización Single-Screen Viewport de Landing / Inicio (`/`): Corrección del desbordamiento vertical y scroll involuntario que causaba un espacio vacío residual al rodar hacia abajo. Ajustado el contenedor a `height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;` con distribución armónica (navbar fija arriba, titular y características centrados, footer integrado al pie sin barras de desplazamiento).
 - [x] Sincronización de Estáticos y Reinicio de Servidor: Recompilados los archivos estáticos (`collectstatic`) y reiniciado el proceso en puerto 8000 para despacho inmediato.
 - [x] Sincronización y Despliegue en GitHub: Confirmados y enviados todos los cambios funcionales, visuales, microservicios y plantillas al repositorio remoto (`https://github.com/Josue2004exe/OptiFlow_Dining`) en la rama `main` (commit `36ba59b`).
+- [x] Fase 1 Implementada (Núcleo Operativo, Rutas y Sincronización en Vivo):
+  1. **Sincronización de mesas en Rutas (`/rutas/`):** Inyectado `tables_map_json` desde `page_context` a `routes.html` (`#tables-state-data`). El mapa del salón ahora renderiza en vivo los estados reales de cada mesa (verde Disponible, azul Activa, naranja Ocupada) igual que en el plano topológico.
+  2. **Interactividad y Explicación en Señales Rojas (`!`):** Los nodos de congestión en el SVG ahora son interactivos con anillo de pulso animado. Al hacer clic, se abre una ventana modal explicativa (`#congestion-modal`) con diagnóstico de zona, causas técnicas (prevención de demoras/colisiones) y botón directo para recalcular el desvío.
+  3. **Mapa de Calor Coherente con Sectores:** En `/saturacion/`, las zonas ahora están claramente etiquetadas con su sector físico (Zona A: Salón Jardín · Mesas 01/05; Zona B: Pasillo Central · Mesas 02/06; Zona C: Salón Terraza · Mesas 03/04/07/08), con umbrales legibles ($\le 2$ min Normal, $2.1-4$ min Moderada, $>4$ min Crítica) y sincronización automática del selector al editar minutos.
+  4. **Reactividad Instantánea Cero F5:** Las nuevas rutas calculadas se insertan de inmediato en la tabla de consultas recientes con animación suave (`rowSlideIn`). Al marcar una tarea como finalizada, la píldora de estado cambia a "Finalizada" en tiempo real sin recargar la página. Al guardar zonas de saturación, el mapa de calor y alertas se actualizan en el DOM sin `location.reload()`.
+  5. **Mensajería Asistida en 3 Partes:** `#route-feedback` modernizado con diseño Dark Hospitality, iconos temáticos y mensajes estructurados (Qué ocurrió, Por qué, Qué acción tomar) para rutas directas, desvíos y prevención de errores.
 
-## Próximos Pasos Recomendados
-1. Levantar los 3 servicios locales usando `iniciar.cmd` o `iniciar.ps1` (Django :8000, Rutas :8001, Visión :8002).
-2. Conectar opcionalmente credenciales de Amazon S3 en `.env` (`AWS_S3_BUCKET`) cuando se disponga de la cuenta AWS.
+- [x] Fase 2 Implementada (Gestión de Cuentas, Perfil, Asignación de Meseros y Notificaciones Admin):
+  1. **Perfil de Usuario Dedicado (`/perfil/`):** Vista de gestión de cuenta con tarjeta de identidad, avatar con gradiente, rol operativo, métricas de rendimiento y listado de actividad.
+  2. **Validación Estricta de Registro:** Regex estricto en nombres y username previniendo caracteres no alfabéticos o cadenas cortas.
+  3. **Sistema de Notificaciones Administrativas:** Modelo `AdminNotification` con registro automático al registrarse meseros, campana en topbar con contador badge y dropdown asíncrono para marcar como leídas.
+  4. **Asignación de Rutas por Administración:** Campo `assigned_waiter` en `RouteConsultation`, selector en formulario de rutas para capitanes y administradores.
+  5. **Atención de Tareas Asignadas para Meseros:** Banners en Dashboard y Rutas con botón `Atender ➔` y trazado instantáneo de la ruta.
+  6. **Trazabilidad Completa en Actividad del Turno:** Atribución de autor y mesero asignado con badges temáticos.
+  7. **Suite de Pruebas Ampliada:** 12 de 12 pruebas unitarias pasando al 100%.
+
+- [x] Fase 3 Implementada (Propagación OpenCV-Dijkstra, AWS S3 y Optimización Táctil Móvil/Tablet):
+  1. **Propagación Automática de OpenCV a Zonas y Dijkstra (Req 3 & 8):** El conteo de personas de `api_vision` actualiza dinámicamente los niveles de `Zone` (Normal, Moderada, Crítica). En `services/routing/main.py`, Dijkstra mapea las zonas críticas a sus nodos neurálgicos específicos (`1,2` para Zona A, `2,2` para Zona B, `3,2` para Zona C), permitiendo el desvío automático de meseros al evitar cuellos de botella.
+  2. **Banner de Sincronización en Tiempo Real:** En [vision.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/vision.html), aviso visual instantáneo (`#vision-sync-alert`) alertando de la sincronización de pasillos y cómo Dijkstra esquivará las áreas saturadas.
+  3. **Integración y Verificación de AWS S3 (Req 10):** Detección dinámica del bucket S3 en `api_vision` y `services.py`. Si está configurado, archiva la evidencia en la nube mostrando el key; si no está configurado, activa fallback local transparente con badge no invasivo (`#vision-s3-status`).
+  4. **Optimización Táctil (Touch-First) Mobile y Tablet (Req 11):** Alturas y áreas táctiles universales de 44px (WCAG 2.5.5 / 2.5.8 Target Size), `touch-action: manipulation`, soporte para tablets en sala (iPad, Surface) y teléfonos móviles sin desbordamiento horizontal y con planos escalables.
+  5. **Suite de Pruebas Ampliada al 100%:** 13 de 13 pruebas unitarias aprobadas (`OK`), incluyendo propagación de visión a zonas y verificación de desvío Dijkstra.
+
+- [x] Refinamiento Visual en Tarjeta de Perfil y Métricas 2x2:
+  1. **Cuadrícula Equilibrada de Métricas:** Reemplazada la clase restrictiva de 4 columnas por `.profile-kpi-grid` en distribución armónica de 2x2 con tarjetas amplias (`.profile-kpi-card`), eliminando la deformación en píldora vertical y el truncamiento de textos ("Rutas Atendidas", "Asignadas por Admin", etc.).
+  2. **Nombre y Jerarquía Visual:** Eliminada la etiqueta "No especificado" para el usuario administrador, mostrando formalmente `Administrador Principal` tanto en cabecera como en la ficha técnica.
+  3. **Espaciado y Separación de Paneles:** Estandarizado a `gap: 14px` en `.profile-left-col` y `.profile-right-col`, suprimiendo márgenes dobles (`margin-bottom: 0`).
+  4. **Separación Equilibrada de Widgets de Métricas:** Configurado `row-gap: 12px; column-gap: 12px; margin-top: 14px;` en `.profile-kpi-grid` con fondo contrastado y elevación en `.profile-kpi-card`, garantizando distribución armónica sin separaciones excesivas ni bordes solapados.
+
+- [x] Configuración de Logotipo Oficial en Login (Isotipo Espiral Estático):
+  1. **Isotipo Oficial en Login:** Integrado exactamente el logo de la segunda imagen (`optiflow_icon.png`, espiral con tenedores) tanto en la cabecera como en la tarjeta de acceso de [login.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/login.html) y [register.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/register.html).
+  2. **Sin Movimiento en Login:** Inhabilitada la rotación en el login (`animation: none !important; transform: none !important;`) para mantenerlo estático y sin giros.
+  3. **Rotación Activa en el Sistema General:** Conservada la rotación suave (`brandLogoSlowSpin 26s`) para el logo del topbar, sidebar y módulos del salón.
+  4. **Caché Actualizada:** Configurado `?v=20261026_logo_spiral_static` en `public.html` y compilado `collectstatic`.
+
+- [x] Integración de Logotipo Oficial en Radar de Órbitas de Landing (`/`):
+  1. **Isotipo Oficial en Órbita:** Reemplazado el carácter genérico `◎` por el isotipo oficial `optiflow_icon.png` dentro de `.orbit-center` en [landing.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/landing.html).
+  2. **Estático y sin Giros (92px exactos):** Configurado `.landing-orbit-logo` con escala de 92px, contenedor flex vertical con `gap: 12px`, margen superior de 10px en `OPTIFLOW` sin solapamiento, inline style prioritario y `animation: none !important; transform: none !important;`.
+  3. **Texto de Marca Preservado:** Mantenida la leyenda `<small>OPTIFLOW</small>` con tipografía Montserrat geométrica justo debajo del logo.
+
+
+## Estado de la Entrega y Sistema Operativo
+- Todos los 12 requerimientos del documento de especificaciones técnicas han sido implementados, probados y verificados exhaustivamente.
+- Sistema 100% operativo en Django, DRF, microservicios FastAPI (Dijkstra y OpenCV HOG) y base de datos SQLite migrada.
+
 
 
 

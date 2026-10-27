@@ -422,11 +422,19 @@
       canvas.append(svg('circle', { cx: end[0], cy: end[1], r: 10, class: 'floor-route-dot' }));
     }
 
-    // 9. Puntos de congestión detectados
+    // 9. Puntos de congestión detectados (Interactivos con explicación al pulsar)
     congested.forEach((n) => {
       const p = xy(n);
-      canvas.append(svg('circle', { cx: p[0], cy: p[1], r: 14, class: 'congestion-point' }));
-      canvas.append(
+      const g = svg('g', {
+        class: 'congestion-marker-group',
+        'data-node': n,
+        style: 'cursor: pointer;',
+        role: 'button',
+        'aria-label': `Punto de congestión en nodo ${n}. Clic para detalles.`
+      });
+      g.append(svg('circle', { cx: p[0], cy: p[1], r: 18, class: 'congestion-pulse-ring' }));
+      g.append(svg('circle', { cx: p[0], cy: p[1], r: 14, class: 'congestion-point' }));
+      g.append(
         svg(
           'text',
           {
@@ -436,10 +444,17 @@
             fill: 'white',
             'font-size': '15',
             'font-weight': '900',
+            'pointer-events': 'none',
           },
           '!'
         )
       );
+      g.append(svg('title', {}, `Punto crítico en nodo (${n}). Haz clic para ver detalles y recomendaciones.`));
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCongestionModal(n, destination);
+      });
+      canvas.append(g);
     });
   }
 
@@ -488,11 +503,92 @@
   let lastRouteId = null;
   const routeFeedback = $('#route-feedback');
 
-  function feedback(text, type) {
+  // --- Modal Explicativo de Congestión (Nodos Rojos !) ---
+  function openCongestionModal(node, destination) {
+    const modal = $('#congestion-modal');
+    const modalBody = $('#congestion-modal-body');
+    const modalTitle = $('#congestion-modal-title');
+    const modalSub = $('#congestion-modal-subtitle');
+    if (!modal || !modalBody) return;
+
+    const [x, y] = node.split(',').map(Number);
+    let zoneCode = 'B';
+    let zoneName = 'Zona B · Pasillo Central';
+    let zoneDesc = 'Pasillo de conexión neurálgico entre la Cocina y los salones del restaurante.';
+    if (x <= 1) {
+      zoneCode = 'A';
+      zoneName = 'Zona A · Salón Jardín';
+      zoneDesc = 'Sector occidental de mesas bajas y acceso principal.';
+    } else if (x >= 3) {
+      zoneCode = 'C';
+      zoneName = 'Zona C · Salón Terraza';
+      zoneDesc = 'Sector oriental de mesas de alta capacidad y ventanales.';
+    }
+
+    if (modalTitle) modalTitle.textContent = `Alerta de Congestión: Nodo (${node})`;
+    if (modalSub) modalSub.textContent = `${zoneName} · Detección de paso lento`;
+
+    modalBody.innerHTML = `
+      <div class="congestion-info-card">
+        <div class="congestion-detail-row">
+          <span class="detail-label">Sector Afectado:</span>
+          <strong>${zoneName}</strong>
+        </div>
+        <div class="congestion-detail-row">
+          <span class="detail-label">Ubicación en Red:</span>
+          <code>Columna ${x}, Fila ${y} (Pasillo ${y === 2 ? 'Principal de Tránsito' : 'Secundario'})</code>
+        </div>
+        <p class="congestion-desc">
+          ${zoneDesc} En este punto se detectó alta afluencia o tiempo de permanencia superior al umbral operativo de 4 minutos.
+        </p>
+      </div>
+
+      <div class="congestion-reasons-box">
+        <h4>¿Por qué aparece esta señal roja en tu ruta?</h4>
+        <ul>
+          <li><strong>Prevención de embotellamientos:</strong> El algoritmo Dijkstra detectó saturación en este pasillo.</li>
+          <li><strong>Riesgo de demora en el servicio:</strong> Cruzar por aquí con pedidos puede provocar retrasos o choques de bandejas.</li>
+        </ul>
+      </div>
+
+      <div class="congestion-recommendation-box">
+        <strong>💡 Recomendación del Sistema:</strong>
+        <p>Haz clic en el botón de abajo para <strong>Recalcular ruta</strong>. El motor trazará de inmediato un desvío inteligente por un pasillo libre.</p>
+      </div>
+    `;
+
+    modal.classList.remove('is-hidden');
+  }
+
+  function closeCongestionModal() {
+    const modal = $('#congestion-modal');
+    if (modal) modal.classList.add('is-hidden');
+  }
+
+  $('#congestion-modal-close')?.addEventListener('click', closeCongestionModal);
+  $('#congestion-modal-btn-ok')?.addEventListener('click', closeCongestionModal);
+  $('#congestion-modal-close-backdrop')?.addEventListener('click', closeCongestionModal);
+  $('#congestion-modal-recalc-btn')?.addEventListener('click', () => {
+    closeCongestionModal();
+    requestRoute(true);
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeCongestionModal();
+  });
+
+  // --- Sistema de Mensajería Asistida en 3 Partes ---
+  function feedback(title, message, type = 'success', actionHint = '') {
     if (!routeFeedback) return;
     routeFeedback.hidden = false;
     routeFeedback.className = `route-feedback ${type}`;
-    routeFeedback.textContent = text;
+    routeFeedback.innerHTML = `
+      <div class="feedback-badge-row">
+        <span class="feedback-icon">${type === 'success' ? '✔' : type === 'warning' ? '⚠' : '✖'}</span>
+        <strong>${title}</strong>
+      </div>
+      <p class="feedback-body">${message}</p>
+      ${actionHint ? `<div class="feedback-action-hint">💡 <span>${actionHint}</span></div>` : ''}
+    `;
   }
 
   async function requestRoute(avoid = false) {
@@ -500,26 +596,80 @@
     if (btn) btn.disabled = true;
 
     try {
+      const assignedWaiterEl = $('#assigned-waiter');
+      const assignedWaiterId = assignedWaiterEl && assignedWaiterEl.value ? Number(assignedWaiterEl.value) : null;
+
       const data = await postJSON('/api/rutas/', {
         origin: $('#origin').value,
         destination: $('#destination').value,
         task_type: $('#task-type').value,
         avoid_congestion: avoid,
+        assigned_waiter: assignedWaiterId,
       });
 
       lastRouteId = data.route_id;
       floorPlan(layout, data.path, data.destination, data.congested_nodes);
-      feedback(
-        data.notice + (data.distance ? ` Distancia: ${data.distance} tramos del plano.` : ''),
-        data.congested ? 'warning' : 'success'
-      );
+
+      // Mensajería asistida según condición del recorrido
+      if (data.congested && !avoid) {
+        feedback(
+          'Se detectó congestión en el trayecto directo',
+          `El recorrido cruza por nodos de alta afluencia (marcados con <strong>!</strong> en rojo). Distancia estimada: ${data.distance} tramos.`,
+          'warning',
+          'Haz clic en los puntos rojos del mapa para ver los motivos, o pulsa "↻ Recalcular ruta" para tomar un desvío despejado.'
+        );
+      } else if (avoid) {
+        feedback(
+          'Ruta alternativa optimizada con Dijkstra',
+          `El trayecto fue recalculado evitando los pasillos saturados. Recorrido seguro: ${data.distance} tramos.`,
+          'success',
+          'Ruta libre de cuellos de botella. Puedes dirigirte a la mesa de forma fluida.'
+        );
+      } else {
+        feedback(
+          'Ruta directa recomendada sin congestión',
+          `Pasillos despejados entre ${data.origin.toUpperCase()} y ${data.destination.toUpperCase()}. Distancia: ${data.distance} tramos.`,
+          'success',
+          'Camino óptimo verificado para entrega o retiro de servicio.'
+        );
+      }
+
+      // Inserción asíncrona inmediata en el historial (Cero recargas F5)
+      const tbody = $('#recent-routes-tbody');
+      if (tbody) {
+        const emptyRow = $('#empty-routes-row');
+        if (emptyRow) emptyRow.remove();
+
+        const tr = document.createElement('tr');
+        tr.id = `route-row-${data.route_id}`;
+        tr.className = 'newly-added-row';
+        const assignedBadge = data.assigned_waiter_name
+          ? `<span class="badge-role-tag badge-assigned">Asignado: ${data.assigned_waiter_name}</span>`
+          : `<span class="badge-role-tag badge-self">Auto-atención</span>`;
+
+        tr.innerHTML = `
+          <td><strong>${(data.destination_label || data.destination).toUpperCase()}</strong></td>
+          <td>${data.task_type_display || (data.task_type === 'entrega' ? 'Entrega de comida' : 'Retiro de vajilla')}</td>
+          <td>${assignedBadge}</td>
+          <td>${data.created_at || 'Hace un momento'}</td>
+          <td>
+            <span id="status-pill-${data.route_id}" class="status-pill moderada">Consultada</span>
+          </td>
+        `;
+        tbody.prepend(tr);
+      }
 
       $('#route-actions').hidden = false;
       $('#route-complete').hidden = false;
       $('#route-recalculate').hidden = avoid || !data.congested;
-      toast(avoid ? 'Ruta alternativa calculada.' : 'Ruta consultada correctamente.', 'success');
+      toast(avoid ? 'Ruta alternativa calculada sin demoras.' : 'Ruta calculada con éxito.', 'success');
     } catch (error) {
-      feedback(error.message, 'error');
+      feedback(
+        'No se pudo completar el trazado de la ruta',
+        error.message || 'El motor de ruteo no pudo calcular una trayectoria válida.',
+        'error',
+        'Verifica que el destino no se encuentre en un sector bloqueado o pulsa "Recalcular ruta".'
+      );
       $('#route-actions').hidden = false;
       $('#route-recalculate').hidden = false;
       $('#route-complete').hidden = true;
@@ -540,30 +690,97 @@
     if (!lastRouteId) return toast('Primero calcula una ruta.', 'error');
     try {
       const data = await postJSON(`/api/rutas/${lastRouteId}/finalizar/`, {});
-      feedback(data.message, 'success');
+      feedback('Tarea de servicio finalizada', data.message, 'success', 'La mesa y el recorrido han sido marcados como atendidos.');
       toast(data.message, 'success');
       $('#route-actions').hidden = true;
+
+      // Actualizar estado en la tabla en tiempo real
+      const pill = $(`#status-pill-${lastRouteId}`);
+      if (pill) {
+        pill.className = 'status-pill normal';
+        pill.textContent = 'Finalizada';
+      }
     } catch (err) {
       toast(err.message, 'error');
     }
   });
 
-  // --- Actualización de Zonas de Saturación ---
+  // --- Actualización Reactiva de Zonas de Saturación (Sin F5) ---
+  function updateZoneUI(code, level, dwell, alert) {
+    const pill = $(`#zone-pill-${code}`);
+    if (pill) {
+      pill.className = `status-pill ${level}`;
+      pill.textContent = level === 'normal' ? 'Normal' : level === 'moderada' ? 'Moderada' : 'Crítica';
+    }
+
+    const heatCard = $(`#heat-zone-${code}`);
+    if (heatCard) {
+      heatCard.className = `heat-zone heat-${level}`;
+    }
+    const heatLevel = $(`#heat-level-${code}`);
+    if (heatLevel) {
+      heatLevel.textContent = level === 'normal' ? 'Normal' : level === 'moderada' ? 'Moderada' : 'Crítica';
+    }
+    const heatDwell = $(`#heat-dwell-${code}`);
+    if (heatDwell) {
+      heatDwell.textContent = `${Number(dwell).toFixed(1)} min de permanencia`;
+    }
+
+    const alertsContainer = $('#critical-zones-alerts');
+    let banner = $(`#alert-banner-${code}`);
+    if (alert) {
+      if (!banner && alertsContainer) {
+        banner = document.createElement('div');
+        banner.className = 'alert-banner';
+        banner.id = `alert-banner-${code}`;
+        banner.innerHTML = `
+          <svg class="ic"><use href="#i-alert"/></svg>
+          <div>
+            <strong>Congestión crítica · Nodo de la zona ${code}</strong>
+            <span>Permanencia registrada: ${Number(dwell).toFixed(1)} minutos. Supera el umbral de 4 minutos.</span>
+          </div>
+        `;
+        alertsContainer.prepend(banner);
+      } else if (banner) {
+        const span = banner.querySelector('span');
+        if (span) span.textContent = `Permanencia registrada: ${Number(dwell).toFixed(1)} minutos. Supera el umbral de 4 minutos.`;
+      }
+    } else {
+      if (banner) banner.remove();
+    }
+  }
+
   $$('.zone-save').forEach((btn) =>
     btn.addEventListener('click', async () => {
       const code = btn.dataset.zone;
+      const levelVal = $(`#level-${code}`).value;
+      const dwellVal = Number($(`#dwell-${code}`).value);
       try {
-        await postJSON(`/api/zonas/${code}/`, {
-          level: $(`#level-${code}`).value,
-          dwell_minutes: Number($(`#dwell-${code}`).value),
+        const res = await postJSON(`/api/zonas/${code}/`, {
+          level: levelVal,
+          dwell_minutes: dwellVal,
         });
-        toast(`Zona ${code} actualizada.`, 'success');
-        setTimeout(() => location.reload(), 650);
+        toast(`Zona ${code} actualizada correctamente.`, 'success');
+        updateZoneUI(code, levelVal, dwellVal, res.alert);
       } catch (err) {
         toast(err.message, 'error');
       }
     })
   );
+
+  // Sugerencia automática de nivel al cambiar minutos de permanencia
+  $$('input[id^="dwell-"]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const val = parseFloat(input.value);
+      const code = input.id.replace('dwell-', '');
+      const select = $(`#level-${code}`);
+      if (!isNaN(val) && select) {
+        if (val <= 2.0) select.value = 'normal';
+        else if (val <= 4.0) select.value = 'moderada';
+        else select.value = 'critica';
+      }
+    });
+  });
 
   // --- Actualización de Estado de Mesas con Sincronización en Tiempo Real ---
   function updateLayoutKPIs() {
@@ -785,15 +1002,62 @@
     $('#vision-results').hidden = false;
     $('#vision-people').textContent = data.people_count;
 
+    // Banner de Sincronización en Vivo con Dijkstra
+    const syncAlert = $('#vision-sync-alert');
+    const syncDesc = $('#vision-sync-desc');
+    if (syncAlert && syncDesc) {
+      syncAlert.hidden = false;
+      const criticalCount = (data.updated_zones || []).filter(z => z.level === 'critica').length;
+      if (criticalCount > 0) {
+        syncAlert.className = 'vision-sync-banner sync-warning';
+        syncDesc.textContent = `Se detectó alta densidad (${criticalCount} zona en alerta crítica). El motor de ruteo Dijkstra desviará automáticamente a los meseros para evitar cuellos de botella.`;
+      } else {
+        syncAlert.className = 'vision-sync-banner sync-success';
+        syncDesc.textContent = data.sync_notice || 'Las zonas del salón han sido sincronizadas en tiempo real con la afluencia detectada por OpenCV.';
+      }
+    }
+
+    // Estado de Almacenamiento en la Nube (AWS S3)
+    const s3Badge = $('#vision-s3-status');
+    if (s3Badge) {
+      s3Badge.textContent = data.s3_status || (data.aws_saved ? '✓ Guardado en AWS S3' : 'Almacenamiento local');
+      s3Badge.className = `vision-s3-badge ${data.aws_saved ? 's3-cloud-ok' : 's3-cloud-local'}`;
+    }
+
+    // Tarjetas de Distribución por Sectores y Zonas
+    const zoneSectors = {
+      'A': 'Salón Jardín',
+      'B': 'Pasillo Central',
+      'C': 'Salón Terraza'
+    };
+
     $('#vision-zone-counts').replaceChildren(
-      ...['A', 'B', 'C'].map((zone) => {
-        const div = document.createElement('div');
+      ...['A', 'B', 'C'].map((zoneCode) => {
+        const count = data.zone_counts?.[zoneCode] || 0;
+        const updated = (data.updated_zones || []).find(z => z.code === zoneCode);
+        const level = updated ? updated.level : (count >= 3 ? 'critica' : count >= 1 ? 'moderada' : 'normal');
+
+        const card = document.createElement('div');
+        card.className = `vision-zone-stat-card level-${level}`;
+
+        const top = document.createElement('div');
+        top.className = 'vision-zone-top';
+
         const strong = document.createElement('strong');
-        strong.textContent = data.zone_counts[zone];
-        const small = document.createElement('small');
-        small.textContent = `Zona ${zone}`;
-        div.append(strong, small);
-        return div;
+        strong.textContent = `${count} pax`;
+
+        const pill = document.createElement('span');
+        pill.className = `zone-mini-pill pill-${level}`;
+        pill.textContent = level === 'critica' ? 'Demora' : level === 'moderada' ? 'Fluido' : 'Rápido';
+
+        top.append(strong, pill);
+
+        const sub = document.createElement('div');
+        sub.className = 'vision-zone-sub';
+        sub.textContent = `Zona ${zoneCode} · ${zoneSectors[zoneCode] || ''}`;
+
+        card.append(top, sub);
+        return card;
       })
     );
 
@@ -913,6 +1177,76 @@
       btn.setAttribute('aria-label', isPass ? 'Ocultar contraseña' : 'Mostrar contraseña');
       btn.classList.toggle('is-active', isPass);
     });
+  });
+
+  // --- Carga Rápida de Tareas Asignadas (Mesero) ---
+  $$('.btn-quick-load').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const orig = btn.dataset.origin;
+      const dest = btn.dataset.dest;
+      const taskType = btn.dataset.taskType;
+      const routeId = btn.dataset.routeId;
+      if (orig && $('#origin')) $('#origin').value = orig;
+      if (dest && $('#destination')) $('#destination').value = dest;
+      if (taskType && $('#task-type')) $('#task-type').value = taskType;
+      if (routeId) lastRouteId = Number(routeId);
+      toast('Tarea cargada en el mapa. Trazando recorrido...', 'info');
+      requestRoute(false);
+    });
+  });
+
+  // --- Dropdown de Notificaciones y Avisos Administrativos ---
+  const notifTrigger = $('#btn-topbar-notif');
+  const notifDropdown = $('#notif-dropdown');
+
+  if (notifTrigger && notifDropdown) {
+    notifTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      notifDropdown.classList.toggle('is-hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#topbar-notif-wrap')) {
+        notifDropdown.classList.add('is-hidden');
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') notifDropdown.classList.add('is-hidden');
+    });
+  }
+
+  // Marcar notificación como leída asíncronamente
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-mark-read');
+    if (!btn) return;
+    const notifId = btn.dataset.notifId;
+    if (!notifId) return;
+
+    btn.disabled = true;
+    try {
+      await postJSON(`/api/notificaciones/${notifId}/leer/`, {});
+      const row = btn.closest('.notif-item-row') || btn.closest('.profile-notif-card');
+      if (row) {
+        row.classList.add('is-read');
+        btn.remove();
+      }
+
+      // Actualizar contador visual de notificaciones
+      const badge = $('#notif-count-badge');
+      if (badge) {
+        const cur = Number(badge.textContent.trim()) || 0;
+        const next = Math.max(0, cur - 1);
+        badge.textContent = next;
+        if (next === 0) {
+          badge.classList.add('is-hidden');
+        }
+      }
+      toast('Notificación marcada como revisada.', 'success');
+    } catch (err) {
+      btn.disabled = false;
+      toast(err.message || 'No se pudo actualizar el aviso.', 'error');
+    }
   });
 })();
 

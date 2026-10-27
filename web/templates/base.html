@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,800;1,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261026_profile_balanced">
   <meta name="theme-color" content="#07142b">
   <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
@@ -117,6 +117,10 @@
             <svg class="ic"><use href="#i-eye"/></svg>Análisis OpenCV
           </a>
         {% endif %}
+
+        <a href="{% url 'profile' %}" class="nav-link {% if active == 'profile' %}active{% endif %}">
+          <svg class="ic"><use href="#i-users"/></svg>Mi Perfil y Cuenta
+        </a>
       </nav>
 
       <div class="sidebar-spacer"></div>
@@ -149,14 +153,47 @@
             <span class="radar-dot"></span>
             <span class="system-online">Sistema Activo</span>
           </div>
+
+          {% if role == 'admin' or role == 'capitan' %}
+            <div class="topbar-notif-wrap" id="topbar-notif-wrap">
+              <button type="button" class="btn-topbar-notif" id="btn-topbar-notif" aria-label="Avisos administrativos" title="Avisos y notificaciones">
+                <span class="notif-bell-icon">🔔</span>
+                {% if unread_notifications_count > 0 %}
+                  <span class="notif-count-badge" id="notif-count-badge">{{ unread_notifications_count }}</span>
+                {% endif %}
+              </button>
+              <div class="notif-dropdown is-hidden" id="notif-dropdown">
+                <div class="notif-dropdown-header">
+                  <strong>Avisos del Sistema</strong>
+                  <span class="notif-sub-count">{{ unread_notifications_count }} pendientes</span>
+                </div>
+                <div class="notif-dropdown-list" id="notif-dropdown-list">
+                  {% for notif in notifications %}
+                    <div class="notif-item-row" id="notif-item-{{ notif.id }}">
+                      <div class="notif-item-text">
+                        <strong>{{ notif.title }}</strong>
+                        <p>{{ notif.message }}</p>
+                        <small>{{ notif.created_at|timesince }} atrás</small>
+                      </div>
+                      <button type="button" class="btn-mark-read" data-notif-id="{{ notif.id }}" title="Marcar como leída">✔</button>
+                    </div>
+                  {% empty %}
+                    <div class="notif-empty-state">No hay avisos pendientes.</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
           <span class="topbar-divider"></span>
-          <div class="user-chip">
+          <a href="{% url 'profile' %}" class="user-chip user-chip-interactive" title="Ver mi perfil y cuenta">
             <span class="avatar">{{ request.user.username|first|upper }}</span>
             <div class="user-info-stack">
               <span class="account-name">{{ display_name|default:request.user.username }}</span>
               <span class="role-badge role-{{ role }}">{{ role|upper }}</span>
             </div>
-          </div>
+            <span class="user-chip-arrow">➔</span>
+          </a>
         </div>
       </header>
 

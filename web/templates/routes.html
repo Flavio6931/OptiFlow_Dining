@@ -21,6 +21,36 @@
       <span class="step-bubble">01</span>
     </div>
 
+    {% if assigned_to_me %}
+      <div class="assigned-tasks-box">
+        <div class="assigned-tasks-header">
+          <span class="assigned-bell-icon">🔔</span>
+          <div>
+            <strong>Tienes {{ assigned_to_me|length }} tarea{{ assigned_to_me|pluralize }} asignada{{ assigned_to_me|pluralize }}</strong>
+            <small>Delegadas por Capitanía para atención inmediata</small>
+          </div>
+        </div>
+        <div class="assigned-tasks-list">
+          {% for atask in assigned_to_me %}
+            <div class="assigned-task-chip" id="assigned-chip-{{ atask.id }}">
+              <div class="assigned-task-info">
+                <span class="assigned-task-dest">{{ atask.origin|title }} ➔ {{ atask.destination|upper }}</span>
+                <span class="assigned-task-type">{{ atask.get_task_type_display }}</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-accent btn-quick-load"
+                data-origin="{{ atask.origin }}"
+                data-dest="{{ atask.destination }}"
+                data-task-type="{{ atask.task_type }}"
+                data-route-id="{{ atask.id }}"
+                title="Cargar y calcular ruta">
+                Atender ➔
+              </button>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
     <form id="route-form">
       <label for="origin">Punto de origen</label>
       <select id="origin" name="origin">
@@ -43,6 +73,16 @@
         <option value="entrega">Entrega de comida</option>
         <option value="retiro">Retiro de vajilla</option>
       </select>
+
+      {% if waiters %}
+        <label for="assigned-waiter">Asignar a mesero del turno <span class="optional-tag">(Opcional)</span></label>
+        <select id="assigned-waiter" name="assigned_waiter">
+          <option value="">-- Sin asignación directa (Auto-atención) --</option>
+          {% for w in waiters %}
+            <option value="{{ w.id }}">{{ w.get_full_name|default:w.username }} (@{{ w.username }})</option>
+          {% endfor %}
+        </select>
+      {% endif %}
 
       <div class="route-tip">
         <svg class="ic"><use href="#i-eye"/></svg>
@@ -88,8 +128,8 @@
 <!-- Historial de Consultas Recientes -->
 <div class="panel-card activity-card">
   <div class="card-heading">
-    <h3>Mis consultas recientes</h3>
-    <span class="micro-label">HISTORIAL</span>
+    <h3>Historial de recorridos del turno</h3>
+    <span class="micro-label">OPERACIÓN</span>
   </div>
   <div class="simple-table-wrapper">
     <table class="simple-table">
@@ -97,25 +137,37 @@
         <tr>
           <th>Destino</th>
           <th>Servicio</th>
+          <th>Responsable</th>
           <th>Fecha</th>
           <th>Estado</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="recent-routes-tbody">
         {% for item in recent_routes %}
-          <tr>
-            <td>{{ item.destination|upper }}</td>
+          <tr id="route-row-{{ item.id }}">
+            <td><strong>{{ item.destination|upper }}</strong></td>
             <td>{{ item.get_task_type_display }}</td>
+            <td>
+              {% if item.assigned_waiter %}
+                <span class="badge-role-tag badge-assigned" title="Asignado a {{ item.assigned_waiter.get_full_name|default:item.assigned_waiter.username }}">
+                  Asignado: {{ item.assigned_waiter.first_name|default:item.assigned_waiter.username }}
+                </span>
+              {% else %}
+                <span class="badge-role-tag badge-self" title="Solicitado por {{ item.user.get_full_name|default:item.user.username }}">
+                  {{ item.user.first_name|default:item.user.username }}
+                </span>
+              {% endif %}
+            </td>
             <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
             <td>
-              <span class="status-pill {% if item.completed %}normal{% else %}moderada{% endif %}">
+              <span id="status-pill-{{ item.id }}" class="status-pill {% if item.completed %}normal{% else %}moderada{% endif %}">
                 {% if item.completed %}Finalizada{% else %}Consultada{% endif %}
               </span>
             </td>
           </tr>
         {% empty %}
-          <tr>
-            <td colspan="4" class="empty-table">Todavía no has consultado rutas.</td>
+          <tr id="empty-routes-row">
+            <td colspan="5" class="empty-table">Todavía no hay recorridos registrados en este turno.</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -123,5 +175,28 @@
   </div>
 </div>
 
+<!-- Modal Explicativo de Congestión en Nodo Rojo (!) -->
+<div id="congestion-modal" class="congestion-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="congestion-modal-title">
+  <div class="congestion-modal-backdrop" id="congestion-modal-close-backdrop"></div>
+  <div class="congestion-modal-content">
+    <div class="congestion-modal-header">
+      <div class="congestion-badge-icon">!</div>
+      <div>
+        <h3 id="congestion-modal-title">Alerta de Congestión en Pasillo</h3>
+        <span id="congestion-modal-subtitle" class="congestion-modal-sub">Punto crítico detectado en la red del salón</span>
+      </div>
+      <button type="button" class="btn-close-modal" id="congestion-modal-close" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="congestion-modal-body" id="congestion-modal-body">
+      <!-- Se inyecta dinámicamente con la zona, causas y acciones recomendadas -->
+    </div>
+    <div class="congestion-modal-footer">
+      <button type="button" class="btn btn-warning" id="congestion-modal-recalc-btn">↻ Recalcular ruta para evitar congestión</button>
+      <button type="button" class="btn btn-outline" id="congestion-modal-btn-ok">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 {{ layout|json_script:"floor-layout" }}
+<script id="tables-state-data" type="application/json">{{ tables_map_json|safe }}</script>
 {% endblock %}

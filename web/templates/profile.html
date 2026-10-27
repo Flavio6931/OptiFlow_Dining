@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow dark-eyebrow">MI CUENTA · GESTIÓN OPERATIVA</div>
+    <h1>Perfil y Datos de Cuenta <span class="heading-accent">✦</span></h1>
+    <p>Supervisa tu información de acceso, tu rol asignado en el salón y tus métricas de servicio.</p>
+  </div>
+  <div class="header-pill">
+    <span class="role-badge role-{{ role }}">{{ role|upper }}</span>
+    <span>Cuenta Verificada</span>
+  </div>
+</div>
+
+<div class="two-column profile-grid">
+  <!-- Columna 1: Tarjeta de Identidad y Estadísticas -->
+  <div class="profile-left-col" style="display: flex; flex-direction: column; gap: 14px;">
+    <div class="panel-card profile-user-card" style="margin-bottom: 0;">
+      <div class="profile-hero-badge">
+        <div class="profile-avatar-large">
+          {{ profile_user.first_name|first|default:profile_user.username|first|upper }}
+        </div>
+        <div class="profile-title-stack">
+          <h2>{% if profile_user.is_superuser %}Administrador Principal{% elif profile_user.first_name %}{{ profile_user.get_full_name }}{% else %}{{ profile_user.username|title }}{% endif %}</h2>
+          <span class="profile-username-tag">@{{ profile_user.username }}</span>
+          <span class="status-pill {% if role == 'admin' %}critica{% elif role == 'capitan' %}moderada{% else %}normal{% endif %}">
+            {{ role|upper }} · SALÓN PRINCIPAL
+          </span>
+        </div>
+      </div>
+
+      <div class="profile-details-list">
+        <div class="profile-detail-item">
+          <span class="detail-label">Nombre Completo</span>
+          <strong>{% if profile_user.is_superuser %}Administrador Principal{% elif profile_user.first_name %}{{ profile_user.get_full_name }}{% else %}{{ profile_user.username|title }}{% endif %}</strong>
+        </div>
+
+        <div class="profile-detail-item">
+          <span class="detail-label">Correo Electrónico</span>
+          <strong>{{ profile_user.email|default:"admin@optiflow.local" }}</strong>
+        </div>
+
+        <div class="profile-detail-item">
+          <span class="detail-label">Rol Operativo</span>
+          <strong class="text-capitalize">{{ role }}</strong>
+        </div>
+
+        <div class="profile-detail-item">
+          <span class="detail-label">Fecha de Alta</span>
+          <strong>{{ profile_user.date_joined|date:'d/m/Y H:i' }}</strong>
+        </div>
+
+        <div class="profile-detail-item">
+          <span class="detail-label">Estado de Cuenta</span>
+          <span class="account-active-badge">● Habilitada para el Turno</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen de Métricas Operativas (Cuadrícula Equilibrada 2x2) -->
+    <div class="panel-card profile-kpi-panel">
+      <div class="card-heading">
+        <div>
+          <h3>Métricas Operativas</h3>
+          <p>Rendimiento en el servicio del salón</p>
+        </div>
+        <span class="micro-label">TURNO</span>
+      </div>
+
+      <div class="profile-kpi-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); row-gap: 12px; column-gap: 12px; margin-top: 14px;">
+        <div class="profile-kpi-card">
+          <span class="profile-kpi-val text-green">{{ total_completed }}</span>
+          <span class="profile-kpi-lbl">Rutas Atendidas</span>
+        </div>
+
+        <div class="profile-kpi-card">
+          <span class="profile-kpi-val text-orange">{{ total_assigned }}</span>
+          <span class="profile-kpi-lbl">Asignadas por Admin</span>
+        </div>
+
+        {% if role == 'admin' or role == 'capitan' %}
+          <div class="profile-kpi-card">
+            <span class="profile-kpi-val text-blue">{{ admin_stats.total_waiters }}</span>
+            <span class="profile-kpi-lbl">Meseros en Turno</span>
+          </div>
+          <div class="profile-kpi-card">
+            <span class="profile-kpi-val text-purple">{{ admin_stats.unread_notifications }}</span>
+            <span class="profile-kpi-lbl">Avisos Pendientes</span>
+          </div>
+        {% else %}
+          <div class="profile-kpi-card">
+            <span class="profile-kpi-val text-yellow">{{ assigned_pending }}</span>
+            <span class="profile-kpi-lbl">Tareas Pendientes</span>
+          </div>
+          <div class="profile-kpi-card">
+            <span class="profile-kpi-val text-blue">{{ total_routes }}</span>
+            <span class="profile-kpi-lbl">Consultas Totales</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Columna 2: Avisos Administrativos o Rutas Asignadas -->
+  <div class="profile-right-col">
+    {% if role == 'admin' or role == 'capitan' %}
+      <!-- Panel de Avisos de Nuevos Meseros y Auditoría -->
+      <div class="panel-card profile-admin-notifs">
+        <div class="card-heading">
+          <div>
+            <h3>Centro de Avisos y Notificaciones</h3>
+            <p>Registro de nuevas cuentas de meseros y eventos del sistema</p>
+          </div>
+          <span class="micro-label">ADMIN</span>
+        </div>
+
+        <div class="profile-notifs-feed">
+          {% for notif in all_notifications %}
+            <div class="profile-notif-card {% if not notif.read %}unread-glow{% endif %}" id="profile-notif-{{ notif.id }}">
+              <div class="notif-card-header">
+                <span class="notif-pill-icon">🔔</span>
+                <div class="notif-title-box">
+                  <strong>{{ notif.title }}</strong>
+                  <small>{{ notif.created_at|date:'d/m/Y H:i' }} ({{ notif.created_at|timesince }} atrás)</small>
+                </div>
+                {% if not notif.read %}
+                  <button type="button" class="btn btn-outline-sm btn-mark-read" data-notif-id="{{ notif.id }}">
+                    Marcar leída ✔
+                  </button>
+                {% else %}
+                  <span class="read-stamp">Leída</span>
+                {% endif %}
+              </div>
+              <p class="notif-card-body">{{ notif.message }}</p>
+            </div>
+          {% empty %}
+            <div class="simple-empty-box compact-empty-box">
+              <div class="empty-icon-wrap">📭</div>
+              <h3>Sin avisos registrados</h3>
+              <p>Cuando nuevos meseros se registren en la plataforma, las notificaciones se listarán aquí.</p>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <!-- Tareas Asignadas por Administración al Mesero -->
+      <div class="panel-card">
+        <div class="card-heading">
+          <div>
+            <h3>Mis Tareas Asignadas por Administración</h3>
+            <p>Recorridos y mesas delegadas por el Capitán o Administrador</p>
+          </div>
+          <span class="micro-label">ASIGNACIONES</span>
+        </div>
+
+        <div class="assigned-tasks-list">
+          {% for r in recent_activity %}
+            {% if r.assigned_waiter == request.user and not r.completed %}
+              <div class="assigned-task-card">
+                <div class="assigned-task-head">
+                  <span class="assigned-tag">⚡ Asignado por {{ r.user.get_full_name|default:r.user.username }}</span>
+                  <span class="status-pill moderada">Pendiente</span>
+                </div>
+                <div class="assigned-task-body">
+                  <strong>{{ r.origin|upper }} hacia {{ r.destination|upper }}</strong>
+                  <p>Servicio: {{ r.get_task_type_display }} · Distancia: {{ r.distance }} tramos</p>
+                </div>
+                <div class="assigned-task-actions">
+                  <a href="{% url 'routes' %}" class="btn btn-primary btn-sm">Ver recorrido en mapa ➔</a>
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Historial Reciente de Actividad -->
+    <div class="panel-card activity-card">
+      <div class="card-heading">
+        <h3>Historial Reciente de Servicios</h3>
+        <span class="micro-label">REGISTROS</span>
+      </div>
+      <div class="simple-table-wrapper">
+        <table class="simple-table">
+          <thead>
+            <tr>
+              <th>Origen / Destino</th>
+              <th>Servicio</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in recent_activity %}
+              <tr>
+                <td><strong>{{ item.origin|upper }} ➔ {{ item.destination|upper }}</strong></td>
+                <td>{{ item.get_task_type_display }}</td>
+                <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
+                <td>
+                  <span class="status-pill {% if item.completed %}normal{% else %}moderada{% endif %}">
+                    {% if item.completed %}Finalizada{% else %}En curso{% endif %}
+                  </span>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="empty-table">No se registran actividades recientes en este turno.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
