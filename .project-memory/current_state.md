@@ -98,8 +98,15 @@
   3. **Texto de Marca Preservado:** Mantenida la leyenda `<small>OPTIFLOW</small>` con tipografía Montserrat geométrica justo debajo del logo.
 
 
+- [x] Sincronización y Despliegue en GitHub (Commit `3d7c68d`):
+  - Subidos todos los cambios al repositorio remoto (`https://github.com/Josue2004exe/OptiFlow_Dining`) en la rama `main`:
+    1. Fases 1 a 3 (sincronización OpenCV-Dijkstra, AWS S3, touch-first mobile/tablet).
+    2. Módulo de perfil de usuario (`/perfil/`), notificaciones admin y asignación de rutas a meseros.
+    3. Calibración visual completa del logotipo en Landing (92px estático sin solapamiento con el nombre) y Login.
+
 ## Estado de la Entrega y Sistema Operativo
 - Todos los 12 requerimientos del documento de especificaciones técnicas han sido implementados, probados y verificados exhaustivamente.
+- Repositorio GitHub 100% sincronizado en la rama `main`.
 - Sistema 100% operativo en Django, DRF, microservicios FastAPI (Dijkstra y OpenCV HOG) y base de datos SQLite migrada.
 
 
