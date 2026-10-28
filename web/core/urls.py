@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/zonas/<str:code>/', views.api_update_zone, name='api_update_zone'),
     path('api/mesas/<str:code>/', views.api_update_table, name='api_update_table'),
     path('api/vision/', views.api_vision, name='api_vision'),
+    path('api/vision/ultima/', views.api_latest_vision, name='api_latest_vision'),
     path('api/notificaciones/<int:pk>/leer/', views.api_mark_notification_read, name='api_mark_notification_read'),
 ]
 

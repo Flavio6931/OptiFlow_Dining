@@ -104,10 +104,18 @@
     2. Módulo de perfil de usuario (`/perfil/`), notificaciones admin y asignación de rutas a meseros.
     3. Calibración visual completa del logotipo en Landing (92px estático sin solapamiento con el nombre) y Login.
 
+- [x] Fase 1 Implementada (Correcciones de UI/UX, Alertas y Contraseñas):
+  1. **Alerta de Congestión y Evidencia OpenCV:** Eliminado el parpadeo excesivo del anillo pulsante SVG (`congestion-pulse-ring`) reemplazándolo por un halo estático y nítido. Renovado el modal explicativo (`#congestion-modal`) incorporando banner de estado crítico, diagnóstico claro y la tarjeta de evidencia fotográfica procesada por OpenCV (`latest_vision_capture.jpg`) con división zonal y recuadros de personas detectadas.
+  2. **Conmutador de Visualización de Contraseñas:** Resuelto el conflicto de listeners duplicados en [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js) que revertían inmediatamente el tipo de input y destruían el icono. Implementado toggle unificado y robusto con alternancia dinámica de icono SVG (ojo abierto vs ojo tachado), prevención de envío accidental y margen derecho seguro (`padding-right: 48px !important;`).
+  3. **Avisos Administrativos Desplegables:** Agregada regla `.notif-dropdown.is-hidden { display: none !important; }` en [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css) para asegurar que el centro de notificaciones permanezca cerrado por defecto y se despliegue únicamente al pulsar la campana o ante nuevos avisos.
+  4. **Persistencia de Captura de Visión:** Creado endpoint `/api/vision/ultima/` en [urls.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/urls.py), inyección de contexto en [routes.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/routes.html) y actualización automática de `latest_vision_capture.jpg` al procesar imágenes en `api_vision`.
+  5. **Verificación Integral:** 13 de 13 pruebas unitarias aprobadas al 100% (`OK`) y estáticos recompilados con `collectstatic`.
+
 ## Estado de la Entrega y Sistema Operativo
-- Todos los 12 requerimientos del documento de especificaciones técnicas han sido implementados, probados y verificados exhaustivamente.
-- Repositorio GitHub 100% sincronizado en la rama `main`.
-- Sistema 100% operativo en Django, DRF, microservicios FastAPI (Dijkstra y OpenCV HOG) y base de datos SQLite migrada.
+- Fase 1 de nuevas especificaciones completada y verificada.
+- Repositorio GitHub con rama `main` operativa.
+- Suite de pruebas: 13/13 pruebas pasando (`OK`).
+- Próxima etapa lista para ejecución: **Fase 2 (Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Permanencia en Zonas)**.
 
 
 

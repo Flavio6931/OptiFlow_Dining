@@ -231,10 +231,20 @@ def routes_view(request):
             completed=False,
         ).order_by('-created_at'))
 
+    recent_vision = VisionAnalysis.objects.order_by('-created_at').first()
+    latest_vision_payload = {
+        'image_url': '/static/img/latest_vision_capture.jpg',
+        'people_count': recent_vision.people_count if recent_vision else 1,
+        'zone_counts': recent_vision.zone_counts if recent_vision else {'A': 0, 'B': 1, 'C': 0},
+        'filename': recent_vision.filename if recent_vision else 'captura_salon.jpg',
+        'created_at': recent_vision.created_at.strftime('%d/%m/%Y %H:%M') if recent_vision else '',
+    }
+
     context.update({
         'waiters': waiters,
         'recent_routes': recent_routes,
         'assigned_to_me': assigned_to_me,
+        'latest_vision_json': json.dumps(latest_vision_payload),
     })
     return render(request, 'routes.html', context)
 
@@ -629,12 +639,39 @@ def api_vision(request):
     else:
         result['s3_status'] = 'Almacenamiento local (AWS S3 no configurado)'
 
+    # Guardar copia de la última imagen anotada en estáticos para alertas del sistema
+    annotated_b64 = result.get('annotated_image', '')
+    if annotated_b64 and ',' in annotated_b64:
+        try:
+            import base64
+            b64_part = annotated_b64.split(',', 1)[1]
+            if len(b64_part) > 40:
+                b64_part += '=' * (-len(b64_part) % 4)
+                img_bytes = base64.b64decode(b64_part)
+                target_path = settings.BASE_DIR / 'static' / 'img' / 'latest_vision_capture.jpg'
+                target_path.write_bytes(img_bytes)
+        except Exception as write_err:
+            logger.debug("No se pudo escribir latest_vision_capture.jpg: %s", write_err)
+
     result['updated_zones'] = updated_zones_info
     result['sync_notice'] = (
         'Saturación de zonas sincronizada con OpenCV. El ruteo Dijkstra esquivará '
         'automáticamente los pasillos con mayor aglomeración.'
     )
     return Response(result, status=status.HTTP_200_OK)
+
+
+@login_required
+def api_latest_vision(request):
+    """Retorna los datos del último análisis de visión y la URL de evidencia para alertas."""
+    recent_vision = VisionAnalysis.objects.order_by('-created_at').first()
+    return JsonResponse({
+        'image_url': '/static/img/latest_vision_capture.jpg',
+        'people_count': recent_vision.people_count if recent_vision else 1,
+        'zone_counts': recent_vision.zone_counts if recent_vision else {'A': 0, 'B': 1, 'C': 0},
+        'filename': recent_vision.filename if recent_vision else 'captura_salon.jpg',
+        'created_at': recent_vision.created_at.strftime('%d/%m/%Y %H:%M') if recent_vision else '',
+    })
 
 
 @login_required

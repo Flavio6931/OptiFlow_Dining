@@ -481,7 +481,28 @@
   - Ejecutada suite completa de pruebas unitarias (`13/13 OK`).
   - Preparado commit estructurado con todas las características de Fases 1-3, módulo de perfil, optimizaciones móviles, notificaciones y calibración visual del logo (`3d7c68d`).
   - Enviado exitosamente a la rama `main` en `https://github.com/Josue2004exe/OptiFlow_Dining`.
-- **Estado:** Rama `main` sincronizada y al día con el repositorio remoto.
+## Sesión - 2026-10-27 (Implementación de Fase 1: UI/UX, Alertas con OpenCV y Visibilidad de Contraseñas)
+- **Requerimientos abordados del documento:**
+  - Req 1: Eliminación del parpadeo excesivo en el botón/indicador de alerta, mensaje claro de estado crítico y adición de captura fotográfica OpenCV de la zona aglomerada.
+  - Req 2: Corrección integral de los botones para mostrar/ocultar contraseñas (eye toggle).
+  - Req 4: Despliegue dinámico de avisos del sistema en la vista de administración (oculto por defecto, visible por clic o notificación).
+- **Acciones Realizadas:**
+  - `web/static/css/app.css`:
+    - Eliminado el parpadeo agresivo de `@keyframes pulseRing` en `.congestion-pulse-ring` sustituyéndolo por un anillo estático y nítido.
+    - Implementada regla `.notif-dropdown.is-hidden { display: none !important; }` para que el centro de notificaciones administrativo permanezca oculto y solo se active al interactuar con el botón o ante avisos entrantes.
+    - Asegurado `padding-right: 48px !important;` y elevación `z-index: 5` en inputs de contraseña para evitar colisiones con el botón de ojo.
+    - Creados estilos para tarjeta de evidencia visual OpenCV (`.congestion-evidence-card`, `.evidence-img`, `.evidence-zone-overlay`, `.congestion-alert-banner-status`).
+  - `web/static/js/app.js`:
+    - Removido listener duplicado y conflictivo de `data-toggle-password` que revertía el input a `password` en el mismo milisegundo.
+    - Añadido cambio interactivo de SVG (ojo abierto vs ojo tachado) y supresión de `submit` accidental con `e.preventDefault()`.
+    - Renovada la función `openCongestionModal` para inyectar el diagnóstico de estado crítico, motivo claro de la congestión y la captura analizada por OpenCV con siluetas y sectores.
+  - `web/core/views.py` & `web/core/urls.py`:
+    - Inyectado `latest_vision_json` en el contexto de `routes_view` y plantilla `routes.html`.
+    - Registrado endpoint `/api/vision/ultima/` (`api_latest_vision`) y persistencia local de la imagen analizada en `web/static/img/latest_vision_capture.jpg`.
+- **Verificación:**
+  - `collectstatic`: Estáticos recompilados y sincronizados.
+  - Suite de pruebas automatizadas: **13/13 pruebas aprobadas con éxito (100% OK)**.
+- **Próximos Pasos:** Proceder con la **Fase 2 (Lógica de Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Permanencia en Zonas)**.
 
 
 

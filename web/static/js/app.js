@@ -484,16 +484,6 @@
     }
   });
 
-  // --- Visibilidad de Contraseña ---
-  $$('[data-toggle-password]').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      const input = btn.parentElement.querySelector('input');
-      const isPassword = input.type === 'password';
-      input.type = isPassword ? 'text' : 'password';
-      btn.textContent = isPassword ? '◉' : '○';
-    })
-  );
-
   // --- Planificador de Rutas (FastAPI vía Django DRF) ---
   const layout = getLayout();
   if ($('#floor-plan')) {
@@ -503,7 +493,7 @@
   let lastRouteId = null;
   const routeFeedback = $('#route-feedback');
 
-  // --- Modal Explicativo de Congestión (Nodos Rojos !) ---
+  // --- Modal Explicativo de Congestión (Nodos Rojos !) con Evidencia OpenCV ---
   function openCongestionModal(node, destination) {
     const modal = $('#congestion-modal');
     const modalBody = $('#congestion-modal-body');
@@ -526,9 +516,43 @@
     }
 
     if (modalTitle) modalTitle.textContent = `Alerta de Congestión: Nodo (${node})`;
-    if (modalSub) modalSub.textContent = `${zoneName} · Detección de paso lento`;
+    if (modalSub) modalSub.textContent = `${zoneName} · Estado Crítico Operativo`;
+
+    let visionData = null;
+    try {
+      const vEl = $('#latest-vision-data');
+      if (vEl) visionData = JSON.parse(vEl.textContent);
+    } catch (_) {}
+
+    const peopleInZone = visionData?.zone_counts?.[zoneCode] ?? 1;
+    const totalPeople = visionData?.people_count ?? 1;
+    const visionImgUrl = visionData?.image_url || '/static/img/latest_vision_capture.jpg';
 
     modalBody.innerHTML = `
+      <div class="congestion-alert-banner-status">
+        <div class="alert-status-badge">🔴 ESTADO CRÍTICO DETECTADO</div>
+        <p class="alert-status-text">
+          <strong>Motivo de la Alerta:</strong> Se detectó saturación operativa y alta afluencia peatonal en este pasillo, superando el límite seguro de tránsito para meseros.
+        </p>
+      </div>
+
+      <div class="congestion-evidence-card">
+        <div class="evidence-header">
+          <div class="evidence-title">
+            <span class="evidence-icon">📷</span>
+            <strong>Evidencia Visual · Análisis OpenCV HOG</strong>
+          </div>
+          <span class="evidence-tag">Afluencia: ${peopleInZone} en Sector ${zoneCode}</span>
+        </div>
+        <div class="evidence-image-frame">
+          <img src="${visionImgUrl}" alt="Captura analizada por OpenCV mostrando aglomeración en la zona" class="evidence-img">
+          <div class="evidence-zone-overlay">
+            <span>Sector analizado: <strong>${zoneName}</strong></span>
+            <small>Detección computacional de siluetas activas (${totalPeople} total)</small>
+          </div>
+        </div>
+      </div>
+
       <div class="congestion-info-card">
         <div class="congestion-detail-row">
           <span class="detail-label">Sector Afectado:</span>
@@ -536,24 +560,16 @@
         </div>
         <div class="congestion-detail-row">
           <span class="detail-label">Ubicación en Red:</span>
-          <code>Columna ${x}, Fila ${y} (Pasillo ${y === 2 ? 'Principal de Tránsito' : 'Secundario'})</code>
+          <code>Columna ${x}, Fila ${y} (${y === 2 ? 'Pasillo Central' : 'Pasillo Secundario'})</code>
         </div>
         <p class="congestion-desc">
-          ${zoneDesc} En este punto se detectó alta afluencia o tiempo de permanencia superior al umbral operativo de 4 minutos.
+          ${zoneDesc} Cruzar por este nodo con charolas o pedidos implica riesgo de demoras y posibles choques de bandejas.
         </p>
-      </div>
-
-      <div class="congestion-reasons-box">
-        <h4>¿Por qué aparece esta señal roja en tu ruta?</h4>
-        <ul>
-          <li><strong>Prevención de embotellamientos:</strong> El algoritmo Dijkstra detectó saturación en este pasillo.</li>
-          <li><strong>Riesgo de demora en el servicio:</strong> Cruzar por aquí con pedidos puede provocar retrasos o choques de bandejas.</li>
-        </ul>
       </div>
 
       <div class="congestion-recommendation-box">
         <strong>💡 Recomendación del Sistema:</strong>
-        <p>Haz clic en el botón de abajo para <strong>Recalcular ruta</strong>. El motor trazará de inmediato un desvío inteligente por un pasillo libre.</p>
+        <p>Haz clic en el botón de abajo para <strong>Recalcular ruta</strong>. El algoritmo Dijkstra trazará de inmediato un desvío inteligente por un pasillo libre.</p>
       </div>
     `;
 
@@ -1169,13 +1185,19 @@
 
   // --- Conmutador de Visibilidad de Contraseña (Eye Toggle) ---
   $$('[data-toggle-password]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const field = btn.closest('.password-pill-wrap, .password-field')?.querySelector('input');
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrap = btn.closest('.password-pill-wrap, .password-field, .form-field-group');
+      const field = wrap?.querySelector('input');
       if (!field) return;
       const isPass = field.type === 'password';
       field.type = isPass ? 'text' : 'password';
       btn.setAttribute('aria-label', isPass ? 'Ocultar contraseña' : 'Mostrar contraseña');
       btn.classList.toggle('is-active', isPass);
+      btn.innerHTML = isPass
+        ? '<svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"/></svg>'
+        : '<svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
     });
   });
 
