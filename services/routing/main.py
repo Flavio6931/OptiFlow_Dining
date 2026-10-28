@@ -1,5 +1,8 @@
 """Microservicio independiente de ruteo: Algoritmo Dijkstra y evasión de congestión."""
 import json
+import logging
+
+logger = logging.getLogger("routing")
 from heapq import heappop, heappush
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Set
@@ -98,10 +101,11 @@ def health() -> Dict[str, str]:
 
 
 def get_current_layout() -> Dict[str, Any]:
-    """Carga dinámicamente la configuración estructural para reflejar mesas creadas, movidas o unificadas."""
+    """Carga dinámicamente la configuración estructural para reflejar mesas creadas, movidas o unificadas (ECC)."""
     try:
         return json.loads(CONFIG_PATH.read_text(encoding='utf-8'))
-    except Exception:
+    except Exception as exc:
+        logger.warning("Fallo al leer topología desde %s: %s. Utilizando layout base.", CONFIG_PATH, exc)
         return LAYOUT
 
 

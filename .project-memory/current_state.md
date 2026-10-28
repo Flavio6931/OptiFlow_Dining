@@ -146,6 +146,14 @@
   5. **Verificación Automatizada Multi-dispositivo:** Creada prueba unitaria `test_lan_multidevice_context_and_settings` en `web/core/tests.py` validando la inyección de contexto, headers User-Agent móviles y presencia de modales de interconexión.
   6. **Suite Completa Aprobada:** 21 de 21 pruebas unitarias aprobadas al 100% (`OK`).
 
+- [x] Auditoría Exhaustiva ECC y Mitigación de Vulnerabilidades Críticas (Prioridad 1):
+  1. **Blindaje de Hosts y Seguridad de Red (`settings.py`):** Removido comodín `'*'` de `ALLOWED_HOSTS` previniendo ataques de *Host Header Poisoning* y *DNS Rebinding*; añadidos hosts locales explícitos (`127.0.0.1`, `localhost`, `0.0.0.0`, `[::1]`) y resolución de IPs de red local sin excepciones silenciosas.
+  2. **Configuración de Logging Empresarial (`settings.py`):** Integrado diccionario estructurado `LOGGING` con formateadores estándar y manejador de consola.
+  3. **Atomicidad y Transaccionalidad CAD (`layout.py`):** Reemplazada la escritura en `salon.json` con reemplazo atómico seguro (`tempfile.NamedTemporaryFile` + `fsync` + `os.replace`), eliminando el riesgo de truncamiento a 0 bytes y corrupción por concurrencia. Operaciones `add_table` y `unify_tables` blindadas con `transaction.atomic()`.
+  4. **Liberación del Event Loop en Visión (`services/vision/main.py`):** Delegación de la inferencia síncrona CPU-bound de OpenCV HOG a worker threadpool vía `await asyncio.to_thread(analyze_bytes, raw)`, manteniendo el event loop de FastAPI 100% no bloqueante.
+  5. **Resiliencia y Logging en Ruteo (`services/routing/main.py`):** Incorporado `logging.getLogger('routing')` emitiendo advertencias descriptivas ante fallos de lectura de topología dinámica.
+  6. **Suite de Pruebas Unitarias Normalizada (`test_routing.py` & `tests.py`):** Suite completa de Django (21/21 tests `OK`) y microservicio de ruteo (3/3 tests `OK`) aprobados al 100%.
+
 ## Estado de la Entrega y Sistema Operativo
 - Las 5 Fases del Documento de Especificaciones están **100% COMPLETADAS Y VERIFICADAS**:
   - **Fase 1:** Correcciones UI/UX (alertas congestión con evidencia fotográfica OpenCV, toggle de contraseñas, notificaciones desplegables). *(Completada)*

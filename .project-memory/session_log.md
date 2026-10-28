@@ -627,3 +627,28 @@
   - Suite de pruebas automatizadas: **21/21 pruebas aprobadas al 100% (OK en 2.356s)**.
   - Archivos estáticos recompilados con `collectstatic --noinput`.
   - Las 5 fases del plan maestro de requerimientos se encuentran formalmente completadas, probadas y operativas.
+
+
+## Sesión - 2026-10-27 (Auditoría Exhaustiva ECC y Mitigación Crítica Prioridad 1)
+- **Alcance:**
+  - Auditoría global de Código Limpio Empresarial (ECC) sobre los 6 pilares: Tipado/PEP 8, Excepciones y Resiliencia, Seguridad Defensiva, Modularidad, Concurrencia/Thread Safety y Contratos API.
+  - Artefacto generado con diagnóstico técnico y plan de remediación en 3 niveles de prioridad.
+- **Acciones Realizadas (Prioridad 1 Implementada):**
+  - `web/optiflow/settings.py`:
+    - Eliminado bypass de seguridad `ALLOWED_HOSTS.append('*')`.
+    - Blindados hosts permitidos a direcciones locales explícitas e IPs LAN detectadas.
+    - Implementada configuración estructurada de `LOGGING` con StreamHandler de consola.
+    - Normalizados imports PEP 8 al inicio del archivo.
+  - `web/core/layout.py`:
+    - Implementado guardado atómico de `salon.json` usando `tempfile.NamedTemporaryFile` + `os.fsync` + `os.replace`, garantizando cero truncamientos a 0 bytes.
+    - Integrado `transaction.atomic()` en `add_table` y `unify_tables` para consistencia estricta entre archivo físico y base de datos.
+  - `services/vision/main.py`:
+    - Desacoplado procesamiento intensivo de OpenCV HOG del event loop principal mediante `await asyncio.to_thread(analyze_bytes, raw)`.
+  - `services/routing/main.py`:
+    - Añadido logger formal `routing` emitiendo advertencias ante caídas a topología por defecto.
+  - `services/routing/test_routing.py` y `web/core/tests.py`:
+    - Normalizada suite de pruebas bajo `unittest` con docstrings en español y verificación de blindaje de `ALLOWED_HOSTS`.
+- **Verificación:**
+  - Pyright: **0 errors, 0 warnings, 0 informations**.
+  - Suite Django (`web/manage.py test core`): **21/21 pruebas aprobadas (OK en 2.408s)**.
+  - Suite Microservicio Routing: **3/3 pruebas aprobadas (OK)**.

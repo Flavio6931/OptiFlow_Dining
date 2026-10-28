@@ -3,6 +3,7 @@
 No presupone identificación de personas ni seguimiento biométrico. Es una estimación
 experimental sobre imágenes estáticas divididas espacialmente en tres sectores.
 """
+import asyncio
 import base64
 import os
 from typing import Any, Dict, List, Tuple
@@ -142,6 +143,7 @@ async def analyze(file: UploadFile = File(...)) -> Dict[str, Any]:
         raise HTTPException(status_code=413, detail='La imagen supera 5 MB.')
 
     try:
-        return analyze_bytes(raw)
+        # Ejecución en threadpool AnyIO para no bloquear el event loop asíncrono (ECC)
+        return await asyncio.to_thread(analyze_bytes, raw)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

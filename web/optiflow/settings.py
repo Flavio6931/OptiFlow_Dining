@@ -1,6 +1,8 @@
 """Configuración de OptiFlow Dining. No fijar secretos ni llaves AWS en código."""
 from pathlib import Path
 import os
+import socket
+import logging
 import dj_database_url
 from dotenv import load_dotenv
 
@@ -13,8 +15,11 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 ALLOWED_HOSTS = [s.strip() for s in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if s.strip()]
 CSRF_TRUSTED_ORIGINS = [s.strip() for s in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',') if s.strip()]
 
-# Detección y habilitación de acceso multi-dispositivo en red local para móviles y tablets (Req 9)
-import socket
+# Detección y blindaje de acceso multi-dispositivo en red local para móviles y tablets (Req 9)
+for _default_host in ('127.0.0.1', 'localhost', '0.0.0.0', '[::1]'):
+    if _default_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_default_host)
+
 try:
     _local_ips = socket.gethostbyname_ex(socket.gethostname())[2]
     for _ip in _local_ips:
@@ -23,11 +28,8 @@ try:
         _origin = f'http://{_ip}:8000'
         if _origin not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(_origin)
-except Exception:
+except OSError:
     pass
-
-if '*' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('*')
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -137,3 +139,23 @@ VISION_SERVICE_URL = os.environ.get('VISION_SERVICE_URL', 'http://127.0.0.1:8002
 AWS_S3_BUCKET = os.environ.get('AWS_S3_BUCKET', '')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
+# Configuración estructurada de logging empresarial (ECC)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}

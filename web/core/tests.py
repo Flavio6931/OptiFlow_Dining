@@ -563,7 +563,9 @@ class OptiFlowTests(TestCase):
         self.client.force_login(self.manager)
 
         # 1. Verificar que ALLOWED_HOSTS permita host '*' o la IP del host
-        self.assertTrue('*' in settings.ALLOWED_HOSTS or len(settings.ALLOWED_HOSTS) > 0)
+        # Blindaje ECC: ALLOWED_HOSTS no debe contener comodín '*' y debe incluir hosts válidos
+        self.assertNotIn('*', settings.ALLOWED_HOSTS)
+        self.assertTrue(len(settings.ALLOWED_HOSTS) > 0)
 
         # 2. Navegar al dashboard simulando una Tablet / iPad
         res = self.client.get(

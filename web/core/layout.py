@@ -1,7 +1,10 @@
 """Módulo de carga, lectura y persistencia de la configuración espacial del salón (Req 6)."""
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from django.db import transaction
 
 LAYOUT_PATH = Path(__file__).resolve().parents[2] / 'config' / 'salon.json'
 
@@ -13,9 +16,15 @@ def get_layout() -> Dict[str, Any]:
 
 
 def save_layout(data: Dict[str, Any]) -> None:
-    """Serializa y guarda la configuración espacial del salón."""
-    with LAYOUT_PATH.open('w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """Serializa y guarda la configuración espacial del salón de forma atómica (ECC)."""
+    dir_path = LAYOUT_PATH.parent
+    dir_path.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile('w', dir=dir_path, delete=False, encoding='utf-8') as tf:
+        temp_name = tf.name
+        json.dump(data, tf, ensure_ascii=False, indent=2)
+        tf.flush()
+        os.fsync(tf.fileno())
+    os.replace(temp_name, LAYOUT_PATH)
 
 
 def add_table(
@@ -44,9 +53,9 @@ def add_table(
         'node': node.strip(),
     }
     data['tables'].append(new_table)
-    save_layout(data)
-
-    TableState.objects.get_or_create(code=code, defaults={'state': 'disponible'})
+    with transaction.atomic():
+        TableState.objects.get_or_create(code=code, defaults={'state': 'disponible'})
+        save_layout(data)
     return new_table
 
 
@@ -115,7 +124,7 @@ def unify_tables(
     # Filtrar las mesas unificadas y añadir la nueva mesa consolidada
     data['tables'] = [t for t in data['tables'] if t['id'] not in normalized_codes]
     data['tables'].append(unified_table)
-    save_layout(data)
-
-    TableState.objects.get_or_create(code=unified_code, defaults={'state': 'disponible'})
+    with transaction.atomic():
+        TableState.objects.get_or_create(code=unified_code, defaults={'state': 'disponible'})
+        save_layout(data)
     return unified_table
