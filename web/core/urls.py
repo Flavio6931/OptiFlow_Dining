@@ -20,9 +20,13 @@ urlpatterns = [
     path('api/rutas/', views.api_route, name='api_route'),
     path('api/rutas/<int:pk>/finalizar/', views.api_complete, name='api_complete'),
     path('api/zonas/<str:code>/', views.api_update_zone, name='api_update_zone'),
+    path('api/mesas/crear/', views.api_create_table, name='api_create_table'),
+    path('api/mesas/unificar/', views.api_unify_tables, name='api_unify_tables'),
+    path('api/mesas/<str:code>/mover/', views.api_move_table, name='api_move_table'),
     path('api/mesas/<str:code>/', views.api_update_table, name='api_update_table'),
     path('api/vision/', views.api_vision, name='api_vision'),
     path('api/vision/ultima/', views.api_latest_vision, name='api_latest_vision'),
     path('api/notificaciones/<int:pk>/leer/', views.api_mark_notification_read, name='api_mark_notification_read'),
+    path('api/usuarios/<int:user_id>/rol/', views.api_update_user_role, name='api_update_user_role'),
 ]
 

@@ -22,19 +22,25 @@
     </div>
 
     {% if assigned_to_me %}
-      <div class="assigned-tasks-box">
+      <div class="assigned-tasks-box urgent-assigned-box">
         <div class="assigned-tasks-header">
-          <span class="assigned-bell-icon">🔔</span>
+          <span class="assigned-bell-icon">⚡</span>
           <div>
+            <div class="urgent-sub-badge">🔴 SERVICIO ASIGNADO · ATENCIÓN INMEDIATA</div>
             <strong>Tienes {{ assigned_to_me|length }} tarea{{ assigned_to_me|pluralize }} asignada{{ assigned_to_me|pluralize }}</strong>
-            <small>Delegadas por Capitanía para atención inmediata</small>
+            <small>Despachadas por Capitanía con ruteo seguro sin congestión</small>
           </div>
         </div>
         <div class="assigned-tasks-list">
           {% for atask in assigned_to_me %}
-            <div class="assigned-task-chip" id="assigned-chip-{{ atask.id }}">
+            <div class="assigned-task-chip {% if atask.recalculated %}safe-routed{% endif %}" id="assigned-chip-{{ atask.id }}">
               <div class="assigned-task-info">
-                <span class="assigned-task-dest">{{ atask.origin|title }} ➔ {{ atask.destination|upper }}</span>
+                <div class="assigned-task-title-row">
+                  <span class="assigned-task-dest">{{ atask.origin|title }} ➔ {{ atask.destination|upper }}</span>
+                  {% if atask.recalculated %}
+                    <span class="safe-badge-pill" title="Ruta con desvío seguro calculado para evitar nodos críticos">🛡️ Ruta Segura</span>
+                  {% endif %}
+                </div>
                 <span class="assigned-task-type">{{ atask.get_task_type_display }}</span>
               </div>
               <button type="button" class="btn btn-sm btn-accent btn-quick-load"
@@ -42,7 +48,8 @@
                 data-dest="{{ atask.destination }}"
                 data-task-type="{{ atask.task_type }}"
                 data-route-id="{{ atask.id }}"
-                title="Cargar y calcular ruta">
+                data-recalculated="{{ atask.recalculated|yesno:'true,false' }}"
+                title="Cargar y trazar ruta segura en el salón">
                 Atender ➔
               </button>
             </div>

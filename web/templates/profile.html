@@ -58,6 +58,47 @@
       </div>
     </div>
 
+    <!-- Tarjeta de Edición Libre de Datos Personales (Req 7) -->
+    <div class="panel-card profile-edit-card" style="margin-bottom: 0;">
+      <div class="card-heading">
+        <div>
+          <h3>Editar Datos Personales</h3>
+          <p>Actualiza tu nombre y correo en la plataforma</p>
+        </div>
+        <span class="micro-label">DATOS</span>
+      </div>
+
+      <form method="post" action="{% url 'profile' %}" class="profile-edit-form">
+        {% csrf_token %}
+        <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div class="form-group">
+            <label for="first_name" style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-dim, #94a3b8);">Nombre</label>
+            <input type="text" id="first_name" name="first_name" value="{{ profile_user.first_name }}" placeholder="Tu nombre" required class="form-input" style="width: 100%; box-sizing: border-box;">
+          </div>
+          <div class="form-group">
+            <label for="last_name" style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-dim, #94a3b8);">Apellido</label>
+            <input type="text" id="last_name" name="last_name" value="{{ profile_user.last_name }}" placeholder="Tu apellido" class="form-input" style="width: 100%; box-sizing: border-box;">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="email" style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-dim, #94a3b8);">Correo Electrónico</label>
+          <input type="email" id="email" name="email" value="{{ profile_user.email }}" placeholder="tu-correo@optiflow.local" class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+
+        <div class="role-shield-note" style="display: flex; align-items: center; gap: 8px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+          <span style="font-size: 16px;">🔒</span>
+          <small style="color: var(--text-dim, #94a3b8); font-size: 11px;">
+            <strong>Blindaje de Seguridad:</strong> Tu rol operativo (<strong>{{ role|upper }}</strong>) está protegido y no puede ser auto-modificado.
+          </small>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-sm profile-save-btn" style="width: 100%;">
+          Guardar Mis Datos ➔
+        </button>
+      </form>
+    </div>
+
     <!-- Resumen de Métricas Operativas (Cuadrícula Equilibrada 2x2) -->
     <div class="panel-card profile-kpi-panel">
       <div class="card-heading">
@@ -104,6 +145,65 @@
 
   <!-- Columna 2: Avisos Administrativos o Rutas Asignadas -->
   <div class="profile-right-col">
+    {% if role == 'admin' and staff_users %}
+      <!-- Panel de Gestión de Personal y Promoción de Roles (Req 5 & 7) -->
+      <div class="panel-card profile-staff-management" style="margin-bottom: 16px;">
+        <div class="card-heading">
+          <div>
+            <h3>Gestión de Personal y Promoción de Roles</h3>
+            <p>Habilita el rol de <strong>Jefe de Meseros (Capitán)</strong> o reasigna funciones de equipo</p>
+          </div>
+          <span class="micro-label">ADMIN</span>
+        </div>
+
+        <div class="simple-table-wrapper">
+          <table class="simple-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol Actual</th>
+                <th>Asignar Rol</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for staff in staff_users %}
+                <tr>
+                  <td>
+                    <strong>@{{ staff.username }}</strong>
+                    <small style="display: block; color: var(--text-dim, #94a3b8);">{{ staff.get_full_name|default:"Sin nombre registrado" }}</small>
+                  </td>
+                  <td>
+                    <span class="status-pill {% if staff.profile.role == 'capitan' %}moderada{% elif staff.profile.role == 'gerente' %}critica{% else %}normal{% endif %}" id="user-role-pill-{{ staff.id }}">
+                      {{ staff.profile.get_role_display|default:"Mesero / Runner" }}
+                    </span>
+                  </td>
+                  <td>
+                    <select id="role-select-{{ staff.id }}" class="role-picker-select">
+                      {% for rcode, rlabel in available_roles %}
+                        <option value="{{ rcode }}" {% if staff.profile.role == rcode %}selected{% endif %}>
+                          {{ rlabel }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-outline btn-save-role" data-user-id="{{ staff.id }}">
+                      Guardar ➔
+                    </button>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="empty-table">No hay otras cuentas registradas en el sistema.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
     {% if role == 'admin' or role == 'capitan' %}
       <!-- Panel de Avisos de Nuevos Meseros y Auditoría -->
       <div class="panel-card profile-admin-notifs">

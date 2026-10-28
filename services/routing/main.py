@@ -97,22 +97,34 @@ def health() -> Dict[str, str]:
     return {'status': 'ok', 'service': 'routing'}
 
 
+def get_current_layout() -> Dict[str, Any]:
+    """Carga dinámicamente la configuración estructural para reflejar mesas creadas, movidas o unificadas."""
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding='utf-8'))
+    except Exception:
+        return LAYOUT
+
+
 @app.get('/layout')
 def layout() -> Dict[str, Any]:
-    """Retorna la configuración estructural y geométrica del salón."""
-    return LAYOUT
+    """Retorna la configuración estructural y geométrica del salón en tiempo real."""
+    return get_current_layout()
 
 
 @app.post('/route')
 def route(request: RouteRequest) -> Dict[str, Any]:
-    """Calcula la ruta óptima entre dos puntos, considerando la congestión operativa."""
-    if request.origin not in ORIGINS or request.destination not in TABLES:
+    """Calcula la ruta óptima entre dos puntos, considerando la congestión operativa y topología dinámica."""
+    cur_layout = get_current_layout()
+    cur_origins = {o['id']: o['node'] for o in cur_layout.get('origins', [])}
+    cur_tables = {t['id']: t['node'] for t in cur_layout.get('tables', [])}
+
+    if request.origin not in cur_origins or request.destination not in cur_tables:
         raise HTTPException(status_code=400, detail='Origen o mesa no disponibles')
     if request.task_type not in ('entrega', 'retiro'):
         raise HTTPException(status_code=400, detail='Tipo de servicio inválido')
 
-    start = ORIGINS[request.origin]
-    end = TABLES[request.destination]
+    start = cur_origins[request.origin]
+    end = cur_tables[request.destination]
 
     # Mapeo espacial de nodos neurálgicos por zona topológica:
     zone_risk_nodes: Dict[str, Set[str]] = {

@@ -20,7 +20,7 @@ Write-Host ""
 
 # 1. Django Web (Puerto 8000)
 Write-Host "[1/3] Iniciando Django Web en puerto 8000..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "$host.UI.RawUI.WindowTitle = 'OptiFlow - Django Web (:8000)'; cd '$root'; Write-Host '--- Django Web (:8000) ---' -ForegroundColor Cyan; & '$python' web/manage.py runserver 8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "$host.UI.RawUI.WindowTitle = 'OptiFlow - Django Web (:8000)'; cd '$root'; Write-Host '--- Django Web (:8000) ---' -ForegroundColor Cyan; & '$python' web/manage.py runserver 0.0.0.0:8000"
 
 # 2. Microservicio Rutas (FastAPI en puerto 8001)
 Write-Host "[2/3] Iniciando Microservicio de Rutas en puerto 8001..." -ForegroundColor Green

@@ -12,6 +12,22 @@ if not SECRET_KEY:
 DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 ALLOWED_HOSTS = [s.strip() for s in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if s.strip()]
 CSRF_TRUSTED_ORIGINS = [s.strip() for s in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',') if s.strip()]
+
+# Detección y habilitación de acceso multi-dispositivo en red local para móviles y tablets (Req 9)
+import socket
+try:
+    _local_ips = socket.gethostbyname_ex(socket.gethostname())[2]
+    for _ip in _local_ips:
+        if _ip not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_ip)
+        _origin = f'http://{_ip}:8000'
+        if _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
+except Exception:
+    pass
+
+if '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*')
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

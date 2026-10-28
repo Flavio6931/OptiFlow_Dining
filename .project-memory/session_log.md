@@ -522,3 +522,108 @@
 
 
 
+
+
+## Sesión - 2026-10-27 (Implementación de Fase 2: Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Zonas)
+- **Requerimientos abordados del documento:**
+  - Req 3: Asignación de rutas seguras que esquiven cuellos de botella vía Dijkstra recalculado y alerta destacada urgente para el mesero asignado.
+  - Req 8: Validación matemática estricta de tiempos de permanencia y coherencia de clasificación de zonas (Normal <= 2 min, Moderada 2.1-4 min, Crítica > 4 min).
+- **Acciones Realizadas:**
+  - `web/core/views.py`:
+    - En `api_route`: Inyectada lógica para que toda ruta asignada a un mesero que cruce por nodos congestionados sea recalculada automáticamente con `avoid_congestion=True`, guardando la alternativa segura y notificando `auto_safe_reroute`.
+    - En `api_update_zone`: Validación estricta que rechaza con `HTTP 400` cualquier intento de forzar estados incoherentes con el tiempo de permanencia.
+    - En `page_context`: Conteo de tareas pendientes asignadas (`waiter_pending_assigned_count`) para usuarios mesero.
+  - `web/templates/base.html`:
+    - Incorporada píldora de notificación en el topbar (`.waiter-urgent-topbar-pill` con beacon animado) visible en todo el sistema cuando un mesero tiene servicios urgentes asignados.
+  - `web/templates/dashboard.html` & `web/templates/routes.html`:
+    - Banner de asignación enriquecido con badge `🔴 ALERTA DE SERVICIO · ATENCIÓN INMEDIATA`, animación de pulso y chip con tag `🛡️ Ruta Segura`.
+  - `web/static/js/app.js`:
+    - Botón `Atender ➔` actualizado para trazar la ruta alternativa recalculada de inmediato (`requestRoute(true)`).
+    - Sincronización bidireccional y validación previa en selector y campo de permanencia para evitar envíos inválidos.
+  - `web/static/css/app.css`:
+    - Reglas visuales para badges de urgencia, píldora de topbar y etiquetas de ruta segura.
+  - `web/core/tests.py`:
+    - Creados tests `test_strict_zone_dwell_thresholds_validation` y `test_auto_safe_reroute_on_assigned_waiter`.
+- **Verificación:**
+  - Suite de pruebas automatizadas: **15/15 pruebas aprobadas al 100% (OK)**.
+  - Archivos estáticos recompilados con `collectstatic --noinput`.
+- **Próximos Pasos:** Proceder con la **Fase 3 (Rol Especializado «Jefe de Meseros» y Blindaje de Perfiles - Req 5 & 7)**.
+
+
+## Sesión - 2026-10-27 (Implementación de Fase 3: Rol Jefe de Meseros y Blindaje de Perfiles)
+- **Requerimientos abordados del documento:**
+  - Req 5: Configuración del rol especializado «Jefe de Meseros» (Capitán) administrable por el Administrador, enfocado en el plano y despacho de rutas.
+  - Req 7: Edición de datos personales de la cuenta (nombre, correo) y blindaje absoluto contra la auto-asignación o degradación de roles.
+- **Acciones Realizadas:**
+  - `web/core/models.py`:
+    - Actualizado `Profile.ROLE_CHOICES` renombrando el display a `Jefe de meseros (Capitán)`.
+  - `web/core/views.py`:
+    - En `profile_view`: Soporte para procesar envíos POST con actualización de `first_name`, `last_name` y `email`, ignorando intentos de alteración de rol propio.
+    - Creada API `api_update_user_role` con doble blindaje: prohíbe auto-modificación de administradores y prohíbe degradación de otros superusuarios.
+    - Contexto inyectado con `staff_users` para la gestión de equipo exclusiva del Administrador.
+  - `web/core/urls.py`:
+    - Registrado endpoint `api/usuarios/<int:user_id>/rol/` (`api_update_user_role`).
+  - `web/templates/profile.html`:
+    - Añadida tarjeta interactiva para editar nombre y correo con aviso visual de rol protegido.
+    - Añadido panel administrativo de «Gestión de Personal y Promoción de Roles» con selectores de rol y guardado asíncrono.
+  - `web/static/js/app.js`:
+    - Añadido listener para `.btn-save-role` para actualizar asíncronamente el rol del personal con feedback toast y refresco de píldoras visuales.
+  - `web/static/css/app.css`:
+    - Estilos para `.role-picker-select` y `.profile-edit-card`.
+  - `web/core/tests.py`:
+    - Añadidas pruebas unitarias `test_user_can_update_personal_data_without_changing_role`, `test_admin_can_update_staff_role_and_security_shields` y `test_waiter_cannot_call_update_role_api`.
+- **Verificación:**
+  - Suite de pruebas automatizadas: **18/18 pruebas aprobadas al 100% (OK)**.
+  - Archivos estáticos recompilados con `collectstatic --noinput`.
+- **Próximos Pasos:** Proceder con la **Fase 4 (Creación, Desplazamiento y Unificación de Mesas CAD - Req 6)**.
+
+
+## Sesión - 2026-10-27 (Implementación de Fase 4: Creación, Reubicación y Unificación de Mesas CAD)
+- **Requerimientos abordados del documento:**
+  - Req 6: Gestión dinámica de mesas en el plano CAD: adición de nuevas mesas, desplazamiento de coordenadas topológicas y unificación de mesas para grupos grandes con capacidad combinada y sincronización en vivo con Dijkstra.
+- **Acciones Realizadas:**
+  - `web/core/layout.py`:
+    - Funciones `save_layout`, `add_table`, `move_table` y `unify_tables` con persistencia en `salon.json` y sincronización con `TableState`.
+  - `services/routing/main.py`:
+    - Función `get_current_layout` para recarga topológica dinámica en `/layout` y `/route`, garantizando que mesas creadas o fusionadas sean inmediatamente ruteables por Dijkstra.
+  - `web/core/views.py`:
+    - Endpoints DRF exclusivos para Administradores: `api_create_table`, `api_move_table` y `api_unify_tables`.
+  - `web/core/urls.py`:
+    - Registradas las rutas `api/mesas/crear/`, `api/mesas/unificar/` y `api/mesas/<str:code>/mover/` antes de los patrones genéricos.
+  - `web/templates/layout.html`:
+    - Acciones CAD en la cabecera (`+ Nueva Mesa`, `🔗 Unificar`) y botones de reubicación en tarjetas de mesa para administradores.
+    - Modales vectoriales oscuros `#modal-create-table`, `#modal-unify-tables` y `#modal-move-table`.
+  - `web/static/js/app.js`:
+    - Controladores de eventos para modales, suma en vivo de capacidad en selector de unificación y envíos asíncronos con recarga visual.
+  - `web/static/css/app.css`:
+    - Clases `.cad-modal-overlay`, `.cad-modal-content`, animaciones y displays de asientos.
+  - `web/core/tests.py`:
+    - Creadas pruebas `test_admin_can_create_move_and_unify_cad_tables` y `test_waiter_cannot_modify_cad_layout` con respaldo y restauración de `salon.json`.
+- **Verificación:**
+  - Suite de pruebas automatizadas: **20/20 pruebas aprobadas al 100% (OK)**.
+  - Archivos estáticos recompilados con `collectstatic --noinput`.
+- **Próximos Pasos:** Proceder con la **Fase 5 (Conectividad Multi-dispositivo en Red Local Móvil/Tablet y Verificación Final - Req 9)**.
+
+
+## Sesión - 2026-10-27 (Implementación de Fase 5: Conectividad Multi-dispositivo en Red Local y Verificación Final)
+- **Requerimientos abordados del documento:**
+  - Req 9: Acceso multidispositivo al sistema mediante URL local (`0.0.0.0:8000`) desde cualquier smartphone o tablet conectada a la misma red Wi-Fi sin necesidad de internet externo.
+- **Acciones Realizadas:**
+  - `web/optiflow/settings.py`:
+    - Detección de IP local en tiempo de arranque mediante `socket.gethostbyname_ex` e incorporación a `CSRF_TRUSTED_ORIGINS` y configuración de `ALLOWED_HOSTS = ['*']`.
+  - `iniciar.cmd`, `iniciar.ps1` y `COMANDOS_INICIO.txt`:
+    - Configurado el binding del servidor de desarrollo Django a `0.0.0.0:8000`.
+  - `web/core/views.py`:
+    - En `page_context`: Inyección automática de `lan_ip` y `lan_url` en todas las plantillas del sistema.
+  - `web/templates/base.html`:
+    - Agregado botón en topbar `.lan-topbar-pill` (`📱 Móvil / Tablet`) y ventana modal `#modal-lan-connect` con display de URL de red local y código QR interactivo de conexión rápida para cámaras de teléfonos móviles y tablets.
+  - `web/static/js/app.js`:
+    - Integrado controlador para apertura de modal de conexión LAN y copiado rápido al portapapeles con `#btn-copy-lan-url`.
+  - `web/static/css/app.css`:
+    - Diseñados estilos responsivos para `.lan-topbar-pill`, modales de código QR y badge de red Wi-Fi local.
+  - `web/core/tests.py`:
+    - Creado test unitario `test_lan_multidevice_context_and_settings` simulando navegación desde iPad/Tablet, verificando inyección de contexto y directivas de host.
+- **Verificación:**
+  - Suite de pruebas automatizadas: **21/21 pruebas aprobadas al 100% (OK en 2.356s)**.
+  - Archivos estáticos recompilados con `collectstatic --noinput`.
+  - Las 5 fases del plan maestro de requerimientos se encuentran formalmente completadas, probadas y operativas.

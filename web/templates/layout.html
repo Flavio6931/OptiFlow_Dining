@@ -88,6 +88,12 @@
         <h2>Estado operativo de mesas</h2>
         <p>Persistencia directa en SQLite y sincronización bidireccional</p>
       </div>
+      {% if role == 'admin' %}
+        <div class="admin-cad-actions" style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-sm btn-primary" id="btn-open-create-table">+ Nueva Mesa</button>
+          <button type="button" class="btn btn-sm btn-outline" id="btn-open-unify-modal">🔗 Unificar</button>
+        </div>
+      {% endif %}
     </div>
 
     <!-- Filtros Rápidos de Visualización -->
@@ -122,7 +128,7 @@
             </div>
           </div>
 
-          <div class="table-action-box">
+          <div class="table-action-box" style="display: flex; gap: 6px; align-items: center;">
             <select class="table-status-select select-{{ table.state }}"
                     data-code="{{ table.code }}"
                     id="select-{{ table.code }}"
@@ -131,6 +137,17 @@
               <option value="activa" {% if table.state == 'activa' %}selected{% endif %}>Activa</option>
               <option value="ocupada" {% if table.state == 'ocupada' %}selected{% endif %}>Ocupada</option>
             </select>
+            {% if role == 'admin' %}
+              <button type="button" class="btn btn-sm btn-outline btn-move-table"
+                      data-code="{{ table.code }}"
+                      data-node="{{ table.node }}"
+                      data-label="{{ table.label }}"
+                      data-zone="{{ table.zone }}"
+                      title="Mover o reubicar coordenadas de la mesa"
+                      style="padding: 5px 8px; font-size: 11px;">
+                ⚙️
+              </button>
+            {% endif %}
           </div>
         </div>
       {% endfor %}
@@ -141,6 +158,119 @@
       Los estados seleccionados se guardan inmediatamente en la base de datos y se reflejan en el plano interactivo de navegación y rutas de entrega.
     </div>
   </section>
+</div>
+
+<!-- Modales de Gestión CAD de Mesas (Req 6) -->
+<div class="cad-modal-overlay is-hidden" id="modal-create-table">
+  <div class="cad-modal-content">
+    <div class="cad-modal-header">
+      <h3>+ Crear Nueva Mesa CAD</h3>
+      <button type="button" class="btn-close-modal" data-close="modal-create-table">✕</button>
+    </div>
+    <form id="form-create-table" class="cad-modal-form">
+      <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+        <div class="form-group">
+          <label for="new-table-code">Código Único (ID)</label>
+          <input type="text" id="new-table-code" placeholder="ej. mesa09" required class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div class="form-group">
+          <label for="new-table-label">Nombre / Etiqueta</label>
+          <input type="text" id="new-table-label" placeholder="ej. Mesa 09" required class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+      </div>
+      <div class="form-row-3col" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="new-table-seats">Comensales</label>
+          <select id="new-table-seats" class="form-input" style="width: 100%; box-sizing: border-box;">
+            <option value="2">2 personas</option>
+            <option value="4" selected>4 personas</option>
+            <option value="6">6 personas</option>
+            <option value="8">8 personas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="new-table-zone">Zona</label>
+          <select id="new-table-zone" class="form-input" style="width: 100%; box-sizing: border-box;">
+            <option value="A">Zona A (Jardín)</option>
+            <option value="B">Zona B (Pasillo)</option>
+            <option value="C">Zona C (Terraza)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="new-table-node">Nodo (X,Y)</label>
+          <input type="text" id="new-table-node" placeholder="ej. 1,4" required class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+      </div>
+      <div class="cad-modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-ghost" data-close="modal-create-table">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Registrar Mesa en CAD ➔</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="cad-modal-overlay is-hidden" id="modal-unify-tables">
+  <div class="cad-modal-content">
+    <div class="cad-modal-header">
+      <h3>🔗 Unificar Mesas para Grupos Grandes</h3>
+      <button type="button" class="btn-close-modal" data-close="modal-unify-tables">✕</button>
+    </div>
+    <form id="form-unify-tables" class="cad-modal-form">
+      <p style="font-size: 13px; color: var(--text-dim, #94a3b8); margin-bottom: 12px;">Selecciona 2 o más mesas contiguas para consolidarlas en una sola mesa para grupos grandes.</p>
+      <div class="unify-checkboxes-list" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line, #283548); padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+        {% for table in enriched_tables %}
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+            <input type="checkbox" name="unify_tables" value="{{ table.code }}" data-seats="{{ table.seats }}" data-label="{{ table.label }}">
+            <span><strong>{{ table.label }}</strong> ({{ table.seats }} personas · Zona {{ table.zone }})</span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="form-row-2col" style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="unify-result-label">Nombre de Mesa Consolidada</label>
+          <input type="text" id="unify-result-label" placeholder="ej. Mesa 01+02 (Grupo VIP)" class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div class="form-group">
+          <label>Capacidad Total</label>
+          <div id="unify-total-seats" style="font-weight: 700; font-size: 14px; color: #34d399; padding: 10px 0;">0 personas</div>
+        </div>
+      </div>
+      <div class="cad-modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-ghost" data-close="modal-unify-tables">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Consolidar y Actualizar Plano ➔</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="cad-modal-overlay is-hidden" id="modal-move-table">
+  <div class="cad-modal-content compact-modal">
+    <div class="cad-modal-header">
+      <h3 id="move-modal-title">⚙️ Reubicar Coordenadas de Mesa</h3>
+      <button type="button" class="btn-close-modal" data-close="modal-move-table">✕</button>
+    </div>
+    <form id="form-move-table" class="cad-modal-form">
+      <input type="hidden" id="move-table-code">
+      <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="move-table-node">Nuevo Nodo (X,Y)</label>
+          <input type="text" id="move-table-node" placeholder="ej. 2,4" required class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div class="form-group">
+          <label for="move-table-zone">Sector / Zona</label>
+          <select id="move-table-zone" class="form-input" style="width: 100%; box-sizing: border-box;">
+            <option value="A">Zona A</option>
+            <option value="B">Zona B</option>
+            <option value="C">Zona C</option>
+          </select>
+        </div>
+      </div>
+      <div class="cad-modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-ghost" data-close="modal-move-table">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Nueva Ubicación ➔</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 {{ layout|json_script:"floor-layout" }}

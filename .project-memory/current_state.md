@@ -111,11 +111,50 @@
   4. **Persistencia de Captura de Visión:** Creado endpoint `/api/vision/ultima/` en [urls.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/urls.py), inyección de contexto en [routes.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/routes.html) y actualización automática de `latest_vision_capture.jpg` al procesar imágenes en `api_vision`.
   5. **Verificación Integral:** 13 de 13 pruebas unitarias aprobadas al 100% (`OK`) y estáticos recompilados con `collectstatic`.
 
+- [x] Fase 2 Implementada (Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Permanencia en Zonas):
+  1. **Despacho Automático de Ruta Segura (Req 3 & 8):** Si una ruta asignada a un mesero por Capitanía/Admin presenta congestión, el backend recalcula y persiste de forma automática la trayectoria alternativa libre de obstáculos (`avoid_congestion=True`) vía Dijkstra.
+  2. **Trazado Óptimo en un Clic:** El botón `Atender ➔` del mesero en [routes.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/routes.html) detecta la tarea recalculada y traza directamente el recorrido seguro en el mapa CAD del salón con feedback toast y badge `🛡️ Ruta Segura`.
+  3. **Alertas Urgentes de Servicio para Meseros:** Rediseñado el banner en [dashboard.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/dashboard.html) con distintivo de alta prioridad (`🔴 ALERTA DE SERVICIO · ATENCIÓN INMEDIATA`), caja de tareas en [routes.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/routes.html), y píldora flotante persistente en el topbar de [base.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/base.html) (`.waiter-urgent-topbar-pill` con punto pulsante) para que el mesero se entere de inmediato desde cualquier pantalla.
+  4. **Validación Estricta de Umbrales de Permanencia (Req 8):** Aplicada validación matemática estricta en backend (`api_update_zone` en [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py)) y frontend ([app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js)):
+     - Normal: permanencia $\le 2.0$ min.
+     - Moderada: permanencia entre $2.1$ y $4.0$ min.
+     - Crítica: permanencia $> 4.0$ min.
+     - Rechazo inmediato con HTTP 400 y mensaje de error descriptivo ante combinaciones incoherentes.
+  5. **Suite de Pruebas Ampliada:** 15 de 15 pruebas unitarias aprobadas al 100% (`OK`) y estáticos compilados con `collectstatic`.
+
+- [x] Fase 3 Implementada (Rol Especializado «Jefe de Meseros» y Blindaje de Perfiles - Req 5 & 7):
+  1. **Rol Jefe de Meseros (Capitán):** Configurado `Profile.ROLE_CHOICES` con `Jefe de meseros (Capitán)`. Enfoque operativo orientado a la gestión de mesas y despacho de rutas de salón.
+  2. **Edición Libre de Datos Personales:** Implementada la actualización de nombre, apellido y correo en [profile.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/profile.html) con validación y confirmación en [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py) (`profile_view`).
+  3. **Blindaje de Auto-Asignación de Roles:** Ningún usuario puede alterar su propio rol en los formularios de perfil (campo protegido y sanitizado).
+  4. **Gestión de Personal y Promoción Blindada (Admin):** Creada la API `api_update_user_role` en [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py) y [urls.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/urls.py) con panel administrativo exclusivo para promover meseros a Capitanes / Jefes de meseros.
+  5. **Doble Blindaje de Seguridad:** Prohibición estricta de auto-degradación de administradores y bloqueo total ante intentos de degradar a otros superusuarios.
+  6. **Suite de Pruebas Ampliada:** 18 de 18 pruebas unitarias aprobadas al 100% (`OK`).
+
+- [x] Fase 4 Implementada (Creación, Desplazamiento y Unificación de Mesas CAD - Req 6):
+  1. **Creación Dinámica de Mesas CAD:** En [layout.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/layout.py) y [views.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/core/views.py) (`api_create_table`), los Administradores pueden registrar nuevas mesas con código, etiqueta, capacidad (2/4/6/8 comensales), zona y coordenadas de cuadrícula (nodo X,Y).
+  2. **Reubicación de Mesas en la Cuadrícula:** Creada función `move_table` y API `api_move_table` permitiendo cambiar la posición de cualquier mesa y su zona en el plano vectorial.
+  3. **Unificación de Mesas para Grupos Grandes:** Función `unify_tables` y endpoint `api_unify_tables` para consolidar dos o más mesas contiguas con suma automática de capacidades y etiqueta unificada (ej. Mesa 01+02 Grupo Especial).
+  4. **Sincronización en Tiempo Real con Dijkstra:** En [main.py](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/services/routing/main.py), el microservicio de ruteo recarga dinámicamente la topología del salón en cada consulta, haciendo que las mesas nuevas, movidas o unificadas sean inmediatamente navegables.
+  5. **Modales y Controles Visuales CAD:** En [layout.html](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/templates/layout.html), [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js) y [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css), implementados modales oscuros con backdrop blur para creación, unificación interactiva y reubicación sin recargas forzadas.
+  6. **Suite de Pruebas Ampliada:** 20 de 20 pruebas unitarias aprobadas al 100% (`OK`).
+
+- [x] Fase 5 Implementada (Conectividad Multi-dispositivo en Red Local Móvil/Tablet y Verificación Final - Req 9):
+  1. **Detección Dinámica de IP Local y Binding Abierto:** En `settings.py`, configuración de `ALLOWED_HOSTS = ['*']` y resolución automática de IP local vía `socket.gethostbyname_ex` para incorporar orígenes confiables en `CSRF_TRUSTED_ORIGINS`.
+  2. **Lanzadores Multi-dispositivo:** Actualizados `iniciar.cmd`, `iniciar.ps1` y `COMANDOS_INICIO.txt` enlazando el servidor Django a `0.0.0.0:8000` para escuchar conexiones entrantes de cualquier smartphone o tablet en la misma red Wi-Fi local.
+  3. **Inyección de URL de Red Local en Vistas:** En `web/core/views.py` (`page_context`), inyección global de `lan_ip` y `lan_url` (`http://<IP_LOCAL>:8000`).
+  4. **Acceso Rápido y Código QR en Topbar:** En `web/templates/base.html`, [app.js](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/js/app.js) y [app.css](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/web/static/css/app.css), botón `.lan-topbar-pill` (`📱 Móvil / Tablet`) y modal interactivo `#modal-lan-connect` con código QR renderizado en vivo para escaneo inmediato con la cámara de cualquier dispositivo móvil y botón de copiado de URL con feedback visual.
+  5. **Verificación Automatizada Multi-dispositivo:** Creada prueba unitaria `test_lan_multidevice_context_and_settings` en `web/core/tests.py` validando la inyección de contexto, headers User-Agent móviles y presencia de modales de interconexión.
+  6. **Suite Completa Aprobada:** 21 de 21 pruebas unitarias aprobadas al 100% (`OK`).
+
 ## Estado de la Entrega y Sistema Operativo
-- Fase 1 de nuevas especificaciones completada y verificada.
-- Repositorio GitHub con rama `main` operativa.
-- Suite de pruebas: 13/13 pruebas pasando (`OK`).
-- Próxima etapa lista para ejecución: **Fase 2 (Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Permanencia en Zonas)**.
+- Las 5 Fases del Documento de Especificaciones están **100% COMPLETADAS Y VERIFICADAS**:
+  - **Fase 1:** Correcciones UI/UX (alertas congestión con evidencia fotográfica OpenCV, toggle de contraseñas, notificaciones desplegables). *(Completada)*
+  - **Fase 2:** Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Permanencia en Zonas (Req 3, 8). *(Completada)*
+  - **Fase 3:** Rol Especializado «Jefe de Meseros» y Blindaje de Perfiles (Req 5, 7). *(Completada)*
+  - **Fase 4:** Creación, Desplazamiento y Unificación de Mesas CAD (Req 6). *(Completada)*
+  - **Fase 5:** Conectividad Multi-dispositivo en Red Local Móvil/Tablet y Verificación Final (Req 9). *(Completada)*
+- Repositorio GitHub con rama `main` operativa y sincronizada con la cuenta `Josue2004exe`.
+- Suite de pruebas: **21/21 pruebas unitarias pasando al 100% (`OK`)**.
 
 
 

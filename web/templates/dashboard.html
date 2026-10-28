@@ -109,16 +109,17 @@
 </div>
 
 {% if assigned_to_me %}
-  <div class="assigned-pending-banner">
+  <div class="assigned-pending-banner urgent-assigned-banner">
     <div class="assigned-banner-left">
       <span class="assigned-pulse-icon">⚡</span>
       <div>
+        <div class="assigned-urgent-badge">🔴 ALERTA DE SERVICIO · ATENCIÓN INMEDIATA</div>
         <h4>Tienes {{ assigned_to_me|length }} tarea{{ assigned_to_me|pluralize }} asignada{{ assigned_to_me|pluralize }} para tu turno</h4>
-        <p>Capitanía te ha asignado servicios de entrega y retiro pendientes de atención.</p>
+        <p>Capitanía te ha asignado servicios con desvíos seguros calculados por Dijkstra.</p>
       </div>
     </div>
     <div class="assigned-banner-right">
-      <a href="{% url 'routes' %}" class="btn btn-primary btn-sm">Ver y atender tareas en el mapa ➔</a>
+      <a href="{% url 'routes' %}" class="btn btn-primary btn-sm btn-urgent-action">Ver y atender tareas en el mapa ➔</a>
     </div>
   </div>
 {% endif %}

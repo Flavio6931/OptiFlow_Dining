@@ -7,7 +7,7 @@ class Profile(models.Model):
     """Perfil operativo asociado a un usuario del sistema."""
     ROLE_CHOICES = [
         ('mesero', 'Mesero / Runner'),
-        ('capitan', 'Capitán de meseros'),
+        ('capitan', 'Jefe de meseros (Capitán)'),
         ('gerente', 'Gerente general'),
     ]
     user = models.OneToOneField(

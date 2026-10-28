@@ -28,7 +28,7 @@ carpeta raiz del proyecto (c:\Users\Flavio\Desktop\H4CK\Flavio\OptiFlow_Dining):
 
 --- TERMINAL 1: APLICACION WEB DJANGO (PUERTO 8000) ---
 Comando:
-.venv\Scripts\python web/manage.py runserver 8000
+.venv\Scripts\python web/manage.py runserver 0.0.0.0:8000
 
 --- TERMINAL 2: MICROSERVICIO DE RUTAS FASTAPI (PUERTO 8001) ---
 Comando:

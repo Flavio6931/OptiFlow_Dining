@@ -83,9 +83,26 @@ def page_context(request, page_title, active):
 
     unread_notifications_count = 0
     notifications = []
-    if user.is_authenticated and user_role in ('admin', 'capitan'):
-        unread_notifications_count = AdminNotification.objects.filter(read=False).count()
-        notifications = list(AdminNotification.objects.filter(read=False)[:5])
+    waiter_pending_assigned_count = 0
+    if user.is_authenticated:
+        if user_role in ('admin', 'capitan'):
+            unread_notifications_count = AdminNotification.objects.filter(read=False).count()
+            notifications = list(AdminNotification.objects.filter(read=False)[:5])
+        elif user_role == 'mesero':
+            waiter_pending_assigned_count = RouteConsultation.objects.filter(
+                assigned_waiter=user,
+                completed=False,
+            ).count()
+
+    lan_ip = '127.0.0.1'
+    try:
+        import socket
+        ips = socket.gethostbyname_ex(socket.gethostname())[2]
+        lan_candidates = [ip for ip in ips if not ip.startswith('127.') and not ip.startswith('192.168.56.')]
+        lan_ip = lan_candidates[0] if lan_candidates else (ips[0] if ips else '127.0.0.1')
+    except Exception:
+        pass
+    lan_url = f"http://{lan_ip}:8000"
 
     return {
         'page_title': page_title,
@@ -99,6 +116,9 @@ def page_context(request, page_title, active):
         'tables_map_json': json.dumps(states_dict, ensure_ascii=False),
         'unread_notifications_count': unread_notifications_count,
         'notifications': notifications,
+        'waiter_pending_assigned_count': waiter_pending_assigned_count,
+        'lan_ip': lan_ip,
+        'lan_url': lan_url,
     }
 
 
@@ -462,6 +482,25 @@ def api_route(request):
     if assigned_waiter_id and role_for(request.user) in ('admin', 'capitan'):
         assigned_waiter = User.objects.filter(id=assigned_waiter_id).first()
 
+    # Si se asigna la ruta a un mesero y la trayectoria inicial presenta congestión,
+    # se recalcula automáticamente la trayectoria óptima y segura vía Dijkstra para esquivar cuellos de botella (Req 3 & 8).
+    auto_safe_reroute = False
+    if assigned_waiter and result.get('congested') and not avoid:
+        try:
+            http_code_safe, safe_result = calculate_route({
+                'origin': origin,
+                'destination': destination,
+                'task_type': task_type,
+                'avoid_congestion': True,
+                'zone_levels': zone_levels,
+            })
+            if http_code_safe == 200:
+                result = safe_result
+                avoid = True
+                auto_safe_reroute = True
+        except ServiceUnavailable:
+            logger.warning('No se pudo calcular desvío seguro automático al asignar ruta a mesero.')
+
     record = RouteConsultation.objects.create(
         user=request.user,
         assigned_waiter=assigned_waiter,
@@ -477,6 +516,8 @@ def api_route(request):
     result['created_at'] = record.created_at.strftime('%d/%m/%Y %H:%M')
     result['task_type_display'] = record.get_task_type_display()
     result['destination_label'] = destination.upper()
+    result['recalculated'] = avoid
+    result['auto_safe_reroute'] = auto_safe_reroute
     result['assigned_waiter_name'] = (
         assigned_waiter.get_full_name() or assigned_waiter.username
         if assigned_waiter else ''
@@ -519,6 +560,26 @@ def api_update_zone(request, code):
 
     level = serializer.validated_data['level']
     minutes = serializer.validated_data['dwell_minutes']
+
+    # Validación estricta de umbrales matemáticos de permanencia (Req 8):
+    # - Normal: permanencia <= 2.0 min
+    # - Moderada: permanencia entre 2.1 y 4.0 min
+    # - Crítica: permanencia > 4.0 min
+    if level == 'critica' and minutes <= 4.0:
+        return Response(
+            {'error': 'Una zona solo puede clasificarse como Crítica si su tiempo de permanencia supera los 4.0 minutos.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if level == 'normal' and minutes > 2.0:
+        return Response(
+            {'error': 'Una zona con tiempo de permanencia superior a 2.0 minutos no puede clasificarse como Normal.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if level == 'moderada' and (minutes <= 2.0 or minutes > 4.0):
+        return Response(
+            {'error': 'Una zona Moderada debe registrar un tiempo de permanencia entre 2.1 y 4.0 minutos.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     zone.level = level
     zone.dwell_minutes = minutes
@@ -676,10 +737,29 @@ def api_latest_vision(request):
 
 @login_required
 def profile_view(request):
-    """Vista de perfil y estadísticas de cuenta para meseros y administradores."""
+    """Vista de perfil, edición de datos personales y gestión blindada de personal (Req 5 & 7)."""
     context = page_context(request, 'Mi Perfil', 'profile')
     user = request.user
     role = context['role']
+
+    # Actualización libre de datos personales (nombre, correo) con blindaje de rol
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+
+        if not first_name:
+            messages.error(request, 'El nombre no puede estar vacío.')
+        elif email and '@' not in email:
+            messages.error(request, 'Por favor, proporciona un correo electrónico válido.')
+        else:
+            user.first_name = first_name
+            user.last_name = last_name
+            if email:
+                user.email = email
+            user.save(update_fields=['first_name', 'last_name', 'email'])
+            messages.success(request, 'Tus datos personales se han actualizado correctamente.')
+        return redirect('profile')
 
     # Estadísticas operativas del usuario actual
     total_completed = RouteConsultation.objects.filter(
@@ -695,6 +775,7 @@ def profile_view(request):
 
     admin_stats = {}
     all_notifications = []
+    staff_users = []
     if role in ('admin', 'capitan'):
         admin_stats = {
             'total_waiters': User.objects.filter(profile__role='mesero').count(),
@@ -702,6 +783,9 @@ def profile_view(request):
             'unread_notifications': AdminNotification.objects.filter(read=False).count(),
         }
         all_notifications = list(AdminNotification.objects.order_by('-created_at')[:10])
+
+    if role == 'admin':
+        staff_users = list(User.objects.exclude(id=user.id).select_related('profile').order_by('username'))
 
     context.update({
         'profile_user': user,
@@ -711,6 +795,8 @@ def profile_view(request):
         'recent_activity': recent_activity,
         'admin_stats': admin_stats,
         'all_notifications': all_notifications,
+        'staff_users': staff_users,
+        'available_roles': Profile.ROLE_CHOICES,
     })
     return render(request, 'profile.html', context)
 
@@ -724,3 +810,138 @@ def api_mark_notification_read(request, pk):
     notif.save(update_fields=['read'])
     return Response({'success': True, 'id': notif.id})
 
+
+@api_view(['POST'])
+@drf_role_required('admin')
+def api_update_user_role(request, user_id):
+    """API para que el Administrador promueva o asigne roles de personal de forma blindada (Req 5 & 7)."""
+    target_user = get_object_or_404(User, id=user_id)
+
+    # Blindaje 1: No auto-modificación de rol propio
+    if target_user.id == request.user.id:
+        return Response(
+            {'error': 'Por seguridad, no puedes alterar tu propio rol operativo.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Blindaje 2: No degradar a otros superusuarios / administradores
+    if target_user.is_superuser:
+        return Response(
+            {'error': 'No está permitido modificar el rol de otros administradores del sistema.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    new_role = request.data.get('role', '').lower().strip()
+    valid_roles = dict(Profile.ROLE_CHOICES)
+    if new_role not in valid_roles:
+        return Response(
+            {'error': f'Rol inválido. Roles válidos: {", ".join(valid_roles.keys())}.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    profile, _ = Profile.objects.get_or_create(user=target_user)
+    profile.role = new_role
+    profile.save(update_fields=['role'])
+
+    return Response({
+        'success': True,
+        'message': f'Rol de @{target_user.username} actualizado a {profile.get_role_display()}.',
+        'user_id': target_user.id,
+        'username': target_user.username,
+        'new_role': profile.role,
+        'new_role_display': profile.get_role_display(),
+    }, status=status.HTTP_200_OK)
+
+
+
+@api_view(['POST'])
+@drf_role_required('admin')
+def api_create_table(request):
+    """API DRF para crear una nueva mesa en el plano topológico CAD (Req 6)."""
+    from .layout import add_table
+
+    code = request.data.get('code', '').strip().lower()
+    label = request.data.get('label', '').strip()
+    seats = request.data.get('seats', 4)
+    zone = request.data.get('zone', 'A').strip().upper()
+    node = request.data.get('node', '').strip()
+
+    if not code:
+        return Response({'error': 'El código de la mesa es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not label:
+        label = f"Mesa {code.replace('mesa', '').zfill(2)}"
+    if not node:
+        return Response({'error': 'Las coordenadas de la mesa (nodo X,Y) son requeridas.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        seats_num = int(seats)
+        if seats_num <= 0:
+            raise ValueError()
+    except (ValueError, TypeError):
+        return Response({'error': 'La capacidad de comensales debe ser un número entero positivo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        new_table = add_table(code=code, label=label, seats=seats_num, zone=zone, node=node)
+        return Response({
+            'success': True,
+            'table': new_table,
+            'message': f"Mesa '{new_table['label']}' creada exitosamente en el salón.",
+        }, status=status.HTTP_201_CREATED)
+    except ValueError as val_err:
+        return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@drf_role_required('admin')
+def api_move_table(request, code):
+    """API DRF para reubicar las coordenadas o zona de una mesa en el plano CAD (Req 6)."""
+    from .layout import move_table
+
+    new_node = request.data.get('node', '').strip()
+    new_zone = request.data.get('zone', '').strip().upper() or None
+
+    if not new_node:
+        return Response({'error': 'El nuevo nodo de ubicación (X,Y) es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        updated = move_table(code=code, new_node=new_node, new_zone=new_zone)
+        return Response({
+            'success': True,
+            'table': updated,
+            'message': f"Mesa '{updated['label']}' reubicada a nodo {updated['node']}.",
+        }, status=status.HTTP_200_OK)
+    except ValueError as val_err:
+        return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@drf_role_required('admin')
+def api_unify_tables(request):
+    """API DRF para unificar dos o más mesas contiguas para grupos grandes (Req 6)."""
+    from .layout import unify_tables
+
+    table_codes = request.data.get('table_codes', [])
+    unified_code = request.data.get('unified_code', '').strip().lower()
+    unified_label = request.data.get('unified_label', '').strip()
+
+    if not isinstance(table_codes, list) or len(table_codes) < 2:
+        return Response({'error': 'Debes seleccionar al menos 2 mesas para fusionar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not unified_code:
+        unified_code = f"mesa_{'_'.join(c.replace('mesa', '') for c in table_codes)}"
+    if not unified_label:
+        unified_label = f"Mesa {'+'.join(c.replace('mesa', '') for c in table_codes)} (Grupo)"
+
+    try:
+        unified = unify_tables(
+            table_codes=table_codes,
+            unified_code=unified_code,
+            unified_label=unified_label,
+        )
+        return Response({
+            'success': True,
+            'unified_table': unified,
+            'message': f"Mesas fusionadas exitosamente en '{unified['label']}' (Capacidad: {unified['seats']} personas).",
+        }, status=status.HTTP_200_OK)
+    except ValueError as val_err:
+        return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)

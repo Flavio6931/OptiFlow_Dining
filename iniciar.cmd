@@ -16,7 +16,7 @@ if not exist "%~dp0.venv\Scripts\python.exe" (
 )
 
 echo [1/3] Levantando Django Web en puerto 8000...
-start "OptiFlow - Django Web (:8000)" cmd /k "chcp 65001 >nul && title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && cd /d "%~dp0" && .venv\Scripts\python.exe web/manage.py runserver 8000"
+start "OptiFlow - Django Web (:8000)" cmd /k "chcp 65001 >nul && title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && cd /d "%~dp0" && .venv\Scripts\python.exe web/manage.py runserver 0.0.0.0:8000"
 
 echo [2/3] Levantando Microservicio de Rutas en puerto 8001...
 start "OptiFlow - Rutas FastAPI (:8001)" cmd /k "chcp 65001 >nul && title Rutas FastAPI (:8001) && echo ======================================== && echo  Servicio 2: Rutas FastAPI (Puerto 8001) && echo ======================================== && cd /d "%~dp0" && .venv\Scripts\python.exe -m uvicorn services.routing.main:app --port 8001"

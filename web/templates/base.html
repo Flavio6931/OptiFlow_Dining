@@ -154,6 +154,18 @@
             <span class="system-online">Sistema Activo</span>
           </div>
 
+          <button type="button" class="lan-topbar-pill" id="btn-open-lan-modal" title="Abrir enlace para tablets o teléfonos en red local Wi-Fi">
+            <span style="font-size: 14px;">📱</span>
+            <span class="lan-topbar-text">Móvil / Tablet</span>
+          </button>
+
+          {% if waiter_pending_assigned_count > 0 %}
+            <a href="{% url 'routes' %}" class="waiter-urgent-topbar-pill" title="Tienes {{ waiter_pending_assigned_count }} tarea{{ waiter_pending_assigned_count|pluralize }} asignada{{ waiter_pending_assigned_count|pluralize }} pendiente{{ waiter_pending_assigned_count|pluralize }}">
+              <span class="waiter-urgent-dot"></span>
+              <span class="waiter-urgent-text">⚡ {{ waiter_pending_assigned_count }} tarea{{ waiter_pending_assigned_count|pluralize }} urgente{{ waiter_pending_assigned_count|pluralize }}</span>
+            </a>
+          {% endif %}
+
           {% if role == 'admin' or role == 'capitan' %}
             <div class="topbar-notif-wrap" id="topbar-notif-wrap">
               <button type="button" class="btn-topbar-notif" id="btn-topbar-notif" aria-label="Avisos administrativos" title="Avisos y notificaciones">
@@ -221,5 +233,35 @@
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block scripts %}
   {% endblock %}
+  <!-- Modal de Conexión Multi-Dispositivo en Red Local (Móvil / Tablet - Req 9) -->
+  <div class="cad-modal-overlay is-hidden" id="modal-lan-connect">
+    <div class="cad-modal-content" style="max-width: 460px; text-align: center;">
+      <div class="cad-modal-header">
+        <h3 style="display: flex; align-items: center; gap: 8px;">📱 Acceso Móvil y Tablet (Red Local)</h3>
+        <button type="button" class="btn-close-modal" data-close="modal-lan-connect">✕</button>
+      </div>
+      <div style="padding: 10px 0;">
+        <p style="font-size: 13px; color: var(--text-dim, #94a3b8); margin-bottom: 14px;">
+          Opera el sistema desde cualquier <strong>tablet o smartphone</strong> conectado a la misma red Wi-Fi sin instalar aplicaciones.
+        </p>
+
+        <div style="background: var(--surface-1, #0f172a); border: 1px solid var(--line, #283548); border-radius: 12px; padding: 12px; margin-bottom: 14px;">
+          <span style="font-size: 11px; text-transform: uppercase; color: #38bdf8; font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">URL en Red Wi-Fi Local</span>
+          <div style="font-size: 17px; font-weight: 800; color: #ffffff; font-family: monospace; margin-bottom: 8px;" id="lan-url-display">{{ lan_url }}</div>
+          <button type="button" class="btn btn-sm btn-outline" id="btn-copy-lan-url" style="font-size: 12px; padding: 4px 12px;">
+            📋 Copiar Enlace
+          </button>
+        </div>
+
+        <div style="background: #ffffff; padding: 10px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.4); margin-bottom: 10px;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ lan_url }}" alt="Código QR para escaneo móvil" width="150" height="150" style="display: block;">
+        </div>
+        <small style="display: block; font-size: 11px; color: var(--text-dim, #94a3b8);">
+          Apunta con la cámara de tu tablet o smartphone para ingresar directamente desde el navegador.
+        </small>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -771,6 +771,24 @@
       const code = btn.dataset.zone;
       const levelVal = $(`#level-${code}`).value;
       const dwellVal = Number($(`#dwell-${code}`).value);
+
+      // Validación estricta de umbrales matemáticos (Req 8)
+      if (levelVal === 'critica' && dwellVal <= 4.0) {
+        toast('Una zona solo puede clasificarse como Crítica si su tiempo de permanencia supera los 4.0 minutos.', 'error');
+        $(`#dwell-${code}`).focus();
+        return;
+      }
+      if (levelVal === 'normal' && dwellVal > 2.0) {
+        toast('Una zona con tiempo de permanencia superior a 2.0 minutos no puede clasificarse como Normal.', 'error');
+        $(`#dwell-${code}`).focus();
+        return;
+      }
+      if (levelVal === 'moderada' && (dwellVal <= 2.0 || dwellVal > 4.0)) {
+        toast('Una zona Moderada debe registrar un tiempo de permanencia entre 2.1 y 4.0 minutos.', 'error');
+        $(`#dwell-${code}`).focus();
+        return;
+      }
+
       try {
         const res = await postJSON(`/api/zonas/${code}/`, {
           level: levelVal,
@@ -784,7 +802,7 @@
     })
   );
 
-  // Sugerencia automática de nivel al cambiar minutos de permanencia
+  // Sincronización bidireccional estricta entre nivel y minutos de permanencia (Req 8)
   $$('input[id^="dwell-"]').forEach((input) => {
     input.addEventListener('input', () => {
       const val = parseFloat(input.value);
@@ -794,6 +812,25 @@
         if (val <= 2.0) select.value = 'normal';
         else if (val <= 4.0) select.value = 'moderada';
         else select.value = 'critica';
+      }
+    });
+  });
+
+  $$('select[id^="level-"]').forEach((select) => {
+    select.addEventListener('change', () => {
+      const code = select.id.replace('level-', '');
+      const dwellInput = $(`#dwell-${code}`);
+      if (!dwellInput) return;
+      const dwell = parseFloat(dwellInput.value);
+      if (select.value === 'critica' && (isNaN(dwell) || dwell <= 4.0)) {
+        dwellInput.value = '4.5';
+        toast(`Zona ${code}: tiempo ajustado a 4.5 min para cumplir el umbral Crítico (> 4 min).`, 'info');
+      } else if (select.value === 'moderada' && (isNaN(dwell) || dwell <= 2.0 || dwell > 4.0)) {
+        dwellInput.value = '3.0';
+        toast(`Zona ${code}: tiempo ajustado a 3.0 min para rango Moderado (2.1 a 4 min).`, 'info');
+      } else if (select.value === 'normal' && (isNaN(dwell) || dwell > 2.0)) {
+        dwellInput.value = '1.0';
+        toast(`Zona ${code}: tiempo ajustado a 1.0 min para rango Normal (<= 2 min).`, 'info');
       }
     });
   });
@@ -1201,19 +1238,26 @@
     });
   });
 
-  // --- Carga Rápida de Tareas Asignadas (Mesero) ---
+  // --- Carga Rápida de Tareas Asignadas (Mesero) con Ruta Segura (Req 3 & 8) ---
   $$('.btn-quick-load').forEach((btn) => {
     btn.addEventListener('click', () => {
       const orig = btn.dataset.origin;
       const dest = btn.dataset.dest;
       const taskType = btn.dataset.taskType;
       const routeId = btn.dataset.routeId;
+      const isRecalculated = btn.dataset.recalculated === 'true';
       if (orig && $('#origin')) $('#origin').value = orig;
       if (dest && $('#destination')) $('#destination').value = dest;
       if (taskType && $('#task-type')) $('#task-type').value = taskType;
       if (routeId) lastRouteId = Number(routeId);
-      toast('Tarea cargada en el mapa. Trazando recorrido...', 'info');
-      requestRoute(false);
+      toast(
+        isRecalculated
+          ? 'Tarea asignada cargada. Trazando trayectoria segura con desvío...'
+          : 'Tarea asignada cargada. Trazando recorrido...',
+        'info'
+      );
+      // Despacho de ruta segura: si la tarea fue recalculada, trazar con avoid_congestion=true
+      requestRoute(isRecalculated);
     });
   });
 
@@ -1268,6 +1312,162 @@
     } catch (err) {
       btn.disabled = false;
       toast(err.message || 'No se pudo actualizar el aviso.', 'error');
+    }
+  });
+
+  // --- Gestión Dinámica de Mesas CAD: Crear, Mover y Unificar (Admin - Req 6) ---
+  const modalCreate = $('#modal-create-table');
+  const modalUnify = $('#modal-unify-tables');
+  const modalMove = $('#modal-move-table');
+
+  // Abrir / Cerrar Modales CAD
+  $('#btn-open-create-table')?.addEventListener('click', () => {
+    modalCreate?.classList.remove('is-hidden');
+  });
+
+  $('#btn-open-unify-modal')?.addEventListener('click', () => {
+    modalUnify?.classList.remove('is-hidden');
+  });
+
+  $$('[data-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const modalId = btn.dataset.close;
+      $(`#${modalId}`)?.classList.add('is-hidden');
+    });
+  });
+
+  // Abrir modal de reubicar mesa
+  $$('.btn-move-table').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const code = btn.dataset.code;
+      const node = btn.dataset.node;
+      const label = btn.dataset.label;
+      const zone = btn.dataset.zone;
+      if ($('#move-table-code')) $('#move-table-code').value = code;
+      if ($('#move-table-node')) $('#move-table-node').value = node;
+      if ($('#move-table-zone')) $('#move-table-zone').value = zone;
+      if ($('#move-modal-title')) $('#move-modal-title').textContent = `⚙️ Reubicar ${label}`;
+      modalMove?.classList.remove('is-hidden');
+    });
+  });
+
+  // Suma dinámica de asientos al marcar mesas para unificar
+  const unifyBoxes = $$('input[name="unify_tables"]');
+  const unifySeatsDisplay = $('#unify-total-seats');
+  unifyBoxes.forEach((chk) => {
+    chk.addEventListener('change', () => {
+      let total = 0;
+      unifyBoxes.forEach((c) => {
+        if (c.checked) total += Number(c.dataset.seats) || 0;
+      });
+      if (unifySeatsDisplay) unifySeatsDisplay.textContent = `${total} personas`;
+    });
+  });
+
+  // Enviar creación de mesa
+  $('#form-create-table')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = $('#new-table-code').value;
+    const label = $('#new-table-label').value;
+    const seats = Number($('#new-table-seats').value);
+    const zone = $('#new-table-zone').value;
+    const node = $('#new-table-node').value;
+
+    try {
+      const res = await postJSON('/api/mesas/crear/', { code, label, seats, zone, node });
+      toast(res.message, 'success');
+      modalCreate?.classList.add('is-hidden');
+      setTimeout(() => location.reload(), 700);
+    } catch (err) {
+      toast(err.message || 'Error al crear la mesa.', 'error');
+    }
+  });
+
+  // Enviar unificación de mesas
+  $('#form-unify-tables')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const checked = [...unifyBoxes].filter((c) => c.checked).map((c) => c.value);
+    if (checked.length < 2) {
+      toast('Selecciona al menos 2 mesas para fusionar.', 'error');
+      return;
+    }
+    const label = $('#unify-result-label').value;
+
+    try {
+      const res = await postJSON('/api/mesas/unificar/', {
+        table_codes: checked,
+        unified_label: label,
+      });
+      toast(res.message, 'success');
+      modalUnify?.classList.add('is-hidden');
+      setTimeout(() => location.reload(), 700);
+    } catch (err) {
+      toast(err.message || 'Error al unificar mesas.', 'error');
+    }
+  });
+
+  // Enviar reubicación de mesa
+  $('#form-move-table')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = $('#move-table-code').value;
+    const node = $('#move-table-node').value;
+    const zone = $('#move-table-zone').value;
+
+    try {
+      const res = await postJSON(`/api/mesas/${code}/mover/`, { node, zone });
+      toast(res.message, 'success');
+      modalMove?.classList.add('is-hidden');
+      setTimeout(() => location.reload(), 700);
+    } catch (err) {
+      toast(err.message || 'Error al reubicar mesa.', 'error');
+    }
+  });
+
+  // --- Conectividad LAN Móvil / Tablet (Req 9) ---
+  $('#btn-open-lan-modal')?.addEventListener('click', () => {
+    $('#modal-lan-connect')?.classList.remove('is-hidden');
+  });
+
+  $('#btn-copy-lan-url')?.addEventListener('click', () => {
+    const urlText = $('#lan-url-display')?.textContent?.trim();
+    if (urlText && navigator.clipboard) {
+      navigator.clipboard.writeText(urlText).then(() => {
+        toast(`Enlace copiado al portapapeles: ${urlText}`, 'success');
+      }).catch(() => {
+        toast(`Enlace: ${urlText}`, 'info');
+      });
+    } else if (urlText) {
+      toast(`Enlace: ${urlText}`, 'info');
+    }
+  });
+
+  // --- Gestión Blindada de Roles de Personal (Admin - Req 5 & 7) ---
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-save-role');
+    if (!btn) return;
+    const userId = btn.dataset.userId;
+    if (!userId) return;
+
+    const select = $(`#role-select-${userId}`);
+    if (!select) return;
+    const newRole = select.value;
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    try {
+      const res = await postJSON(`/api/usuarios/${userId}/rol/`, { role: newRole });
+      toast(res.message, 'success');
+      const pill = $(`#user-role-pill-${userId}`);
+      if (pill) {
+        pill.textContent = res.new_role_display;
+        pill.className = `status-pill ${newRole === 'admin' ? 'critica' : newRole === 'capitan' ? 'moderada' : 'normal'}`;
+      }
+    } catch (err) {
+      toast(err.message || 'No se pudo actualizar el rol.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Guardar ➔';
     }
   });
 })();
