@@ -38,23 +38,33 @@ class RouteRequest(BaseModel):
     zone_levels: Dict[str, str] = Field(default_factory=dict, description='Niveles actuales de zonas.')
 
 
-def neighbors(node: str) -> Generator[str, None, None]:
+def neighbors(node: str, width: Optional[int] = None, height: Optional[int] = None) -> Generator[str, None, None]:
     """Genera los nodos adyacentes válidos dentro de la cuadrícula del salón."""
+    w = width if width is not None else WIDTH
+    h = height if height is not None else HEIGHT
     x, y = map(int, node.split(','))
     # En empates favorecemos circulación horizontal por pasillo principal.
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         nx, ny = x + dx, y + dy
-        if 0 <= nx < WIDTH and 0 <= ny < HEIGHT:
+        if 0 <= nx < w and 0 <= ny < h:
             yield f'{nx},{ny}'
 
 
-def shortest(start: str, end: str, avoid_nodes: Set[str]) -> Optional[List[str]]:
+def shortest(
+    start: str,
+    end: str,
+    avoid_nodes: Set[str],
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+) -> Optional[List[str]]:
     """Calcula el camino más corto utilizando el algoritmo Dijkstra con penalización heurística.
 
     Args:
         start: Coordenada 'x,y' inicial.
         end: Coordenada 'x,y' final.
         avoid_nodes: Conjunto de coordenadas 'x,y' a esquivar si es posible.
+        width: Límite de columnas de la cuadrícula (opcional).
+        height: Límite de filas de la cuadrícula (opcional).
 
     Returns:
         Lista de coordenadas que forman la ruta, o None si no hay trayecto disponible.
@@ -73,7 +83,7 @@ def shortest(start: str, end: str, avoid_nodes: Set[str]) -> Optional[List[str]]
             continue
         if u == end:
             break
-        for v in neighbors(u):
+        for v in neighbors(u, width=width, height=height):
             if v in avoid_nodes and v != end:
                 continue
             # Preferimos nodos del pasillo central (y=2) a igualdad de distancia.
@@ -145,7 +155,20 @@ def route(request: RouteRequest) -> Dict[str, Any]:
     if not risky and any(request.zone_levels.get(zone) == 'critica' for zone in ('B', 'C')):
         risky = set(CONGESTION)
 
-    path = shortest(start, end, risky if request.avoid_congestion else set())
+    width = int(cur_layout.get('columns', WIDTH))
+    height = int(cur_layout.get('rows', HEIGHT))
+
+    # Mesas intermedias como obstáculos físicos: el personal no debe caminar sobre otras mesas
+    other_tables = {node for t_id, node in cur_tables.items() if t_id != request.destination}
+    avoid_nodes = set(other_tables)
+    if request.avoid_congestion:
+        avoid_nodes.update(risky)
+
+    path = shortest(start, end, avoid_nodes, width=width, height=height)
+    if path is None:
+        # Fallback de resiliencia: si el paso estuviera totalmente obstruido, intentar sin el bloqueo de mesas
+        path = shortest(start, end, risky if request.avoid_congestion else set(), width=width, height=height)
+
     if path is None:
         raise HTTPException(
             status_code=404,

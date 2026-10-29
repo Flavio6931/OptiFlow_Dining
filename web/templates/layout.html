@@ -88,10 +88,11 @@
         <h2>Estado operativo de mesas</h2>
         <p>Persistencia directa en SQLite y sincronización bidireccional</p>
       </div>
-      {% if role == 'admin' %}
-        <div class="admin-cad-actions" style="display: flex; gap: 8px;">
+      {% if role == 'admin' or role == 'gerente' %}
+        <div class="admin-cad-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button type="button" class="btn btn-sm btn-primary" id="btn-open-create-table">+ Nueva Mesa</button>
           <button type="button" class="btn btn-sm btn-outline" id="btn-open-unify-modal">🔗 Unificar</button>
+          <button type="button" class="btn btn-sm btn-outline" id="btn-open-dimensions-modal">📐 Dimensiones</button>
         </div>
       {% endif %}
     </div>
@@ -137,7 +138,7 @@
               <option value="activa" {% if table.state == 'activa' %}selected{% endif %}>Activa</option>
               <option value="ocupada" {% if table.state == 'ocupada' %}selected{% endif %}>Ocupada</option>
             </select>
-            {% if role == 'admin' %}
+            {% if role == 'admin' or role == 'gerente' %}
               <button type="button" class="btn btn-sm btn-outline btn-move-table"
                       data-code="{{ table.code }}"
                       data-node="{{ table.node }}"
@@ -147,6 +148,15 @@
                       style="padding: 5px 8px; font-size: 11px;">
                 ⚙️
               </button>
+              {% if table.is_unified %}
+                <button type="button" class="btn btn-sm btn-outline btn-separate-table"
+                        data-code="{{ table.code }}"
+                        data-label="{{ table.label }}"
+                        title="Separar mesa unificada y restaurar mesas originales"
+                        style="padding: 5px 8px; font-size: 11px; color: #ff7b3d; border-color: rgba(255, 123, 61, 0.4);">
+                  ⤢ Separar
+                </button>
+              {% endif %}
             {% endif %}
           </div>
         </div>
@@ -254,7 +264,8 @@
       <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
         <div class="form-group">
           <label for="move-table-node">Nuevo Nodo (X,Y)</label>
-          <input type="text" id="move-table-node" placeholder="ej. 2,4" required class="form-input" style="width: 100%; box-sizing: border-box;">
+          <input type="text" id="move-table-node" placeholder="ej. 2,4 o auto" class="form-input" style="width: 100%; box-sizing: border-box;">
+          <small style="font-size: 10px; color: #94a3b8; display: block; margin-top: 3px;">Escribe 'auto' para buscar espacio libre en la zona.</small>
         </div>
         <div class="form-group">
           <label for="move-table-zone">Sector / Zona</label>
@@ -268,6 +279,34 @@
       <div class="cad-modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
         <button type="button" class="btn btn-ghost" data-close="modal-move-table">Cancelar</button>
         <button type="submit" class="btn btn-primary">Guardar Nueva Ubicación ➔</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="cad-modal-overlay is-hidden" id="modal-dimensions">
+  <div class="cad-modal-content compact-modal">
+    <div class="cad-modal-header">
+      <h3>📐 Dimensiones del Salón CAD</h3>
+      <button type="button" class="btn-close-modal" data-close="modal-dimensions">✕</button>
+    </div>
+    <form id="form-dimensions" class="cad-modal-form">
+      <p style="font-size: 11.5px; color: #94a3b8; margin-bottom: 12px; line-height: 1.5;">
+        Ajusta la cuadrícula máxima del salón (columnas X y filas Y). Ninguna mesa existente debe quedar fuera.
+      </p>
+      <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="dim-columns">Columnas (Ancho X)</label>
+          <input type="number" id="dim-columns" min="3" max="30" value="{{ layout.columns|default:5 }}" required class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div class="form-group">
+          <label for="dim-rows">Filas (Largo Y)</label>
+          <input type="number" id="dim-rows" min="3" max="30" value="{{ layout.rows|default:5 }}" required class="form-input" style="width: 100%; box-sizing: border-box;">
+        </div>
+      </div>
+      <div class="cad-modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-ghost" data-close="modal-dimensions">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Dimensiones ➔</button>
       </div>
     </form>
   </div>

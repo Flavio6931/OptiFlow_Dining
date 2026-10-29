@@ -94,25 +94,28 @@
           <svg class="ic"><use href="#i-grid"/></svg>Panel principal
         </a>
 
-        {% if role == 'mesero' or role == 'capitan' or role == 'admin' %}
+        {% if role == 'mesero' or role == 'capitan' or role == 'gerente' or role == 'admin' %}
           <a href="{% url 'routes' %}" class="nav-link {% if active == 'routes' %}active{% endif %}">
             <svg class="ic"><use href="#i-route"/></svg>Rutas de servicio
           </a>
         {% endif %}
 
-        {% if role == 'capitan' or role == 'gerente' or role == 'admin' %}
+        {% if role == 'gerente' or role == 'admin' %}
           <a href="{% url 'saturation' %}" class="nav-link {% if active == 'saturation' %}active{% endif %}">
             <svg class="ic"><use href="#i-activity"/></svg>Saturación del salón
           </a>
+        {% endif %}
+
+        {% if role == 'capitan' or role == 'gerente' or role == 'admin' %}
           <a href="{% url 'analytics' %}" class="nav-link {% if active == 'analytics' %}active{% endif %}">
             <svg class="ic"><use href="#i-chart"/></svg>Indicadores
           </a>
-        {% endif %}
-
-        {% if role == 'capitan' or role == 'admin' %}
           <a href="{% url 'layout' %}" class="nav-link {% if active == 'layout' %}active{% endif %}">
             <svg class="ic"><use href="#i-layout"/></svg>Plano y mesas
           </a>
+        {% endif %}
+
+        {% if role == 'gerente' or role == 'admin' %}
           <a href="{% url 'vision' %}" class="nav-link {% if active == 'vision' %}active{% endif %}">
             <svg class="ic"><use href="#i-eye"/></svg>Análisis OpenCV
           </a>

@@ -54,6 +54,21 @@ class RoutingServiceTests(unittest.TestCase):
             route(RouteRequest(destination='mesa999_inexistente'))
         self.assertEqual(ctx.exception.status_code, 400)
 
+    def test_path_does_not_cross_intermediate_tables(self):
+        """Verifica que la trayectoria no atraviese mesas intermedias tratándolas como obstáculos."""
+        result = route(
+            RouteRequest(
+                origin='cocina',
+                destination='mesa08',
+                avoid_congestion=True,
+            )
+        )
+        # Nodos que son mesas intermedias distintas a mesa08 (4,3)
+        other_table_nodes = {'1,1', '2,1', '3,1', '4,1', '1,3', '2,3', '3,3'}
+        intermediate_steps = set(result['path'][:-1])
+        # Ningún paso intermedio puede ser una de las otras mesas
+        self.assertFalse(intermediate_steps & other_table_nodes)
+
 
 if __name__ == '__main__':
     unittest.main()

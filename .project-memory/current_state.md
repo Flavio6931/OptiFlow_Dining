@@ -4,8 +4,8 @@
 - **Nombre:** OptiFlow Dining
 - **Tipo:** Aplicación web Django + Microservicios FastAPI (Rutas con Dijkstra, Visión con OpenCV HOG) + Docker Compose
 - **Ruta Local:** `C:\Users\Flavio\Desktop\H4CK\Flavio\OptiFlow_Dining`
-- **Repositorio:** `https://github.com/Josue2004exe/OptiFlow_Dining`
-- **Cuenta GitHub:** Josue2004exe (Flavio)
+- **Repositorio:** `https://github.com/Sofia12-cer/OptiFlow_Dining`
+- **Cuenta GitHub:** Sofia12-cer (Sofia)
 - **Bóveda Obsidian:** `C:\Users\Flavio\Documents\OptiFlow Dining Vault`
 
 ## Arquitectura y Módulos
@@ -154,15 +154,30 @@
   5. **Resiliencia y Logging en Ruteo (`services/routing/main.py`):** Incorporado `logging.getLogger('routing')` emitiendo advertencias descriptivas ante fallos de lectura de topología dinámica.
   6. **Suite de Pruebas Unitarias Normalizada (`test_routing.py` & `tests.py`):** Suite completa de Django (21/21 tests `OK`) y microservicio de ruteo (3/3 tests `OK`) aprobados al 100%.
 
+- [x] Nuevas Mejoras Operativas y CAD (Google Docs `1uHiRLsUjMB-CbFEfsNDCjfaFEMPdzbgf`):
+  1. **Salón CAD & Prevención de Colisiones (`layout.py` & `views.py`):** Detección estricta de colisiones espaciales (`_check_collision`) impidiendo solapamientos entre mesas o sobre la cocina/acceso, retornando HTTP 400 descriptivo.
+  2. **Auto-Expansión Dinámica del Salón (`layout.py`):** Si una mesa se ubica en coordenadas mayores al tamaño actual, `columns` y `rows` se expanden automáticamente en `salon.json` evitando que desaparezca del SVG. Endpoint `api_update_layout_dimensions` y modal `#modal-dimensions` para calibración manual por Gerencia/Admin.
+  3. **Desunificación / Separación de Mesas (`layout.py`, `views.py`, `layout.html`, `app.js`):** `unify_tables` ahora almacena `original_tables`; creada función `separate_table` y endpoint `api_separate_table`. Botón `⤢ Separar` en tarjetas de mesas combinadas que restaura con un clic las mesas originales a sus posiciones, capacidades y zonas de origen.
+  4. **Reubicación Inteligente por Zona:** Función `suggest_zone_coordinates` para sugerir automáticamente el primer nodo disponible dentro de las columnas asignadas a una zona.
+  5. **Ruteo Dijkstra sin Cruzar sobre Mesas (`services/routing/main.py`):** Las mesas intermedias distintas a la mesa de destino se tratan automáticamente como obstáculos físicos, obligando a los meseros a transitar exclusivamente por pasillos libres.
+  6. **Matriz Estricta de Roles Operativos (`base.html`, `views.py`):**
+     - *Jefe de Meseros (`capitan`):* Panel principal, Rutas, Plano y mesas, Indicadores y Perfil. Bloqueado de Saturación del salón, Visión OpenCV y cambio de roles.
+     - *Gerente General (`gerente`):* Acceso total a Panel, Rutas, Saturación, Indicadores, Plano y Visión. Bloqueado estrictamente de cambiar roles de empleados en `/perfil/`.
+     - *Administrador (`admin`):* Acceso integral con gestión de roles de personal.
+  7. **UX Móvil y Animación Suave de Alertas SVG (`app.css`, `app.js`):**
+     - Corregido el salto brusco en hover del icono de alerta SVG con `transform-box: fill-box; transform-origin: center;` y animación suave `@keyframes alertGlowPulse`.
+     - Hitbox táctil invisible de 28px de radio (56px diámetro) con eventos `pointerdown`/`touchstart` para apertura instantánea del modal en móviles y tablets.
+     - Viewport responsive del plano en pantallas pequeñas (`min-width: 580px; overflow-x: auto;`) manteniendo legibilidad sin compresión excesiva.
+  8. **Ensamble OpenCV para Comensales Sentados (`services/vision/main.py`):**
+     - Multi-modelo combinando `haarcascade_upperbody.xml` (torsos sentados) + `haarcascade_frontalface_default.xml` + `haarcascade_profileface.xml` + HOG descriptor + CLAHE para luz de salón + Non-Maximum Suppression (`cv2.dnn.NMSBoxes`).
+     - Detección exitosa comprobada en fotografías reales de salón con comensales sentados a mesas.
+  9. **Cloud AWS S3 & URLs Prefirmadas (`services.py`, `views.py`, `vision.html`):** Función `get_s3_presigned_url` para generar enlaces temporales seguros de 1 hora y enlace cliqueable `☁️ Ver en S3 ↗` en el historial de capturas.
+  10. **Suite Completa Aprobada:** 24 de 24 pruebas unitarias Django (`OK`) y 4 de 4 pruebas de ruteo Dijkstra (`OK`), 0 errores en Pyright.
+
 ## Estado de la Entrega y Sistema Operativo
-- Las 5 Fases del Documento de Especificaciones están **100% COMPLETADAS Y VERIFICADAS**:
-  - **Fase 1:** Correcciones UI/UX (alertas congestión con evidencia fotográfica OpenCV, toggle de contraseñas, notificaciones desplegables). *(Completada)*
-  - **Fase 2:** Rutas Seguras, Alerta Urgente al Mesero y Validación Estricta de Permanencia en Zonas (Req 3, 8). *(Completada)*
-  - **Fase 3:** Rol Especializado «Jefe de Meseros» y Blindaje de Perfiles (Req 5, 7). *(Completada)*
-  - **Fase 4:** Creación, Desplazamiento y Unificación de Mesas CAD (Req 6). *(Completada)*
-  - **Fase 5:** Conectividad Multi-dispositivo en Red Local Móvil/Tablet y Verificación Final (Req 9). *(Completada)*
-- Repositorio GitHub con rama `main` operativa y sincronizada con la cuenta `Josue2004exe`.
-- Suite de pruebas: **21/21 pruebas unitarias pasando al 100% (`OK`)**.
+- Las 5 Fases Iniciales y las **10 Nuevas Mejoras Operativas** están **100% COMPLETADAS Y VERIFICADAS**.
+- Repositorio GitHub con rama `main` operativa y sincronizada con la cuenta `Sofia12-cer`.
+- Suite de pruebas: **24/24 pruebas unitarias Django (`OK`) + 4/4 pruebas de microservicio Dijkstra (`OK`)**.
 
 
 

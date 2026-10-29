@@ -652,3 +652,35 @@
   - Pyright: **0 errors, 0 warnings, 0 informations**.
   - Suite Django (`web/manage.py test core`): **21/21 pruebas aprobadas (OK en 2.408s)**.
   - Suite Microservicio Routing: **3/3 pruebas aprobadas (OK)**.
+
+## Sesión - 2026-10-29 (Implementación de Nuevas Mejoras Operativas CAD y Migración a Cuenta GitHub Sofia12-cer)
+- **Alcance:**
+  - Implementación y verificación integral de las mejoras del Google Doc `1uHiRLsUjMB-CbFEfsNDCjfaFEMPdzbgf`.
+  - Configuración y publicación del repositorio público oficial en GitHub bajo la cuenta `Sofia12-cer`.
+- **Acciones Realizadas:**
+  - **Salón CAD & Prevención de Colisiones (`layout.py`, `views.py`, `layout.html`):**
+    - Implementada validación `_check_collision` para evitar solapamientos entre mesas o sobre cocina y accesos.
+    - Auto-expansión dinámica del salón (`columns` y `rows`) y endpoint `api_update_layout_dimensions` con modal `#modal-dimensions`.
+  - **Desunificación de Mesas CAD (`layout.py`, `urls.py`, `app.js`):**
+    - Preservación de `original_tables` en `unify_tables`, función `separate_table` y endpoint `api_separate_table` con botón de restauración `⤢ Separar`.
+    - Sugerencia automática de cuadrante con `suggest_zone_coordinates`.
+  - **Dijkstra Resiliente sin Cruzar sobre Mesas (`services/routing/main.py`):**
+    - Tratamiento de mesas intermedias como obstáculos físicos en `avoid_nodes`, guiando a meseros por pasillos.
+  - **Matriz de Roles Blindada (`base.html`, `views.py`):**
+    - Jefe de Meseros (`capitan`) restringido al plano, despacho de rutas e indicadores; Gerente General (`gerente`) con acceso operativo completo sin permiso de modificar roles de empleados.
+  - **UX Móvil y Alertas Táctiles (`app.css`, `app.js`):**
+    - Viewport responsive horizontal para móviles (`min-width: 580px; overflow-x: auto;`).
+    - Animación `@keyframes alertGlowPulse` y área táctil expandida a 56px para pulsación precisa en smartphones y tablets.
+  - **Visión OpenCV Multimodelo (`services/vision/main.py`):**
+    - Ensamble Haar (cuerpo superior/torso y rostros) + descriptor HOG + CLAHE + NMS para comensales sentados a mesas.
+  - **Cloud AWS S3 (`services.py`, `vision.html`):**
+    - URLs prefirmadas temporales de 1 hora con `get_s3_presigned_url` y enlace `☁️ Ver en S3 ↗`.
+  - **Configuración de Git y GitHub:**
+    - Git configurado con autor `Sofia12-cer` (`sofia12cer@users.noreply.github.com`).
+    - Creación de repositorio público `https://github.com/Sofia12-cer/OptiFlow_Dining`.
+    - Remoto `origin` actualizado y sincronizado.
+- **Verificación:**
+  - Suite Django Core: **24/24 pruebas unitarias aprobadas al 100% (OK)**.
+  - Suite Routing Dijkstra: **4/4 pruebas unitarias aprobadas al 100% (OK)**.
+  - Pyright: **0 errores**.
+

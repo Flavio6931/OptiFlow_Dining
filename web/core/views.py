@@ -229,7 +229,7 @@ def dashboard(request):
     return render(request, 'dashboard.html', context)
 
 
-@role_required('mesero', 'capitan')
+@role_required('mesero', 'capitan', 'gerente')
 def routes_view(request):
     """Vista de consulta interactiva de rutas."""
     context = page_context(request, 'Consultar rutas', 'routes')
@@ -237,7 +237,7 @@ def routes_view(request):
     waiters = []
     assigned_to_me = []
 
-    if user_role in ('capitan', 'admin'):
+    if user_role in ('capitan', 'gerente', 'admin'):
         waiters = list(User.objects.filter(
             Q(profile__role='mesero') | Q(is_superuser=False)
         ).exclude(id=request.user.id).order_by('first_name', 'username'))
@@ -269,7 +269,7 @@ def routes_view(request):
     return render(request, 'routes.html', context)
 
 
-@role_required('capitan', 'gerente')
+@role_required('gerente')
 def saturation_view(request):
     """Vista de monitoreo y ajuste de saturación de zonas."""
     context = page_context(request, 'Saturación del salón', 'saturation')
@@ -357,7 +357,7 @@ def analytics_view(request):
     return render(request, 'analytics.html', context)
 
 
-@role_required('capitan')
+@role_required('capitan', 'gerente')
 def layout_view(request):
     """Vista de edición de estado de mesas y distribución espacial del salón."""
     context = page_context(request, 'Plano y mesas', 'layout')
@@ -394,6 +394,7 @@ def layout_view(request):
             'seats': seats,
             'zone': t.get('zone', 'A'),
             'node': t.get('node', '0,0'),
+            'is_unified': bool(t.get('original_tables') or t.get('unified_from')),
         })
 
     total_tables = len(enriched_tables)
@@ -411,12 +412,19 @@ def layout_view(request):
     return render(request, 'layout.html', context)
 
 
-@role_required('capitan')
+@role_required('gerente')
 def vision_view(request):
     """Vista de análisis fotográfico de ocupación con OpenCV."""
+    from .services import get_s3_presigned_url
+
     context = page_context(request, 'Análisis con OpenCV', 'vision')
-    context['analysis_history'] = VisionAnalysis.objects.order_by('-created_at')[:6]
+    history = list(VisionAnalysis.objects.order_by('-created_at')[:6])
+    for item in history:
+        item.presigned_url = get_s3_presigned_url(item.s3_key) if item.s3_key else ''
+    context['analysis_history'] = history
     context['s3_enabled'] = bool(settings.AWS_S3_BUCKET)
+    context['s3_bucket'] = settings.AWS_S3_BUCKET or ''
+    context['aws_region'] = settings.AWS_REGION or ''
     return render(request, 'vision.html', context)
 
 
@@ -441,7 +449,7 @@ def drf_role_required(*allowed):
 
 
 @api_view(['POST'])
-@drf_role_required('mesero', 'capitan')
+@drf_role_required('mesero', 'capitan', 'gerente')
 def api_route(request):
     """API DRF para calcular la ruta óptima evitando congestión si se solicita."""
     serializer = RouteRequestSerializer(data=request.data)
@@ -526,10 +534,10 @@ def api_route(request):
 
 
 @api_view(['POST'])
-@drf_role_required('mesero', 'capitan')
+@drf_role_required('mesero', 'capitan', 'gerente')
 def api_complete(request, pk):
     """API DRF para marcar una consulta de ruta como finalizada."""
-    if role_for(request.user) in ('admin', 'capitan'):
+    if role_for(request.user) in ('admin', 'capitan', 'gerente'):
         record = get_object_or_404(RouteConsultation, pk=pk)
     else:
         record = get_object_or_404(
@@ -545,7 +553,7 @@ def api_complete(request, pk):
 
 
 @api_view(['POST'])
-@drf_role_required('capitan')
+@drf_role_required('gerente')
 def api_update_zone(request, code):
     """API DRF para actualizar el nivel de congestión y permanencia de una zona."""
     zone = get_object_or_404(Zone, code=code.upper())
@@ -595,7 +603,7 @@ def api_update_zone(request, code):
 
 
 @api_view(['POST'])
-@drf_role_required('capitan')
+@drf_role_required('capitan', 'gerente')
 def api_update_table(request, code):
     """API DRF para actualizar el estado operativo de una mesa."""
     table = get_object_or_404(TableState, code=code)
@@ -618,7 +626,7 @@ def api_update_table(request, code):
 
 
 @api_view(['POST'])
-@drf_role_required('capitan')
+@drf_role_required('gerente')
 @parser_classes([MultiPartParser, FormParser])
 def api_vision(request):
     """API DRF para procesamiento de imágenes con OpenCV y resguardo opcional en S3."""
@@ -802,7 +810,7 @@ def profile_view(request):
 
 
 @api_view(['POST'])
-@drf_role_required('capitan')
+@drf_role_required('capitan', 'gerente')
 def api_mark_notification_read(request, pk):
     """API para marcar una notificación administrativa como leída."""
     notif = get_object_or_404(AdminNotification, pk=pk)
@@ -855,7 +863,7 @@ def api_update_user_role(request, user_id):
 
 
 @api_view(['POST'])
-@drf_role_required('admin')
+@drf_role_required('admin', 'gerente')
 def api_create_table(request):
     """API DRF para crear una nueva mesa en el plano topológico CAD (Req 6)."""
     from .layout import add_table
@@ -892,30 +900,30 @@ def api_create_table(request):
 
 
 @api_view(['POST'])
-@drf_role_required('admin')
+@drf_role_required('admin', 'gerente')
 def api_move_table(request, code):
     """API DRF para reubicar las coordenadas o zona de una mesa en el plano CAD (Req 6)."""
     from .layout import move_table
 
-    new_node = request.data.get('node', '').strip()
+    new_node = request.data.get('node', '').strip() or None
     new_zone = request.data.get('zone', '').strip().upper() or None
 
-    if not new_node:
-        return Response({'error': 'El nuevo nodo de ubicación (X,Y) es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not new_node and not new_zone:
+        return Response({'error': 'Se requiere al menos el nuevo nodo (X,Y) o la nueva zona de reubicación.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         updated = move_table(code=code, new_node=new_node, new_zone=new_zone)
         return Response({
             'success': True,
             'table': updated,
-            'message': f"Mesa '{updated['label']}' reubicada a nodo {updated['node']}.",
+            'message': f"Mesa '{updated['label']}' reubicada exitosamente a posición {updated['node']} (Zona {updated['zone']}).",
         }, status=status.HTTP_200_OK)
     except ValueError as val_err:
         return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
-@drf_role_required('admin')
+@drf_role_required('admin', 'gerente')
 def api_unify_tables(request):
     """API DRF para unificar dos o más mesas contiguas para grupos grandes (Req 6)."""
     from .layout import unify_tables
@@ -942,6 +950,50 @@ def api_unify_tables(request):
             'success': True,
             'unified_table': unified,
             'message': f"Mesas fusionadas exitosamente en '{unified['label']}' (Capacidad: {unified['seats']} personas).",
+        }, status=status.HTTP_200_OK)
+    except ValueError as val_err:
+        return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@drf_role_required('admin', 'gerente')
+def api_separate_table(request):
+    """API DRF para separar/desunificar una mesa previamente combinada restaurando las originales."""
+    from .layout import separate_table
+
+    code = request.data.get('code', '').strip().lower()
+    if not code:
+        return Response({'error': 'El código de la mesa a separar es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        restored = separate_table(unified_code=code)
+        return Response({
+            'success': True,
+            'restored_tables': restored,
+            'message': f"Mesa '{code}' separada exitosamente. Se restauraron {len(restored)} mesas originales.",
+        }, status=status.HTTP_200_OK)
+    except ValueError as val_err:
+        return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@drf_role_required('admin', 'gerente')
+def api_update_layout_dimensions(request):
+    """API DRF para redimensionar la cuadrícula CAD del plano del salón."""
+    from .layout import update_dimensions
+
+    try:
+        columns = int(request.data.get('columns', 0))
+        rows = int(request.data.get('rows', 0))
+    except (ValueError, TypeError):
+        return Response({'error': 'Las columnas y filas deben ser números enteros.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        dims = update_dimensions(columns=columns, rows=rows)
+        return Response({
+            'success': True,
+            'dimensions': dims,
+            'message': f"Dimensiones del salón actualizadas a {dims['columns']}x{dims['rows']}.",
         }, status=status.HTTP_200_OK)
     except ValueError as val_err:
         return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)

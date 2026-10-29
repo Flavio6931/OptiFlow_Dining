@@ -119,16 +119,16 @@
     </div>
 
     <div class="info-box vision-disclaimer">
-      El detector HOG estima personas de pie en imágenes y transmisiones. No identifica rostros ni almacena datos biométricos.
+      Ensamble OpenCV optimizado para comensales sentados en mesas y personal en pasillos (Haar Upperbody + Rostros + HOG + CLAHE). No realiza identificación biométrica ni almacena datos personales.
     </div>
 
     <div class="storage-note">
-      Almacenamiento AWS S3:
+      Almacenamiento Cloud AWS S3:
       <strong>
         {% if s3_enabled %}
-          Configurado
+          🟢 Conectado (Bucket: {{ s3_bucket }} · Región: {{ aws_region }})
         {% else %}
-          No configurado (procesamiento en memoria sin persistir foto)
+          ⚪ No configurado (procesamiento en memoria. Para activar S3, configura <code>AWS_STORAGE_BUCKET_NAME</code> y credenciales en <code>.env</code>)
         {% endif %}
       </strong>
     </div>
@@ -216,7 +216,17 @@
             </td>
             <td>{{ item.people_count }}</td>
             <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
-            <td>{% if item.s3_key %}Sí (privada){% else %}No{% endif %}</td>
+            <td>
+              {% if item.presigned_url %}
+                <a href="{{ item.presigned_url }}" target="_blank" rel="noopener noreferrer" class="text-orange" title="Abrir imagen resguardada en S3 (URL prefirmada válida por 1h)" style="text-decoration: underline; font-weight: 600;">
+                  ☁️ Ver en S3 ↗
+                </a>
+              {% elif item.s3_key %}
+                <span title="{{ item.s3_key }}">Sí ({{ item.s3_key|truncatechars:18 }})</span>
+              {% else %}
+                <span class="text-muted">Local</span>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
           <tr>

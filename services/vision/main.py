@@ -1,7 +1,7 @@
-"""Procesamiento de imágenes con detector HOG de OpenCV.
+"""Procesamiento de imágenes con detector OpenCV multi-modelo adaptado a comensales.
 
-No presupone identificación de personas ni seguimiento biométrico. Es una estimación
-experimental sobre imágenes estáticas divididas espacialmente en tres sectores.
+Combina clasificadores en cascada Haar (cuerpo superior, rostros frontales y perfil)
+con HOG descriptor, CLAHE para iluminación de salón y supresión de no máximos (NMS).
 """
 import asyncio
 import base64
@@ -16,8 +16,8 @@ import numpy as np
 
 app = FastAPI(
     title='OptiFlow · Visión con OpenCV',
-    version='1.0.0',
-    description='Detección aproximada de personas mediante HOG Descriptor y clasificación por zonas.',
+    version='2.0.0',
+    description='Detección de comensales sentados y personal mediante ensamble Haar + HOG y NMS.',
 )
 
 MAX_SIZE: int = 5 * 1024 * 1024  # 5 MB
@@ -25,9 +25,17 @@ MAX_PIXELS: int = 16_000_000
 MAX_DIMENSION: int = 900
 CONFIDENCE_THRESHOLD: float = 0.35
 
+# Inicialización de modelos de detección de personas y comensales
+FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+PROFILE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
+UPPER_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_upperbody.xml')
+
+HOG = cv2.HOGDescriptor()
+HOG.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+
 
 def analyze_bytes(raw: bytes) -> Dict[str, Any]:
-    """Decodifica y procesa los bytes de una imagen para detectar personas con HOG.
+    """Decodifica y procesa los bytes de una imagen con el ensamble multi-modelo adaptado a restaurante.
 
     Args:
         raw: Secuencia binaria de la imagen (JPEG, PNG o WebP).
@@ -54,40 +62,79 @@ def analyze_bytes(raw: bytes) -> Dict[str, Any]:
         image = cv2.resize(image, (round(image.shape[1] * scale), MAX_DIMENSION))
 
     h, w = image.shape[:2]
-    hog = cv2.HOGDescriptor()
-    hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
-    # Detecta siluetas de personas de pie; en salones y vistas aéreas puede subestimar.
-    boxes, weights = hog.detectMultiScale(
+    # Preprocesamiento de iluminación con ecualización de histograma adaptativa (CLAHE)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray_eq = clahe.apply(gray)
+
+    candidate_boxes: List[List[int]] = []
+    scores: List[float] = []
+
+    # 1. Detección de rostros frontales (comensales sentados mirando a cámara)
+    faces = FACE_CASCADE.detectMultiScale(gray_eq, scaleFactor=1.1, minNeighbors=4, minSize=(25, 25))
+    for (x, y, bw, bh) in faces:
+        candidate_boxes.append([int(x), int(y), int(bw), int(bh * 1.4)])
+        scores.append(0.85)
+
+    # 2. Detección de rostros de perfil (comensales sentados de lado)
+    profiles = PROFILE_CASCADE.detectMultiScale(gray_eq, scaleFactor=1.1, minNeighbors=4, minSize=(25, 25))
+    for (x, y, bw, bh) in profiles:
+        candidate_boxes.append([int(x), int(y), int(bw), int(bh * 1.4)])
+        scores.append(0.80)
+
+    # 3. Detección de cuerpo superior (torsos de personas sentadas en mesas)
+    uppers = UPPER_CASCADE.detectMultiScale(gray_eq, scaleFactor=1.05, minNeighbors=3, minSize=(40, 40))
+    for (x, y, bw, bh) in uppers:
+        candidate_boxes.append([int(x), int(y), int(bw), int(bh)])
+        scores.append(0.82)
+
+    # 4. Detector HOG de personas completas (personal de pie o transitando)
+    hog_boxes, weights = HOG.detectMultiScale(
         image,
         winStride=(8, 8),
         padding=(8, 8),
         scale=1.08,
         useMeanshiftGrouping=False,
     )
+    for (x, y, bw, bh), weight in zip(hog_boxes, weights):
+        if float(weight) >= CONFIDENCE_THRESHOLD:
+            candidate_boxes.append([int(x), int(y), int(bw), int(bh)])
+            scores.append(float(weight))
 
     zone_counts = {'A': 0, 'B': 0, 'C': 0}
-    rectangles: List[Tuple[int, int, int, int, float]] = []
+    final_rectangles: List[Tuple[int, int, int, int, float]] = []
 
-    for (x, y, bw, bh), weight in zip(boxes, weights):
-        if float(weight) < CONFIDENCE_THRESHOLD:
-            continue
-        if bw < 20 or bh < 35:
-            continue
-        cx = (x + bw / 2) / max(1, w)
-        zone = 'A' if cx < 1 / 3 else 'B' if cx < 2 / 3 else 'C'
-        zone_counts[zone] += 1
-        rectangles.append((int(x), int(y), int(bw), int(bh), float(weight)))
+    # Fusión y eliminación de solapamientos con Non-Maximum Suppression (NMS)
+    if candidate_boxes:
+        indices = cv2.dnn.NMSBoxes(candidate_boxes, scores, score_threshold=0.35, nms_threshold=0.35)
+        # NMSBoxes puede devolver un array plano o una lista de tuplas según versión de OpenCV
+        if len(indices) > 0:
+            for idx in np.array(indices).flatten():
+                box = candidate_boxes[idx]
+                score = scores[idx]
+                x, y, bw, bh = box[0], box[1], box[2], box[3]
+                # Asegurar límites dentro de la imagen
+                x = max(0, min(x, w - 1))
+                y = max(0, min(y, h - 1))
+                bw = min(bw, w - x)
+                bh = min(bh, h - y)
+
+                cx = (x + bw / 2) / max(1, w)
+                zone = 'A' if cx < 1 / 3 else 'B' if cx < 2 / 3 else 'C'
+                zone_counts[zone] += 1
+                final_rectangles.append((x, y, bw, bh, score))
 
     overlay = image.copy()
-    for (x, y, bw, bh, confidence) in rectangles:
+    for (x, y, bw, bh, confidence) in final_rectangles:
+        # Recuadro esmeralda/naranja de detección
         cv2.rectangle(overlay, (x, y), (x + bw, y + bh), (30, 205, 255), 2)
         cv2.putText(
             overlay,
-            f'Persona {confidence:.2f}',
+            f'Comensal {confidence:.2f}',
             (x, max(17, y - 8)),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.48,
             (255, 255, 255),
             2,
         )
@@ -107,18 +154,17 @@ def analyze_bytes(raw: bytes) -> Dict[str, Any]:
             2,
         )
 
-    ok, encoded = cv2.imencode('.jpg', overlay, [int(cv2.IMWRITE_JPEG_QUALITY), 78])
+    ok, encoded = cv2.imencode('.jpg', overlay, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
     if not ok:
         raise ValueError('No se pudo procesar y codificar la imagen anotada.')
 
     return {
-        'people_count': len(rectangles),
+        'people_count': len(final_rectangles),
         'zone_counts': zone_counts,
         'annotated_image': 'data:image/jpeg;base64,' + base64.b64encode(encoded).decode('ascii'),
-        'method': 'OpenCV HOG + clasificación espacial en tercios',
+        'method': 'OpenCV Ensamble (Upperbody + Rostros + HOG + CLAHE + NMS)',
         'disclaimer': (
-            'Estimación experimental: requiere vista lateral, calibración y validación; '
-            'no representa conteo exacto ni monitoreo en tiempo real.'
+            'Estimación optimizada para comensales en mesas y personal en pasillos.'
         ),
     }
 

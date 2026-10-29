@@ -95,19 +95,28 @@ class OptiFlowTests(TestCase):
         self.assertEqual(int(self.client.session['_auth_user_id']), admin.pk)
 
     def test_roles_limit_pages(self):
-        """Verifica la restricción de páginas HTML según el rol operativo del usuario."""
+        """Verifica la restricción de páginas HTML según la matriz estricta de roles operativos."""
         self.client.force_login(self.waiter)
         self.assertEqual(self.client.get(reverse('routes')).status_code, 200)
         self.assertEqual(self.client.get(reverse('saturation')).status_code, 403)
         self.assertEqual(self.client.get(reverse('analytics')).status_code, 403)
 
         self.client.force_login(self.captain)
-        self.assertEqual(self.client.get(reverse('vision')).status_code, 200)
+        # Jefe de meseros (Capitán): Bloqueado de visión y saturación
+        self.assertEqual(self.client.get(reverse('vision')).status_code, 403)
+        self.assertEqual(self.client.get(reverse('saturation')).status_code, 403)
+        # Acceso permitido a rutas, layout y analítica
+        self.assertEqual(self.client.get(reverse('routes')).status_code, 200)
         self.assertEqual(self.client.get(reverse('layout')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('analytics')).status_code, 200)
 
         self.client.force_login(self.manager)
+        # Gerente general: Acceso completo a todas las áreas operativas
+        self.assertEqual(self.client.get(reverse('routes')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('saturation')).status_code, 200)
         self.assertEqual(self.client.get(reverse('analytics')).status_code, 200)
-        self.assertEqual(self.client.get(reverse('routes')).status_code, 403)
+        self.assertEqual(self.client.get(reverse('layout')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('vision')).status_code, 200)
 
     @patch('core.views.calculate_route')
     def test_route_api_records_task(self, mocked_calculate):
@@ -145,9 +154,9 @@ class OptiFlowTests(TestCase):
         self.assertEqual(complete_response.status_code, 200)
         self.assertTrue(RouteConsultation.objects.first().completed)
 
-    def test_captain_can_update_critical_dwell_time(self):
-        """Verifica que un capitán pueda actualizar el tiempo y nivel de congestión de una zona."""
-        self.client.force_login(self.captain)
+    def test_manager_can_update_critical_dwell_time(self):
+        """Verifica que el gerente pueda actualizar el tiempo y nivel de congestión de una zona."""
+        self.client.force_login(self.manager)
         payload = '{"level":"critica","dwell_minutes":6.3}'
         response = self.client.post(
             reverse('api_update_zone', args=['C']),
@@ -158,22 +167,23 @@ class OptiFlowTests(TestCase):
         self.assertTrue(response.json()['alert'])
         self.assertEqual(Zone.objects.get(code='C').dwell_minutes, 6.3)
 
-    def test_waiter_cannot_update_zone(self):
-        """Verifica que un mesero no tenga permisos para modificar zonas operativas."""
-        self.client.force_login(self.waiter)
-        payload = '{"level":"normal","dwell_minutes":0}'
-        response = self.client.post(
-            reverse('api_update_zone', args=['C']),
-            data=payload,
-            content_type='application/json',
-        )
-        self.assertEqual(response.status_code, 403)
+    def test_captain_and_waiter_cannot_update_zone(self):
+        """Verifica que el jefe de meseros y los meseros no tengan permisos para modificar zonas operativas."""
+        for user in (self.captain, self.waiter):
+            self.client.force_login(user)
+            payload = '{"level":"normal","dwell_minutes":0}'
+            response = self.client.post(
+                reverse('api_update_zone', args=['C']),
+                data=payload,
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 403)
 
     @patch('core.views.optional_upload_s3', return_value='')
     @patch('core.views.analyze_image')
     def test_vision_pipeline_records_metadata(self, mocked_analyze, _mocked_s3):
-        """Verifica la respuesta del endpoint DRF de visión con mock de OpenCV."""
-        self.client.force_login(self.captain)
+        """Verifica la respuesta del endpoint DRF de visión con mock de OpenCV (Gerente/Admin)."""
+        self.client.force_login(self.manager)
         mocked_analyze.return_value = (
             200,
             {
@@ -266,7 +276,7 @@ class OptiFlowTests(TestCase):
     @patch('core.views.analyze_image')
     def test_vision_propagates_to_zone_and_dijkstra(self, mocked_analyze, _mocked_s3):
         """Verifica que OpenCV propague la densidad detectada a los niveles de zona y a Dijkstra."""
-        self.client.force_login(self.captain)
+        self.client.force_login(self.manager)
         # Simulamos 4 personas detectadas en Zona B (Pasillo Central)
         mocked_analyze.return_value = (
             200,
@@ -323,7 +333,7 @@ class OptiFlowTests(TestCase):
 
     def test_strict_zone_dwell_thresholds_validation(self):
         """Verifica la validación estricta de umbrales matemáticos de permanencia en zonas (Req 8)."""
-        self.client.force_login(self.captain)
+        self.client.force_login(self.manager)
 
         # 1. Intentar marcar como 'critica' con permanencia <= 4.0 min debe retornar 400
         res_crit = self.client.post(
@@ -584,3 +594,120 @@ class OptiFlowTests(TestCase):
         html = res.content.decode('utf-8')
         self.assertIn('lan-topbar-pill', html)
         self.assertIn('modal-lan-connect', html)
+
+    def test_cad_collision_detection_and_auto_expansion(self):
+        """Verifica la prevención de colisiones en cuadrícula y la auto-expansión dimensional del salón (Req CAD)."""
+        from .layout import LAYOUT_PATH, get_layout
+        original_json = LAYOUT_PATH.read_text(encoding='utf-8')
+        admin = User.objects.create_superuser(username='collision_admin', password='123', email='col@test.com')
+        self.client.force_login(admin)
+
+        try:
+            # 1. Intentar crear mesa en posición ocupada por otra mesa (ej. '1,1' de mesa01) -> 400
+            res_collision = self.client.post(
+                reverse('api_create_table'),
+                data=json.dumps({
+                    'code': 'mesa_colision',
+                    'label': 'Mesa Colisión',
+                    'node': '1,1',
+                    'seats': 4,
+                    'zone': 'A',
+                }),
+                content_type='application/json',
+            )
+            self.assertEqual(res_collision.status_code, 400)
+            self.assertIn('ya está ocupada', res_collision.json()['error'])
+
+            # 2. Intentar crear mesa en posición de la cocina ('0,2') -> 400
+            res_origin = self.client.post(
+                reverse('api_create_table'),
+                data=json.dumps({
+                    'code': 'mesa_cocina',
+                    'label': 'Mesa Cocina',
+                    'node': '0,2',
+                    'seats': 4,
+                    'zone': 'A',
+                }),
+                content_type='application/json',
+            )
+            self.assertEqual(res_origin.status_code, 400)
+            self.assertIn('ya está ocupada', res_origin.json()['error'])
+
+            # 3. Crear mesa en coordenadas más allá de los límites (ej. '5,6' en un plano 5x5) -> Auto-expansión
+            res_expand = self.client.post(
+                reverse('api_create_table'),
+                data=json.dumps({
+                    'code': 'mesa_expandida',
+                    'label': 'Mesa Expandida',
+                    'node': '5,6',
+                    'seats': 4,
+                    'zone': 'C',
+                }),
+                content_type='application/json',
+            )
+            self.assertEqual(res_expand.status_code, 201)
+            updated_layout = get_layout()
+            self.assertGreaterEqual(updated_layout['columns'], 6)
+            self.assertGreaterEqual(updated_layout['rows'], 7)
+
+        finally:
+            LAYOUT_PATH.write_text(original_json, encoding='utf-8')
+
+    def test_cad_separate_table_and_restoration(self):
+        """Verifica la desunificación de mesas restaurando posiciones y estados originales (Req Desunificar)."""
+        from .layout import LAYOUT_PATH
+        original_json = LAYOUT_PATH.read_text(encoding='utf-8')
+        admin = User.objects.create_superuser(username='sep_admin', password='123', email='sep@test.com')
+        self.client.force_login(admin)
+
+        try:
+            # 1. Unificar mesa01 y mesa02 en mesa_combo
+            unify_res = self.client.post(
+                reverse('api_unify_tables'),
+                data=json.dumps({
+                    'table_codes': ['mesa01', 'mesa02'],
+                    'unified_code': 'mesa_combo',
+                    'unified_label': 'Mesa Combo 1 y 2',
+                }),
+                content_type='application/json',
+            )
+            self.assertEqual(unify_res.status_code, 200)
+            self.assertTrue(TableState.objects.filter(code='mesa_combo').exists())
+
+            # 2. Separar mesa_combo
+            sep_res = self.client.post(
+                reverse('api_separate_table'),
+                data=json.dumps({'code': 'mesa_combo'}),
+                content_type='application/json',
+            )
+            self.assertEqual(sep_res.status_code, 200)
+            self.assertIn('separada exitosamente', sep_res.json()['message'])
+
+            # 3. Validar que mesa_combo ya no exista y que mesa01 y mesa02 vuelvan a estar en BD
+            self.assertFalse(TableState.objects.filter(code='mesa_combo').exists())
+            self.assertTrue(TableState.objects.filter(code='mesa01').exists())
+            self.assertTrue(TableState.objects.filter(code='mesa02').exists())
+
+        finally:
+            LAYOUT_PATH.write_text(original_json, encoding='utf-8')
+
+    def test_manager_permissions_matrix(self):
+        """Verifica que el Gerente General tenga acceso a plano, visión y saturación, pero NO a mutar roles."""
+        self.client.force_login(self.manager)
+
+        # 1. Gerente puede actualizar saturación de zonas
+        sat_res = self.client.post(
+            reverse('api_update_zone', args=['A']),
+            data=json.dumps({'level': 'moderada', 'dwell_minutes': 2.8}),
+            content_type='application/json',
+        )
+        self.assertEqual(sat_res.status_code, 200)
+
+        # 2. Gerente NO puede cambiar roles de empleados -> 403 Forbidden
+        role_res = self.client.post(
+            reverse('api_update_user_role', args=[self.waiter.id]),
+            data=json.dumps({'role': 'capitan'}),
+            content_type='application/json',
+        )
+        self.assertEqual(role_res.status_code, 403)
+

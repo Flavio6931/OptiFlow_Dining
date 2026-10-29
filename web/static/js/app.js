@@ -430,8 +430,17 @@
         'data-node': n,
         style: 'cursor: pointer;',
         role: 'button',
+        tabindex: '0',
         'aria-label': `Punto de congestión en nodo ${n}. Clic para detalles.`
       });
+      // Hitbox táctil invisible para touch-first en smartphones y tablets (Req UX Móvil)
+      g.append(svg('circle', {
+        cx: p[0],
+        cy: p[1],
+        r: 28,
+        fill: 'transparent',
+        style: 'pointer-events: all; cursor: pointer;'
+      }));
       g.append(svg('circle', { cx: p[0], cy: p[1], r: 18, class: 'congestion-pulse-ring' }));
       g.append(svg('circle', { cx: p[0], cy: p[1], r: 14, class: 'congestion-point' }));
       g.append(
@@ -450,9 +459,23 @@
         )
       );
       g.append(svg('title', {}, `Punto crítico en nodo (${n}). Haz clic para ver detalles y recomendaciones.`));
-      g.addEventListener('click', (e) => {
+      
+      const handleOpenModal = (e) => {
+        e.preventDefault();
         e.stopPropagation();
         openCongestionModal(n, destination);
+      };
+
+      g.addEventListener('click', handleOpenModal);
+      g.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'touch') {
+          handleOpenModal(e);
+        }
+      });
+      g.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          handleOpenModal(e);
+        }
       });
       canvas.append(g);
     });
@@ -1329,6 +1352,10 @@
     modalUnify?.classList.remove('is-hidden');
   });
 
+  $('#btn-open-dimensions-modal')?.addEventListener('click', () => {
+    $('#modal-dimensions')?.classList.remove('is-hidden');
+  });
+
   $$('[data-close]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const modalId = btn.dataset.close;
@@ -1421,6 +1448,40 @@
       setTimeout(() => location.reload(), 700);
     } catch (err) {
       toast(err.message || 'Error al reubicar mesa.', 'error');
+    }
+  });
+
+  // Separar mesa unificada y restaurar mesas originales
+  $$('.btn-separate-table').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const code = btn.dataset.code;
+      const label = btn.dataset.label || code;
+      if (!confirm(`¿Deseas desunificar '${label}' y restaurar sus mesas originales?`)) {
+        return;
+      }
+      try {
+        const res = await postJSON('/api/mesas/separar/', { code });
+        toast(res.message, 'success');
+        setTimeout(() => location.reload(), 700);
+      } catch (err) {
+        toast(err.message || 'Error al separar la mesa.', 'error');
+      }
+    });
+  });
+
+  // Guardar nuevas dimensiones del plano CAD
+  $('#form-dimensions')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const columns = Number($('#dim-columns').value);
+    const rows = Number($('#dim-rows').value);
+    try {
+      const res = await postJSON('/api/plano/dimensiones/', { columns, rows });
+      toast(res.message, 'success');
+      $('#modal-dimensions')?.classList.add('is-hidden');
+      setTimeout(() => location.reload(), 700);
+    } catch (err) {
+      toast(err.message || 'Error al actualizar dimensiones del salón.', 'error');
     }
   });
 

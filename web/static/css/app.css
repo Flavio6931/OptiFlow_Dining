@@ -1326,6 +1326,7 @@ input:disabled,select:disabled {
   background: #081324;
   border-radius: 16px;
   overflow: hidden;
+  position: relative;
 }
 
 .floor-plan {
@@ -1333,6 +1334,27 @@ input:disabled,select:disabled {
   width: 100%;
   height: auto;
   max-height: 530px;
+}
+
+@media (max-width: 680px) {
+  .map-surface {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 14px;
+  }
+  .floor-plan {
+    min-width: 580px;
+    width: 580px;
+    max-height: none;
+    height: auto;
+  }
+  .map-surface::-webkit-scrollbar {
+    height: 6px;
+  }
+  .map-surface::-webkit-scrollbar-thumb {
+    background: rgba(255, 105, 56, 0.4);
+    border-radius: 3px;
+  }
 }
 
 .map-footer {
@@ -1996,9 +2018,27 @@ input:disabled,select:disabled {
 }
 
 /* Pulsación interactiva en los puntos de congestión SVG */
-.congestion-marker-group:hover .congestion-point {
-  transform: scale(1.15);
-  filter: drop-shadow(0 0 8px #ef4444);
+.congestion-marker-group {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.congestion-marker-group:hover .congestion-point,
+.congestion-marker-group:focus .congestion-point {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: alertGlowPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes alertGlowPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px #ef4444);
+    transform: scale(1.05);
+  }
+  50% {
+    filter: drop-shadow(0 0 14px #f87171);
+    transform: scale(1.12);
+  }
 }
 
 .congestion-pulse-ring {

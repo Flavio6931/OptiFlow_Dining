@@ -147,3 +147,28 @@ def optional_upload_s3(raw: bytes, name: str, mime: str) -> str:
         ServerSideEncryption='AES256',
     )
     return key
+
+
+def get_s3_presigned_url(key: str, expiration: int = 3600) -> str:
+    """Genera una URL prefirmada temporal para visualizar un objeto resguardado en S3.
+
+    Args:
+        key: Clave del objeto en S3.
+        expiration: Tiempo de validez de la URL en segundos (por defecto 1 hora).
+
+    Returns:
+        URL prefirmada generada o cadena vacía si S3 no está configurado o falla la firma.
+    """
+    if not settings.AWS_S3_BUCKET or not key:
+        return ''
+    try:
+        import boto3
+        s3_client = boto3.client('s3', region_name=settings.AWS_REGION)
+        return s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': settings.AWS_S3_BUCKET, 'Key': key},
+            ExpiresIn=expiration,
+        )
+    except Exception as exc:
+        logger.warning("Fallo al generar URL prefirmada para S3 key %s: %s", key, exc)
+        return ''
