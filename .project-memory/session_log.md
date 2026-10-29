@@ -679,6 +679,10 @@
     - Git configurado con autor `Sofia12-cer` (`sofia12cer@users.noreply.github.com`).
     - Creación de repositorio público `https://github.com/Sofia12-cer/OptiFlow_Dining`.
     - Remoto `origin` actualizado y sincronizado.
+  - **Corrección de Lanzadores y UX de Microservicios:**
+    - Corregida sintaxis de rutas de `iniciar.cmd` y títulos en `iniciar.ps1`.
+    - Integrada apertura automática del navegador en `http://127.0.0.1:8000`.
+    - Añadida redirección en raíz `/` hacia `/docs` en `services/routing/main.py` y `services/vision/main.py`.
 - **Verificación:**
   - Suite Django Core: **24/24 pruebas unitarias aprobadas al 100% (OK)**.
   - Suite Routing Dijkstra: **4/4 pruebas unitarias aprobadas al 100% (OK)**.
