@@ -12,6 +12,7 @@ os.environ.setdefault("OPENCV_IO_MAX_IMAGE_PIXELS", "16000000")
 
 import cv2
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import RedirectResponse
 import numpy as np
 
 app = FastAPI(
@@ -167,6 +168,12 @@ def analyze_bytes(raw: bytes) -> Dict[str, Any]:
             'Estimación optimizada para comensales en mesas y personal en pasillos.'
         ),
     }
+
+
+@app.get('/', include_in_schema=False)
+def root() -> RedirectResponse:
+    """Redirige automáticamente la raíz al explorador interactivo Swagger UI."""
+    return RedirectResponse(url='/docs')
 
 
 @app.get('/health')

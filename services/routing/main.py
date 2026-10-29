@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Set
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(
@@ -102,6 +103,12 @@ def shortest(
     while path[-1] != start:
         path.append(previous[path[-1]])
     return list(reversed(path))
+
+
+@app.get('/', include_in_schema=False)
+def root() -> RedirectResponse:
+    """Redirige automáticamente la raíz al explorador interactivo Swagger UI."""
+    return RedirectResponse(url='/docs')
 
 
 @app.get('/health')

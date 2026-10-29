@@ -27,6 +27,11 @@ echo [3/3] Levantando Microservicio de Vision OpenCV en puerto 8002...
 start "OptiFlow - Vision OpenCV (:8002)" cmd /k "title Vision OpenCV (:8002) && echo ======================================== && echo  Servicio 3: Vision OpenCV (Puerto 8002) && echo ======================================== && .venv\Scripts\python.exe -m uvicorn services.vision.main:app --port 8002"
 
 echo.
+echo Abriendo aplicacion en tu navegador predeterminado...
+timeout /t 2 /nobreak >nul
+start http://127.0.0.1:8000
+
+echo.
 echo ==========================================================
 echo   Los 3 servicios se estan ejecutando en ventanas independientes:
 echo.

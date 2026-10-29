@@ -31,6 +31,11 @@ Write-Host "[3/3] Iniciando Microservicio de Vision OpenCV en puerto 8002..." -F
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "[Console]::Title = 'OptiFlow - Vision OpenCV (:8002)'; cd '$root'; Write-Host '--- Microservicio Vision (:8002) ---' -ForegroundColor Cyan; & '$python' -m uvicorn services.vision.main:app --port 8002"
 
 Write-Host ""
+Write-Host "Abriendo aplicacion en tu navegador predeterminado..." -ForegroundColor Cyan
+Start-Sleep -Seconds 2
+Start-Process "http://127.0.0.1:8000"
+
+Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Yellow
 Write-Host "  Los 3 servicios estan ejecutandose en paralelo:" -ForegroundColor Yellow
 Write-Host "  - Web Django:        http://127.0.0.1:8000" -ForegroundColor White
