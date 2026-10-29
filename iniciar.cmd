@@ -1,13 +1,15 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+set "PROJECT_DIR=%~dp0"
+if "%PROJECT_DIR:~-1%"=="\" set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
+cd /d "%PROJECT_DIR%"
 
 echo ==========================================================
 echo    OptiFlow Dining - Lanzador de Servicios (CMD)
 echo ==========================================================
 echo.
 
-if not exist "%~dp0.venv\Scripts\python.exe" (
+if not exist ".venv\Scripts\python.exe" (
     echo [ERROR] No se encontro el entorno virtual en .venv\Scripts\python.exe
     echo Verifica que la carpeta .venv exista en la raiz del proyecto.
     echo.
@@ -16,13 +18,13 @@ if not exist "%~dp0.venv\Scripts\python.exe" (
 )
 
 echo [1/3] Levantando Django Web en puerto 8000...
-start "OptiFlow - Django Web (:8000)" cmd /k "chcp 65001 >nul && title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && cd /d "%~dp0" && .venv\Scripts\python.exe web/manage.py runserver 0.0.0.0:8000"
+start "OptiFlow - Django Web (:8000)" cmd /k "title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && .venv\Scripts\python.exe web\manage.py runserver 0.0.0.0:8000"
 
 echo [2/3] Levantando Microservicio de Rutas en puerto 8001...
-start "OptiFlow - Rutas FastAPI (:8001)" cmd /k "chcp 65001 >nul && title Rutas FastAPI (:8001) && echo ======================================== && echo  Servicio 2: Rutas FastAPI (Puerto 8001) && echo ======================================== && cd /d "%~dp0" && .venv\Scripts\python.exe -m uvicorn services.routing.main:app --port 8001"
+start "OptiFlow - Rutas FastAPI (:8001)" cmd /k "title Rutas FastAPI (:8001) && echo ======================================== && echo  Servicio 2: Rutas FastAPI (Puerto 8001) && echo ======================================== && .venv\Scripts\python.exe -m uvicorn services.routing.main:app --port 8001"
 
 echo [3/3] Levantando Microservicio de Vision OpenCV en puerto 8002...
-start "OptiFlow - Vision OpenCV (:8002)" cmd /k "chcp 65001 >nul && title Vision OpenCV (:8002) && echo ======================================== && echo  Servicio 3: Vision OpenCV (Puerto 8002) && echo ======================================== && cd /d "%~dp0" && .venv\Scripts\python.exe -m uvicorn services.vision.main:app --port 8002"
+start "OptiFlow - Vision OpenCV (:8002)" cmd /k "title Vision OpenCV (:8002) && echo ======================================== && echo  Servicio 3: Vision OpenCV (Puerto 8002) && echo ======================================== && .venv\Scripts\python.exe -m uvicorn services.vision.main:app --port 8002"
 
 echo.
 echo ==========================================================
