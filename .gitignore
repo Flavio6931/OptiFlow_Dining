@@ -17,3 +17,11 @@ nuevas_mejoras.docx
 extracted_doc/
 nuevas_mejoras.txt
 nuevas_mejoras.docx
+
+# Herramientas locales de desarrollo, memoria IA y editor
+.agents/
+.project-memory/
+.obsidian/
+.obsidian_vault
+.vscode/
+pyrightconfig.json

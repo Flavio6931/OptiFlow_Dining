@@ -144,7 +144,7 @@ OptiFlow_Dining/
   iniciar.cmd / iniciar.ps1  Lanzadores automáticos locales en Windows (Django + 2 FastAPI)
   docs/                      Documentación (ARQUITECTURA.md), guías de inicio y vista previa interactiva
   .env.example               Variables de entorno de ejemplo
-  .agents/AGENTS.md          Contexto arquitectónico embebido del proyecto
+  .gitignore                 Exclusión de entorno local, cachés y variables sensibles
   config/salon.json          Distribución y nodos del plano
   web/
     optiflow/               Configuración y settings de Django
