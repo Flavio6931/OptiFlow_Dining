@@ -30,12 +30,12 @@ class RegisterForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
         """Inicializa los campos con placeholders y estilos consistentes."""
         super().__init__(*args, **kwargs)
-        self.fields['first_name'].widget.attrs.update({'placeholder': 'Daniel', 'class': 'form-input'})
-        self.fields['last_name'].widget.attrs.update({'placeholder': 'Gallego', 'class': 'form-input'})
-        self.fields['username'].widget.attrs.update({'placeholder': 'dgallego', 'class': 'form-input'})
-        self.fields['email'].widget.attrs.update({'placeholder': 'daniel.gallego@optiflow.local', 'class': 'form-input'})
-        self.fields['password1'].widget.attrs.update({'placeholder': '••••••••••••', 'class': 'form-input'})
-        self.fields['password2'].widget.attrs.update({'placeholder': '••••••••••••', 'class': 'form-input'})
+        self.fields['first_name'].widget.attrs.update({'placeholder': 'Daniel', 'class': 'form-input', 'autocomplete': 'given-name', 'enterkeyhint': 'next'})
+        self.fields['last_name'].widget.attrs.update({'placeholder': 'Gallego', 'class': 'form-input', 'autocomplete': 'family-name', 'enterkeyhint': 'next'})
+        self.fields['username'].widget.attrs.update({'placeholder': 'dgallego', 'class': 'form-input', 'autocomplete': 'username', 'spellcheck': 'false', 'autocapitalize': 'none', 'autocorrect': 'off', 'enterkeyhint': 'next'})
+        self.fields['email'].widget.attrs.update({'placeholder': 'daniel.gallego@optiflow.local', 'class': 'form-input', 'autocomplete': 'email', 'inputmode': 'email', 'spellcheck': 'false', 'autocapitalize': 'none', 'autocorrect': 'off', 'enterkeyhint': 'next'})
+        self.fields['password1'].widget.attrs.update({'placeholder': '••••••••••••', 'class': 'form-input', 'autocomplete': 'new-password', 'enterkeyhint': 'next'})
+        self.fields['password2'].widget.attrs.update({'placeholder': '••••••••••••', 'class': 'form-input', 'autocomplete': 'new-password', 'enterkeyhint': 'done'})
 
     def clean_first_name(self):
         """Valida que el nombre contenga únicamente letras coherentes y al menos 2 caracteres."""
@@ -98,6 +98,6 @@ class LoginForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         """Inicializa los campos de acceso con placeholders y clases visuales."""
         super().__init__(*args, **kwargs)
-        self.fields['username'].widget.attrs.update({'placeholder': 'admin o tu usuario', 'class': 'form-input'})
-        self.fields['password'].widget.attrs.update({'placeholder': '••••••••••••', 'class': 'form-input'})
+        self.fields['username'].widget.attrs.update({'placeholder': 'Ingresa tu usuario', 'class': 'form-input', 'autocomplete': 'username', 'spellcheck': 'false', 'autocapitalize': 'none', 'autocorrect': 'off', 'enterkeyhint': 'next'})
+        self.fields['password'].widget.attrs.update({'placeholder': '••••••••••••', 'class': 'form-input', 'autocomplete': 'current-password', 'enterkeyhint': 'done'})
 

@@ -111,7 +111,7 @@
 
       <div class="profile-kpi-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); row-gap: 12px; column-gap: 12px; margin-top: 14px;">
         <div class="profile-kpi-card">
-          <span class="profile-kpi-val text-green">{{ total_completed }}</span>
+          <span class="profile-kpi-val text-green" id="kpi-profile-completed">{{ total_completed }}</span>
           <span class="profile-kpi-lbl">Rutas Atendidas</span>
         </div>
 
@@ -120,7 +120,7 @@
           <span class="profile-kpi-lbl">Asignadas por Admin</span>
         </div>
 
-        {% if role == 'admin' or role == 'capitan' %}
+        {% if role == 'admin' or role == 'capitan' or role == 'gerente' %}
           <div class="profile-kpi-card">
             <span class="profile-kpi-val text-blue">{{ admin_stats.total_waiters }}</span>
             <span class="profile-kpi-lbl">Meseros en Turno</span>
@@ -131,7 +131,7 @@
           </div>
         {% else %}
           <div class="profile-kpi-card">
-            <span class="profile-kpi-val text-yellow">{{ assigned_pending }}</span>
+            <span class="profile-kpi-val text-yellow" id="kpi-profile-pending">{{ assigned_pending }}</span>
             <span class="profile-kpi-lbl">Tareas Pendientes</span>
           </div>
           <div class="profile-kpi-card">
@@ -204,7 +204,7 @@
       </div>
     {% endif %}
 
-    {% if role == 'admin' or role == 'capitan' %}
+    {% if role == 'admin' or role == 'capitan' or role == 'gerente' %}
       <!-- Panel de Avisos de Nuevos Meseros y Auditoría -->
       <div class="panel-card profile-admin-notifs">
         <div class="card-heading">
@@ -254,10 +254,10 @@
           <span class="micro-label">ASIGNACIONES</span>
         </div>
 
-        <div class="assigned-tasks-list">
-          {% for r in recent_activity %}
+        <div class="assigned-tasks-list" id="profile-assigned-list">
+          {% for r in pending_assigned_tasks %}
             {% if r.assigned_waiter == request.user and not r.completed %}
-              <div class="assigned-task-card">
+              <div class="assigned-task-card" id="profile-assigned-card-{{ r.id }}">
                 <div class="assigned-task-head">
                   <span class="assigned-tag">⚡ Asignado por {{ r.user.get_full_name|default:r.user.username }}</span>
                   <span class="status-pill moderada">Pendiente</span>
@@ -268,6 +268,7 @@
                 </div>
                 <div class="assigned-task-actions">
                   <a href="{% url 'routes' %}" class="btn btn-primary btn-sm">Ver recorrido en mapa ➔</a>
+                  <button type="button" class="btn btn-success btn-sm btn-complete-assigned" data-route-id="{{ r.id }}">✓ Finalizar tarea</button>
                 </div>
               </div>
             {% endif %}
@@ -299,8 +300,8 @@
                 <td>{{ item.get_task_type_display }}</td>
                 <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
                 <td>
-                  <span class="status-pill {% if item.completed %}normal{% else %}moderada{% endif %}">
-                    {% if item.completed %}Finalizada{% else %}En curso{% endif %}
+                  <span id="profile-status-pill-{{ item.id }}" class="status-pill {% if item.completed %}normal{% else %}moderada{% endif %}">
+                    {% if item.completed %}Finalizada{% elif item.assigned_waiter %}Pendiente{% else %}En curso{% endif %}
                   </span>
                 </td>
               </tr>

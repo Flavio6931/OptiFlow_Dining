@@ -39,6 +39,15 @@ class RouteRequest(BaseModel):
     zone_levels: Dict[str, str] = Field(default_factory=dict, description='Niveles actuales de zonas.')
 
 
+def _in_bounds(node: str, width: int, height: int) -> bool:
+    """Verifica que una coordenada 'x,y' esté estrictamente dentro de los límites (0..width-1, 0..height-1)."""
+    try:
+        x, y = map(int, node.split(','))
+        return 0 <= x < width and 0 <= y < height
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def neighbors(node: str, width: Optional[int] = None, height: Optional[int] = None) -> Generator[str, None, None]:
     """Genera los nodos adyacentes válidos dentro de la cuadrícula del salón."""
     w = width if width is not None else WIDTH
@@ -58,21 +67,15 @@ def shortest(
     width: Optional[int] = None,
     height: Optional[int] = None,
 ) -> Optional[List[str]]:
-    """Calcula el camino más corto utilizando el algoritmo Dijkstra con penalización heurística.
-
-    Args:
-        start: Coordenada 'x,y' inicial.
-        end: Coordenada 'x,y' final.
-        avoid_nodes: Conjunto de coordenadas 'x,y' a esquivar si es posible.
-        width: Límite de columnas de la cuadrícula (opcional).
-        height: Límite de filas de la cuadrícula (opcional).
-
-    Returns:
-        Lista de coordenadas que forman la ruta, o None si no hay trayecto disponible.
-    """
+    """Calcula el camino más corto utilizando el algoritmo Dijkstra dentro de los límites estrictos del salón."""
+    w = width if width is not None else WIDTH
+    h = height if height is not None else HEIGHT
+    if not _in_bounds(start, w, h) or not _in_bounds(end, w, h):
+        return None
     if start == end:
         return [start]
 
+    aisle_y = min(2, h - 1)
     heap: List[tuple] = [(0, 0, start)]
     previous: Dict[str, str] = {}
     best: Dict[str, float] = {start: 0}
@@ -84,11 +87,11 @@ def shortest(
             continue
         if u == end:
             break
-        for v in neighbors(u, width=width, height=height):
+        for v in neighbors(u, width=w, height=h):
             if v in avoid_nodes and v != end:
                 continue
-            # Preferimos nodos del pasillo central (y=2) a igualdad de distancia.
-            penalty = 0.001 if int(v.split(',')[1]) != 2 else 0
+            # Preferimos nodos del pasillo central a igualdad de distancia.
+            penalty = 0.001 if int(v.split(',')[1]) != aisle_y else 0
             candidate = cost + 1 + penalty
             if candidate < best.get(v, float('inf')):
                 best[v] = candidate
@@ -144,37 +147,58 @@ def route(request: RouteRequest) -> Dict[str, Any]:
     if request.task_type not in ('entrega', 'retiro'):
         raise HTTPException(status_code=400, detail='Tipo de servicio inválido')
 
+    width = int(cur_layout.get('columns', WIDTH))
+    height = int(cur_layout.get('rows', HEIGHT))
+
     start = cur_origins[request.origin]
     end = cur_tables[request.destination]
+    if not _in_bounds(start, width, height) or not _in_bounds(end, width, height):
+        raise HTTPException(
+            status_code=400,
+            detail=f'Origen o destino fuera de las dimensiones activas del salón ({width}x{height}).',
+        )
 
-    # Mapeo espacial de nodos neurálgicos por zona topológica:
-    zone_risk_nodes: Dict[str, Set[str]] = {
-        'A': {'1,2'},
-        'B': {'2,2'},
-        'C': {'3,2'},
-    }
+    # Mapeo espacial dinámico de nodos neurálgicos por zona dentro de los límites activos
+    aisle_y = min(2, height - 1)
+    origin_nodes = set(cur_origins.values())
+    table_nodes_all = set(cur_tables.values())
+    zone_risk_nodes: Dict[str, Set[str]] = {}
+    for z in cur_layout.get('zones', []):
+        z_id = str(z.get('id', '')).upper()
+        z_cols = [int(c) for c in z.get('columns', []) if 0 <= int(c) < width]
+        for col in z_cols:
+            candidate_node = f'{col},{aisle_y}'
+            if candidate_node not in origin_nodes and candidate_node not in table_nodes_all:
+                zone_risk_nodes[z_id] = {candidate_node}
+                break
+
+    if not zone_risk_nodes:
+        zone_risk_nodes = {
+            k: {n for n in v if _in_bounds(n, width, height)}
+            for k, v in {'A': {'1,2'}, 'B': {'2,2'}, 'C': {'3,2'}}.items()
+        }
+
     risky: Set[str] = set()
     for z_code, z_level in request.zone_levels.items():
         if z_level == 'critica' and z_code in zone_risk_nodes:
             risky.update(zone_risk_nodes[z_code])
 
-    # Si no se especificó nivel por zona, usar la congestión demo si B o C tienen alerta
     if not risky and any(request.zone_levels.get(zone) == 'critica' for zone in ('B', 'C')):
-        risky = set(CONGESTION)
+        risky = {n for n in CONGESTION if _in_bounds(n, width, height)}
 
-    width = int(cur_layout.get('columns', WIDTH))
-    height = int(cur_layout.get('rows', HEIGHT))
-
-    # Mesas intermedias como obstáculos físicos: el personal no debe caminar sobre otras mesas
-    other_tables = {node for t_id, node in cur_tables.items() if t_id != request.destination}
+    # Mesas intermedias como obstáculos físicos estrictos: nunca caminar sobre otras mesas ni salir de límites
+    other_tables = {
+        node for t_id, node in cur_tables.items()
+        if t_id != request.destination and _in_bounds(node, width, height)
+    }
     avoid_nodes = set(other_tables)
     if request.avoid_congestion:
         avoid_nodes.update(risky)
 
     path = shortest(start, end, avoid_nodes, width=width, height=height)
-    if path is None:
-        # Fallback de resiliencia: si el paso estuviera totalmente obstruido, intentar sin el bloqueo de mesas
-        path = shortest(start, end, risky if request.avoid_congestion else set(), width=width, height=height)
+    if path is None and request.avoid_congestion:
+        # Si esquivar congestión obstruye todos los pasillos, mantener bloqueo de mesas intermedias dentro del mapa
+        path = shortest(start, end, other_tables, width=width, height=height)
 
     if path is None:
         raise HTTPException(

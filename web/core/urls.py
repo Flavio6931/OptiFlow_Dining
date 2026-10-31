@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/mesas/<str:code>/', views.api_update_table, name='api_update_table'),
     path('api/vision/', views.api_vision, name='api_vision'),
     path('api/vision/ultima/', views.api_latest_vision, name='api_latest_vision'),
+    path('api/notificaciones/resumen/', views.api_notifications_summary, name='api_notifications_summary'),
     path('api/notificaciones/<int:pk>/leer/', views.api_mark_notification_read, name='api_mark_notification_read'),
     path('api/usuarios/<int:user_id>/rol/', views.api_update_user_role, name='api_update_user_role'),
 ]

@@ -48,11 +48,11 @@
       </span>
       <span class="kpi-badge">Servicio</span>
     </div>
-    <div class="simple-kpi-number">{{ total_routes }}</div>
+    <div class="simple-kpi-number">{{ completed_routes }} <span class="denom">/ {{ total_routes }}</span></div>
     <div class="simple-kpi-title">Viajes atendidos</div>
     <p class="simple-kpi-desc">
       {% if total_routes > 0 %}
-        <strong>{{ total_routes }} rutas hoy</strong> · {{ recalculated }} con desvío
+        <strong>{{ completed_routes }} finalizados</strong> · {{ recalculated }} con desvío
       {% else %}
         Sin viajes registrados hoy
       {% endif %}
@@ -205,9 +205,9 @@
               {% if r.completed %}
                 <span class="badge-tag tag-success">✓ Finalizada</span>
               {% elif r.recalculated %}
-                <span class="badge-tag tag-warning">Con desvío</span>
+                {% if r.assigned_waiter %}<span class="badge-tag tag-warning">⏳ Pendiente</span>{% else %}<span class="badge-tag tag-warning">Con desvío</span>{% endif %}
               {% else %}
-                <span class="badge-tag tag-neutral">En curso</span>
+                {% if r.assigned_waiter %}<span class="badge-tag tag-warning">⏳ Pendiente</span>{% else %}<span class="badge-tag tag-neutral">En curso</span>{% endif %}
               {% endif %}
               <span class="feed-time">{{ r.created_at|timesince }} atrás</span>
             </div>

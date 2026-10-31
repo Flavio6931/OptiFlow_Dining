@@ -9,7 +9,7 @@
   </div>
   <div class="header-pill">
     <span class="live-dot-indicator"></span>
-    <span>Layout CAD 2D</span>
+    <span>Layout CAD 2D · {{ layout.columns }}×{{ layout.rows }}</span>
   </div>
 </div>
 
@@ -92,7 +92,7 @@
         <div class="admin-cad-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <button type="button" class="btn btn-sm btn-primary" id="btn-open-create-table">+ Nueva Mesa</button>
           <button type="button" class="btn btn-sm btn-outline" id="btn-open-unify-modal">🔗 Unificar</button>
-          <button type="button" class="btn btn-sm btn-outline" id="btn-open-dimensions-modal">📐 Dimensiones</button>
+          <button type="button" class="btn btn-sm btn-outline" id="btn-open-dimensions-modal">📐 Dimensiones ({{ layout.columns }}×{{ layout.rows }})</button>
         </div>
       {% endif %}
     </div>
@@ -208,7 +208,8 @@
         </div>
         <div class="form-group">
           <label for="new-table-node">Nodo (X,Y)</label>
-          <input type="text" id="new-table-node" placeholder="ej. 1,4" required class="form-input" style="width: 100%; box-sizing: border-box;">
+          <input type="text" id="new-table-node" value="auto" placeholder="auto o ej. 1,4" class="form-input" style="width: 100%; box-sizing: border-box;">
+          <small style="font-size: 10px; color: #94a3b8; display: block; margin-top: 3px;">Usa 'auto' para sitio libre en la zona.</small>
         </div>
       </div>
       <div class="cad-modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
@@ -265,7 +266,7 @@
         <div class="form-group">
           <label for="move-table-node">Nuevo Nodo (X,Y)</label>
           <input type="text" id="move-table-node" placeholder="ej. 2,4 o auto" class="form-input" style="width: 100%; box-sizing: border-box;">
-          <small style="font-size: 10px; color: #94a3b8; display: block; margin-top: 3px;">Escribe 'auto' para buscar espacio libre en la zona.</small>
+          <small id="move-zone-auto-hint" style="font-size: 10px; color: #94a3b8; display: block; margin-top: 3px;">Cambia la Zona para reubicar automáticamente en un sitio libre o escribe 'X,Y'.</small>
         </div>
         <div class="form-group">
           <label for="move-table-zone">Sector / Zona</label>
@@ -292,7 +293,7 @@
     </div>
     <form id="form-dimensions" class="cad-modal-form">
       <p style="font-size: 11.5px; color: #94a3b8; margin-bottom: 12px; line-height: 1.5;">
-        Ajusta la cuadrícula máxima del salón (columnas X y filas Y). Ninguna mesa existente debe quedar fuera.
+        Ajusta los muros estrictos del salón (columnas X: 0..X-1 y filas Y: 0..Y-1). El mapa SVG y las zonas se expandirán automáticamente.
       </p>
       <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
         <div class="form-group">

@@ -595,8 +595,8 @@ class OptiFlowTests(TestCase):
         self.assertIn('lan-topbar-pill', html)
         self.assertIn('modal-lan-connect', html)
 
-    def test_cad_collision_detection_and_auto_expansion(self):
-        """Verifica la prevención de colisiones en cuadrícula y la auto-expansión dimensional del salón (Req CAD)."""
+    def test_cad_collision_detection_and_strict_bounds(self):
+        """Verifica colisiones en cuadrícula, muro estricto de dimensiones y expansión explícita (Req CAD)."""
         from .layout import LAYOUT_PATH, get_layout
         original_json = LAYOUT_PATH.read_text(encoding='utf-8')
         admin = User.objects.create_superuser(username='collision_admin', password='123', email='col@test.com')
@@ -633,25 +633,174 @@ class OptiFlowTests(TestCase):
             self.assertEqual(res_origin.status_code, 400)
             self.assertIn('ya está ocupada', res_origin.json()['error'])
 
-            # 3. Crear mesa en coordenadas más allá de los límites (ej. '5,6' en un plano 5x5) -> Auto-expansión
-            res_expand = self.client.post(
+            # 3. Muro estricto: crear mesa fuera de 5x5 ('5,6') debe ser rechazado con 400 (sin auto-expansión)
+            res_out = self.client.post(
                 reverse('api_create_table'),
                 data=json.dumps({
-                    'code': 'mesa_expandida',
-                    'label': 'Mesa Expandida',
+                    'code': 'mesa_fuera',
+                    'label': 'Mesa Fuera',
                     'node': '5,6',
                     'seats': 4,
                     'zone': 'C',
                 }),
                 content_type='application/json',
             )
-            self.assertEqual(res_expand.status_code, 201)
+            self.assertEqual(res_out.status_code, 400)
+            self.assertIn('fuera de los límites', res_out.json()['error'])
+
+            # 4. Ampliar dimensiones explícitamente a 8x7 permite crear mesa en (6,6) dentro de Zona C
+            dim_res = self.client.post(
+                reverse('api_update_layout_dimensions'),
+                data=json.dumps({'columns': 8, 'rows': 7}),
+                content_type='application/json',
+            )
+            self.assertEqual(dim_res.status_code, 200)
             updated_layout = get_layout()
-            self.assertGreaterEqual(updated_layout['columns'], 6)
-            self.assertGreaterEqual(updated_layout['rows'], 7)
+            self.assertEqual(updated_layout['columns'], 8)
+            self.assertEqual(updated_layout['rows'], 7)
+
+            res_ok = self.client.post(
+                reverse('api_create_table'),
+                data=json.dumps({
+                    'code': 'mesa_expandida',
+                    'label': 'Mesa Expandida',
+                    'node': '6,6',
+                    'seats': 4,
+                    'zone': 'C',
+                }),
+                content_type='application/json',
+            )
+            self.assertEqual(res_ok.status_code, 201)
 
         finally:
             LAYOUT_PATH.write_text(original_json, encoding='utf-8')
+
+    def test_zone_change_relocates_physically_and_full_zone_alert(self):
+        """Verifica que cambiar de zona reubique físicamente la mesa en el mapa y alerte si la zona está llena."""
+        from .layout import LAYOUT_PATH
+        original_json = LAYOUT_PATH.read_text(encoding='utf-8')
+        self.client.force_login(self.manager)
+
+        try:
+            # 1. Cambiar mesa01 (1,1 en Zona A) a Zona B enviando su nodo viejo ('1,1') debe moverla a col 2
+            move_res = self.client.post(
+                reverse('api_move_table', args=['mesa01']),
+                data=json.dumps({'node': '1,1', 'zone': 'B'}),
+                content_type='application/json',
+            )
+            self.assertEqual(move_res.status_code, 200)
+            moved_table = move_res.json()['table']
+            self.assertEqual(moved_table['zone'], 'B')
+            self.assertEqual(int(moved_table['node'].split(',')[0]), 2)
+
+            # 2. Llenar las 2 celdas libres restantes de Zona B (col 2 en plano 5x5 tiene 5 celdas: 2,1; 2,3; la recién ocupada y 2 más)
+            for idx in range(2):
+                add_res = self.client.post(
+                    reverse('api_create_table'),
+                    data=json.dumps({
+                        'code': f'mesa_zb_{idx}',
+                        'label': f'Mesa ZB {idx}',
+                        'seats': 2,
+                        'zone': 'B',
+                        'node': 'auto',
+                    }),
+                    content_type='application/json',
+                )
+                self.assertEqual(add_res.status_code, 201)
+
+            # 3. Intentar agregar o mover otra mesa a Zona B llena debe retornar alerta 400 clara
+            full_res = self.client.post(
+                reverse('api_move_table', args=['mesa05']),
+                data=json.dumps({'node': 'auto', 'zone': 'B'}),
+                content_type='application/json',
+            )
+            self.assertEqual(full_res.status_code, 400)
+            self.assertIn('No hay espacio disponible para otra mesa en la Zona B', full_res.json()['error'])
+        finally:
+            LAYOUT_PATH.write_text(original_json, encoding='utf-8')
+
+    @patch('core.views.calculate_route')
+    def test_assigned_task_lifecycle_and_supervisor_notifications(self, mocked_calculate):
+        """Verifica el ciclo completo de rutas asignadas y la notificación al supervisor (Capitán y Gerente)."""
+        from .models import AdminNotification
+
+        mocked_calculate.return_value = (
+            200,
+            {
+                'origin': 'entrada',
+                'destination': 'mesa04',
+                'path': ['0,4', '1,4', '2,4', '3,4', '4,4', '4,2', '4,1'],
+                'distance': 6,
+                'congested': False,
+                'congested_nodes': [],
+                'alternative': False,
+                'notice': 'Ruta despejada',
+            },
+        )
+
+        # 1. Capitán asigna ruta a camilo
+        self.client.force_login(self.captain)
+        r1 = self.client.post(
+            reverse('api_route'),
+            data=json.dumps({
+                'origin': 'entrada',
+                'destination': 'mesa04',
+                'task_type': 'entrega',
+                'avoid_congestion': False,
+                'assigned_waiter': self.waiter.id,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r1.json()['status_label'], 'Pendiente')
+        route1_id = r1.json()['route_id']
+
+        # 2. Gerente también asigna ruta a camilo
+        self.client.force_login(self.manager)
+        r2 = self.client.post(
+            reverse('api_route'),
+            data=json.dumps({
+                'origin': 'cocina',
+                'destination': 'mesa03',
+                'task_type': 'retiro',
+                'avoid_congestion': False,
+                'assigned_waiter': self.waiter.id,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(r2.status_code, 200)
+        route2_id = r2.json()['route_id']
+
+        # 3. Mesero camilo ve 2 tareas urgentes y data-path listo para trazar sin duplicar
+        self.client.force_login(self.waiter)
+        routes_page = self.client.get(reverse('routes'))
+        self.assertEqual(routes_page.context['waiter_pending_assigned_count'], 2)
+        self.assertIn('data-path=', routes_page.content.decode('utf-8'))
+
+        # 4. Camilo finaliza la tarea 1 -> contador baja a 1 y Capitán recibe notificación exclusiva
+        comp1 = self.client.post(reverse('api_complete', args=[route1_id]))
+        self.assertEqual(comp1.status_code, 200)
+        self.assertEqual(comp1.json()['pending_assigned_count'], 1)
+        self.assertTrue(comp1.json()['notified_supervisor'])
+        self.assertTrue(
+            AdminNotification.objects.filter(recipient=self.captain, read=False, message__icontains='camilo').exists()
+        )
+        self.assertFalse(
+            AdminNotification.objects.filter(recipient=self.manager, read=False).exists()
+        )
+
+        # 5. Camilo finaliza la tarea 2 -> contador llega a 0 y Gerente recibe notificación en campana y perfil
+        comp2 = self.client.post(reverse('api_complete', args=[route2_id]))
+        self.assertEqual(comp2.status_code, 200)
+        self.assertEqual(comp2.json()['pending_assigned_count'], 0)
+        self.assertTrue(
+            AdminNotification.objects.filter(recipient=self.manager, read=False, message__icontains='camilo').exists()
+        )
+
+        self.client.force_login(self.manager)
+        mgr_summary = self.client.get(reverse('api_notifications_summary'))
+        self.assertEqual(mgr_summary.status_code, 200)
+        self.assertGreaterEqual(mgr_summary.json()['unread_count'], 1)
 
     def test_cad_separate_table_and_restoration(self):
         """Verifica la desunificación de mesas restaurando posiciones y estados originales (Req Desunificar)."""

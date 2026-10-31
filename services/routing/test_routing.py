@@ -69,6 +69,28 @@ class RoutingServiceTests(unittest.TestCase):
         # Ningún paso intermedio puede ser una de las otras mesas
         self.assertFalse(intermediate_steps & other_table_nodes)
 
+    def test_routes_strictly_within_active_dimensions(self):
+        """Verifica que ningún paso de Dijkstra salga de las dimensiones activas (ej. entrada -> mesa04 en 5x5)."""
+        result = route(
+            RouteRequest(
+                origin='entrada',
+                destination='mesa04',
+                task_type='entrega',
+                avoid_congestion=True,
+                zone_levels={'B': 'critica', 'C': 'critica'},
+            )
+        )
+        for step in result['path']:
+            x, y = map(int, step.split(','))
+            self.assertGreaterEqual(x, 0)
+            self.assertLess(x, 5)
+            self.assertGreaterEqual(y, 0)
+            self.assertLess(y, 5)
+
+        # Ningún paso intermedio pisa otra mesa
+        other_tables = {'1,1', '2,1', '3,1', '1,3', '2,3', '3,3', '4,3'}
+        self.assertFalse(set(result['path'][:-1]) & other_tables)
+
 
 if __name__ == '__main__':
     unittest.main()

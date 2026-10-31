@@ -141,22 +141,22 @@ Necesitas iniciar sesión y enviar la cookie de sesión y el token CSRF. En la i
 ```text
 OptiFlow_Dining/
   docker-compose.yml         Orquestación de microservicios (Docker)
-  iniciar_local.bat          Script de inicio rápido local en Windows (sin Docker)
-  vista_previa.html          Vista previa interactiva navegable de todos los módulos
+  iniciar.cmd / iniciar.ps1  Lanzadores automáticos locales en Windows (Django + 2 FastAPI)
+  docs/                      Documentación (ARQUITECTURA.md), guías de inicio y vista previa interactiva
   .env.example               Variables de entorno de ejemplo
-  scripts/generate_env.py    Generador de configuración inicial y claves
+  .agents/AGENTS.md          Contexto arquitectónico embebido del proyecto
   config/salon.json          Distribución y nodos del plano
   web/
     optiflow/               Configuración y settings de Django
-    core/                   Modelos, vistas, servicios locales y API REST
+    core/views/             Paquete modular de vistas HTML, permisos y APIs REST DRF
     templates/              Plantillas HTML modulares (limpias de CSS y JS incrustados)
     static/
       css/
         app.css             Estilos globales y componentes principales
-        vista_previa.css    Estilos específicos para la vista previa interactiva
+      img/                  Activos gráficos activos de producción (logos y fondos)
       js/
         app.js              Lógica de cliente, formularios, rutas y OpenCV en Django
-        vista_previa.js     Lógica completa de simulación modular (Dijkstra, canvas, roles)
+        modules/            Módulos JS desacoplados (core, floor_plan, routing, cad_tables, vision_zones)
   services/
     routing/                 Microservicio FastAPI de trayectorias
     vision/                  Microservicio FastAPI de análisis OpenCV

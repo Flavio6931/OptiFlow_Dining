@@ -51,7 +51,7 @@ class RouteConsultationAdmin(admin.ModelAdmin):
 @admin.register(AdminNotification)
 class AdminNotificationAdmin(admin.ModelAdmin):
     """Notificaciones para administradores."""
-    list_display = ('title', 'read', 'created_at')
+    list_display = ('title', 'recipient', 'read', 'created_at')
     list_filter = ('read',)
 
 

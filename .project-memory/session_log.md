@@ -688,3 +688,49 @@
   - Suite Routing Dijkstra: **4/4 pruebas unitarias aprobadas al 100% (OK)**.
   - Pyright: **0 errores**.
 
+
+
+## Sesión - 2026-10-31 (Auditoría Estructural, Modularización y 4 Mejoras Operativas Google Docs)
+- **Solicitud del Usuario:**
+  - Implementar los 4 puntos actualizados del documento Google Docs (`1uHiRLsUjMB-CbFEfsNDCjfaFEMPdzbgf`) y realizar una auditoría completa mejorando la arquitectura y organización de carpetas y archivos del proyecto.
+- **Acciones Realizadas:**
+  1. **Reorganización Limpia de Carpetas (`git mv`, cero borrados):**
+     - Guías operativas trasladadas a `docs/guias/` (`INICIAR_AQUI.txt`, `COMANDOS_INICIO.txt`).
+     - Prototipo estático movido a `docs/preview/` (`vista_previa.html`, `vista_previa.css`, `vista_previa.js`) con rutas relativas actualizadas.
+     - 24 bocetos gráficos no referenciados archivados en `docs/assets_archive/`, conservando únicamente los 5 activos reales en `web/static/img/`.
+     - Documentación y contexto embebido creados en [.agents/AGENTS.md](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/.agents/AGENTS.md) y [ARQUITECTURA.md](file:///c:/Users/Flavio/Desktop/H4CK/Flavio/OptiFlow_Dining/docs/ARQUITECTURA.md).
+  2. **Modularización Backend y Frontend (Anti-Monolitos):**
+     - `web/core/views.py` (999 líneas) dividido en el paquete `web/core/views/` (`helpers.py`, `auth_profile.py`, `pages.py`, `api_routing.py`, `api_cad_vision.py`, `__init__.py`), manteniendo compatibilidad 100% con `@patch('core.views....')`.
+     - `web/static/js/app.js` (1,535 líneas) dividido en `web/static/js/modules/` (`core.js`, `floor_plan.js`, `routing.js`, `cad_tables.js`, `vision_zones.js`) + `app.js`.
+  3. **Implementación de las 4 Mejoras Funcionales:**
+     - **Dimensiones Dinámicas SVG y Muro Estricto:** Escalado dinámico de `viewBox`, pasillos y zonas en `floor_plan.js`; rechazo estricto `HTTP 400` fuera de `0..columns-1` y `0..rows-1` en `layout.py`.
+     - **Reubicación Física por Zona y Alerta de Zona Llena:** `move_table` y `cad_tables.js` trasladan físicamente la mesa al cambiar su Zona y emiten alerta clara si el sector no tiene celdas libres.
+     - **Dijkstra Confinado a Dimensiones Activas:** `_in_bounds` y bloqueo invariable de mesas intermedias en `services/routing/main.py`.
+     - **Cierre Reactivo de Tareas de Meseros y Aviso al Supervisor:** `Atender ➔` usa `data-path` sin duplicar consultas; `Finalizar tarea` retira al instante la alerta del mesero y píldora urgente, marca `Finalizada` y crea `AdminNotification(recipient=...)` para el Capitán, Gerente o Administrador que despachó la ruta (migración `0003_adminnotification_recipient_alter_profile_role`).
+- **Verificación:**
+  - `collectstatic --noinput`: Manifiesto actualizado sin errores.
+  - `manage.py test core`: **26/26 pruebas `OK`**.
+  - `unittest services/routing/test_routing.py`: **5/5 pruebas `OK`**.
+  - `npx pyright web services`: **0 errores, 0 advertencias**.
+- **Próximos Pasos:**
+  - Verificación visual en navegador (`iniciar.cmd` / `http://127.0.0.1:8000`) de los 4 flujos implementados.
+  - Subida (`git commit` + `git push`) al repositorio `Sofia12-cer/OptiFlow_Dining` cuando el usuario lo indique.
+
+
+## Sesión - 2026-10-31 (Ajuste Visual Ejecutivo de Login y Registro)
+- **Solicitud del Usuario:** Pulir y modernizar el diseño de 2 columnas de Login y Registro manteniendo los colores oficiales (azul noche + naranja) y el logotipo de OptiFlow Dining.
+- **Acciones Realizadas:**
+  - Contenedor centrado `.auth-split-inner` con proporciones armónicas en pantallas amplias (`1080p+`) y soporte `100dvh` móvil.
+  - Tarjeta `.auth-floating-card` rediseñada con glassmorphism translúcido real (`blur(22px)`), línea especular naranja superior, subtítulo contextual e inputs con iconos SVG que se iluminan en `:focus-within`.
+  - Eliminación del enlace duplicado de cambio de cuenta en la columna hero izquierda, consolidando un único pie limpio en la tarjeta, corrección ortográfica (`Crea tu Cuenta Operativa`) y atributos `autocomplete`/`spellcheck`/`enterkeyhint` en `forms.py`.
+- **Verificación:** `collectstatic --noinput` OK, renderizado HTTP 200 en `/login/` y `/registro/`, **26/26 tests Django `OK`**.
+
+
+## Sesión - 2026-10-31 (Logo Auth, Espacio en Rutas, QR Directo a Login y Responsive Móvil)
+- **Solicitud del Usuario:** Hacer que el logo cubra el aro naranja en Login/Registro, mejorar el espacio interno en `Rutas de servicio` respetando la paleta, mostrar solo el código QR apuntando directo a `/login/` (sin recuadro de URL arriba) y adaptar toda la vista para teléfono según el video móvil enviado.
+- **Acciones Realizadas:**
+  - `login.html`, `register.html`, `app.css`: Isotipo espiral expandido a `72×72px` cubriendo el 100% del contenedor sin aro naranja exterior ni línea superior.
+  - `app.css`: `color-scheme: dark` y selectores `<select>` oscuros (`#0e1c34`), columnas niveladas (`align-items: stretch`) y relleno espacial equilibrado en `.map-surface`.
+  - `helpers.py`, `base.html`: Detección UDP de IP Wi-Fi prioritaria, `lan_url` apuntando directo a `http://<IP_LAN>:8000/login/` y modal limpio mostrando únicamente el QR `190×190`.
+  - `app.css`, `base.html`, `public.html`, `core.js`: Optimización integral para teléfono (`< 720px`) corrigiendo topbar, `/perfil/`, `/panel/`, `/` landing, cajón lateral con backdrop y acceso directo a la tarjeta en Login/Registro móvil.
+- **Verificación:** `collectstatic --noinput` OK, **26/26 tests Django `OK`**, `pyright` **0 errores**, y QR verificado con destino `http://192.168.3.254:8000/login/`.

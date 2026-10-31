@@ -7,8 +7,8 @@
   <title>{{ page_title }} · OptiFlow Dining</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,800;1,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261026_profile_balanced">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:ital,wght@1,800;1,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261031_mobile_v4">
   <meta name="theme-color" content="#07142b">
   <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
@@ -141,6 +141,7 @@
         </button>
       </form>
     </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
 
     <!-- Contenedor Principal de Trabajo -->
     <div class="workspace-main">
@@ -163,13 +164,13 @@
           </button>
 
           {% if waiter_pending_assigned_count > 0 %}
-            <a href="{% url 'routes' %}" class="waiter-urgent-topbar-pill" title="Tienes {{ waiter_pending_assigned_count }} tarea{{ waiter_pending_assigned_count|pluralize }} asignada{{ waiter_pending_assigned_count|pluralize }} pendiente{{ waiter_pending_assigned_count|pluralize }}">
+            <a href="{% url 'routes' %}" id="waiter-urgent-pill" class="waiter-urgent-topbar-pill" title="Tienes {{ waiter_pending_assigned_count }} tarea{{ waiter_pending_assigned_count|pluralize }} asignada{{ waiter_pending_assigned_count|pluralize }} pendiente{{ waiter_pending_assigned_count|pluralize }}">
               <span class="waiter-urgent-dot"></span>
               <span class="waiter-urgent-text">⚡ {{ waiter_pending_assigned_count }} tarea{{ waiter_pending_assigned_count|pluralize }} urgente{{ waiter_pending_assigned_count|pluralize }}</span>
             </a>
           {% endif %}
 
-          {% if role == 'admin' or role == 'capitan' %}
+          {% if role == 'admin' or role == 'capitan' or role == 'gerente' %}
             <div class="topbar-notif-wrap" id="topbar-notif-wrap">
               <button type="button" class="btn-topbar-notif" id="btn-topbar-notif" aria-label="Avisos administrativos" title="Avisos y notificaciones">
                 <span class="notif-bell-icon">🔔</span>
@@ -233,34 +234,32 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/modules/core.js' %}?v=20261031_mobile_v4" defer></script>
+  <script src="{% static 'js/modules/floor_plan.js' %}?v=20261031_mobile_v4" defer></script>
+  <script src="{% static 'js/modules/routing.js' %}?v=20261031_mobile_v4" defer></script>
+  <script src="{% static 'js/modules/cad_tables.js' %}?v=20261031_mobile_v4" defer></script>
+  <script src="{% static 'js/modules/vision_zones.js' %}?v=20261031_mobile_v4" defer></script>
+  <script src="{% static 'js/app.js' %}?v=20261031_mobile_v4" defer></script>
   {% block scripts %}
   {% endblock %}
   <!-- Modal de Conexión Multi-Dispositivo en Red Local (Móvil / Tablet - Req 9) -->
   <div class="cad-modal-overlay is-hidden" id="modal-lan-connect">
-    <div class="cad-modal-content" style="max-width: 460px; text-align: center;">
+    <div class="cad-modal-content lan-qr-modal" style="max-width: 400px; text-align: center;">
       <div class="cad-modal-header">
-        <h3 style="display: flex; align-items: center; gap: 8px;">📱 Acceso Móvil y Tablet (Red Local)</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-lan-connect">✕</button>
+        <h3 style="display: flex; align-items: center; gap: 8px;">📱 Acceso Móvil y Tablet</h3>
+        <button type="button" class="btn-close-modal" data-close="modal-lan-connect" aria-label="Cerrar modal">✕</button>
       </div>
-      <div style="padding: 10px 0;">
-        <p style="font-size: 13px; color: var(--text-dim, #94a3b8); margin-bottom: 14px;">
-          Opera el sistema desde cualquier <strong>tablet o smartphone</strong> conectado a la misma red Wi-Fi sin instalar aplicaciones.
+      <div class="lan-qr-modal-body">
+        <p class="lan-qr-lead">
+          Escanea el código desde cualquier <strong>teléfono o tablet</strong> conectado a la misma red Wi-Fi para ir directo al inicio de sesión.
         </p>
 
-        <div style="background: var(--surface-1, #0f172a); border: 1px solid var(--line, #283548); border-radius: 12px; padding: 12px; margin-bottom: 14px;">
-          <span style="font-size: 11px; text-transform: uppercase; color: #38bdf8; font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">URL en Red Wi-Fi Local</span>
-          <div style="font-size: 17px; font-weight: 800; color: #ffffff; font-family: monospace; margin-bottom: 8px;" id="lan-url-display">{{ lan_url }}</div>
-          <button type="button" class="btn btn-sm btn-outline" id="btn-copy-lan-url" style="font-size: 12px; padding: 4px 12px;">
-            📋 Copiar Enlace
-          </button>
+        <div class="lan-qr-frame">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=190x190&margin=6&data={{ lan_url|urlencode }}" alt="Código QR hacia el inicio de sesión móvil" width="190" height="190" class="lan-qr-img">
         </div>
 
-        <div style="background: #ffffff; padding: 10px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.4); margin-bottom: 10px;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ lan_url }}" alt="Código QR para escaneo móvil" width="150" height="150" style="display: block;">
-        </div>
-        <small style="display: block; font-size: 11px; color: var(--text-dim, #94a3b8);">
-          Apunta con la cámara de tu tablet o smartphone para ingresar directamente desde el navegador.
+        <small class="lan-qr-hint">
+          Apunta con la cámara de tu dispositivo para ingresar sin instalar aplicaciones.
         </small>
       </div>
     </div>

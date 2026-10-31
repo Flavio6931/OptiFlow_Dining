@@ -100,7 +100,14 @@ class VisionAnalysis(models.Model):
 
 
 class AdminNotification(models.Model):
-    """Notificaciones y avisos operativos para administradores y capitanes."""
+    """Notificaciones y avisos operativos para capitanes, gerentes y administradores."""
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='notifications',
+    )
     title = models.CharField(max_length=140)
     message = models.TextField()
     read = models.BooleanField(default=False)

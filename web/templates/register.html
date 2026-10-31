@@ -2,137 +2,175 @@
 {% load static %}
 
 {% block content %}
-<div class="auth-split-wrapper">
-  <!-- Columna Izquierda: Branding & Experiencia Visual -->
-  <div class="auth-split-hero">
-    <!-- Logotipo OptiFlow Dining con Isotipo Oficial y Tipografía Slanted -->
-    <a class="auth-brand-lockup" href="{% url 'landing' %}">
-      <div class="brand-spiral-icon">
-        <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" class="brand-logo-img">
+<div class="auth-split-wrapper auth-split-wrapper--register">
+  <div class="auth-split-inner">
+    <!-- Columna Izquierda: Branding & Propuesta Operativa -->
+    <div class="auth-split-hero">
+      <a class="auth-brand-lockup" href="{% url 'landing' %}" aria-label="Inicio OptiFlow Dining">
+        <div class="brand-spiral-icon">
+          <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" width="52" height="52" class="brand-logo-img">
+        </div>
+        <div class="brand-text-stack">
+          <span class="brand-name">OPTIFLOW</span>
+          <span class="brand-tag">DINING</span>
+        </div>
+      </a>
+
+      <div class="auth-hero-main">
+        <div class="auth-eyebrow">
+          <span class="auth-eyebrow-dot"></span> ALTA DE PERSONAL OPERATIVO
+        </div>
+
+        <h1 class="auth-headline">
+          Crea tu<br>
+          <span class="text-orange-glow">Cuenta Operativa</span>
+        </h1>
+
+        <div class="auth-accent-line"></div>
+
+        <p class="auth-hero-description">
+          Intégrate al flujo del salón con asignación de rutas en vivo, alertas tempranas de saturación y asistencia visual para el turno.
+        </p>
+
+        <div class="auth-feature-pills" aria-label="Capacidades principales">
+          <span class="auth-feature-pill"><i class="pill-dot"></i> Tareas en vivo</span>
+          <span class="auth-feature-pill"><i class="pill-dot"></i> Rutas óptimas</span>
+          <span class="auth-feature-pill"><i class="pill-dot"></i> Alertas activas</span>
+        </div>
+
+        <div class="auth-hero-action">
+          <a href="{% url 'landing' %}" class="btn-info-pill">
+            Conocer plataforma <span class="arrow-pill">→</span>
+          </a>
+        </div>
       </div>
-      <div class="brand-text-stack">
-        <span class="brand-name">OPTIFLOW</span>
-        <span class="brand-tag">DINING</span>
-      </div>
-    </a>
 
-    <!-- Mensaje Hero Principal -->
-    <div class="auth-hero-main">
-      <h1 class="auth-headline">
-        Create una<br>
-        <span class="text-orange-glow">Cuenta Nueva</span>
-      </h1>
-      <p class="auth-sub-switch">
-        ¿Ya estás registrado? <a href="{% url 'login' %}">Inicia sesión.</a>
-      </p>
-
-      <div class="auth-accent-line"></div>
-
-      <p class="auth-hero-description">
-        Optimización integral de recorridos, control de saturación de zonas y visión artificial para tu restaurante.
-      </p>
-
-      <div class="auth-hero-action">
-        <a href="{% url 'landing' %}" class="btn-info-pill">
-          Información <span class="arrow-pill">➔</span>
-        </a>
+      <div class="auth-hero-foot">
+        <span>OPTIFLOW DINING · HOSPITALITY SUITE</span>
+        <span>© 2026</span>
       </div>
     </div>
 
-    <!-- Pie del Hero -->
-    <div class="auth-hero-foot">
-      <span>OPTIFLOW DINING</span>
-      <span>© 2026</span>
-    </div>
-  </div>
-
-  <!-- Columna Derecha: Tarjeta Flotante de Registro -->
-  <div class="auth-split-card-area">
-    <div class="auth-floating-card">
-      <div class="auth-card-brand-header">
-        <div class="auth-card-logo-wrap">
-          <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" class="auth-card-logo">
-        </div>
-      </div>
-      <h2 class="auth-card-heading">Regístrate</h2>
-
-      <form method="post" class="auth-modern-form" novalidate>
-        {% csrf_token %}
-
-        {% if form.non_field_errors %}
-          <div class="alert-error-box">
-            {{ form.non_field_errors }}
-          </div>
-        {% endif %}
-
-        <!-- Fila Nombres -->
-        <div class="form-row-duo">
-          <div class="form-field-group">
-            <label for="id_first_name">Nombre</label>
-            {{ form.first_name }}
-            {{ form.first_name.errors }}
-          </div>
-          <div class="form-field-group">
-            <label for="id_last_name">Apellido</label>
-            {{ form.last_name }}
-            {{ form.last_name.errors }}
+    <!-- Columna Derecha: Tarjeta Glassmorphism de Registro -->
+    <div class="auth-split-card-area">
+      <div class="auth-floating-card">
+        <div class="auth-card-brand-header">
+          <div class="auth-card-logo-wrap">
+            <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" width="68" height="68" class="auth-card-logo">
           </div>
         </div>
+        <h2 class="auth-card-heading">Crear Cuenta</h2>
+        <p class="auth-card-subtitle">Completa tus datos para habilitar tu acceso al salón</p>
 
-        <!-- Fila Usuario y Correo -->
-        <div class="form-row-duo">
-          <div class="form-field-group">
-            <label for="id_username">Usuario</label>
-            {{ form.username }}
-            {{ form.username.errors }}
-          </div>
-          <div class="form-field-group">
-            <label for="id_email">Correo</label>
-            {{ form.email }}
-            {{ form.email.errors }}
-          </div>
-        </div>
+        <form method="post" class="auth-modern-form">
+          {% csrf_token %}
 
-        <!-- Fila Contraseña y Confirmar Contraseña -->
-        <div class="form-row-duo">
-          <div class="form-field-group">
-            <label for="id_password1">Contraseña</label>
-            <div class="password-pill-wrap">
-              {{ form.password1 }}
-              <button type="button" class="btn-toggle-eye" data-toggle-password aria-label="Mostrar u ocultar contraseña">
-                <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
+          {% if form.non_field_errors %}
+            <div class="alert-error-box" role="alert">
+              {{ form.non_field_errors }}
             </div>
-            {{ form.password1.errors }}
-          </div>
+          {% endif %}
 
-          <div class="form-field-group">
-            <label for="id_password2">Confirmar contraseña</label>
-            <div class="password-pill-wrap">
-              {{ form.password2 }}
-              <button type="button" class="btn-toggle-eye" data-toggle-password aria-label="Mostrar u ocultar contraseña">
-                <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
+          <div class="form-row-duo">
+            <div class="form-field-group">
+              <label for="id_first_name">Nombre</label>
+              <div class="input-icon-wrap">
+                <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
                 </svg>
-              </button>
+                {{ form.first_name }}
+              </div>
+              {{ form.first_name.errors }}
             </div>
-            {{ form.password2.errors }}
+            <div class="form-field-group">
+              <label for="id_last_name">Apellido</label>
+              <div class="input-icon-wrap">
+                <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                {{ form.last_name }}
+              </div>
+              {{ form.last_name.errors }}
+            </div>
           </div>
+
+          <div class="form-row-duo">
+            <div class="form-field-group">
+              <label for="id_username">Usuario</label>
+              <div class="input-icon-wrap">
+                <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+                </svg>
+                {{ form.username }}
+              </div>
+              {{ form.username.errors }}
+            </div>
+            <div class="form-field-group">
+              <label for="id_email">Correo</label>
+              <div class="input-icon-wrap">
+                <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+                {{ form.email }}
+              </div>
+              {{ form.email.errors }}
+            </div>
+          </div>
+
+          <div class="form-row-duo">
+            <div class="form-field-group">
+              <label for="id_password1">Contraseña</label>
+              <div class="password-pill-wrap">
+                <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                {{ form.password1 }}
+                <button type="button" class="btn-toggle-eye" data-toggle-password aria-label="Mostrar u ocultar contraseña">
+                  <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              {{ form.password1.errors }}
+            </div>
+
+            <div class="form-field-group">
+              <label for="id_password2">Confirmar contraseña</label>
+              <div class="password-pill-wrap">
+                <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                {{ form.password2 }}
+                <button type="button" class="btn-toggle-eye" data-toggle-password aria-label="Mostrar u ocultar contraseña">
+                  <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              {{ form.password2.errors }}
+            </div>
+          </div>
+
+          <button type="submit" class="btn-orange-pill">
+            <span>Crear cuenta</span>
+            <span class="btn-pill-arrow" aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <div class="auth-bottom-nav">
+          <span class="auth-switch-prompt">¿Ya tienes una cuenta?</span>
+          <a href="{% url 'login' %}" class="auth-switch-link">
+            Inicia sesión <span aria-hidden="true">→</span>
+          </a>
         </div>
-
-        <button type="submit" class="btn-orange-pill">
-          Crear cuenta
-        </button>
-      </form>
-
-      <div class="auth-bottom-nav">
-        <a href="{% url 'login' %}" class="auth-switch-link">
-          <span class="ring-dot"></span> Ingresa
-        </a>
       </div>
     </div>
   </div>

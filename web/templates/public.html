@@ -7,13 +7,14 @@
   <title>{{ page_title }} · OptiFlow Dining</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@1,800;1,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261026_orbit_logo_92px_clean">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:ital,wght@1,800;1,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261031_mobile_v4">
   <meta name="theme-color" content="#07142b">
 </head>
 <body class="public-body">
   {% block content %}
   {% endblock %}
-  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/modules/core.js' %}?v=20261031_mobile_v4" defer></script>
+  <script src="{% static 'js/app.js' %}?v=20261031_mobile_v4" defer></script>
 </body>
 </html>

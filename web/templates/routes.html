@@ -22,12 +22,12 @@
     </div>
 
     {% if assigned_to_me %}
-      <div class="assigned-tasks-box urgent-assigned-box">
+      <div class="assigned-tasks-box urgent-assigned-box" id="assigned-tasks-box">
         <div class="assigned-tasks-header">
           <span class="assigned-bell-icon">⚡</span>
           <div>
             <div class="urgent-sub-badge">🔴 SERVICIO ASIGNADO · ATENCIÓN INMEDIATA</div>
-            <strong>Tienes {{ assigned_to_me|length }} tarea{{ assigned_to_me|pluralize }} asignada{{ assigned_to_me|pluralize }}</strong>
+            <strong id="assigned-tasks-count-title">Tienes {{ assigned_to_me|length }} tarea{{ assigned_to_me|pluralize }} asignada{{ assigned_to_me|pluralize }}</strong>
             <small>Despachadas por Capitanía con ruteo seguro sin congestión</small>
           </div>
         </div>
@@ -43,15 +43,33 @@
                 </div>
                 <span class="assigned-task-type">{{ atask.get_task_type_display }}</span>
               </div>
-              <button type="button" class="btn btn-sm btn-accent btn-quick-load"
-                data-origin="{{ atask.origin }}"
-                data-dest="{{ atask.destination }}"
-                data-task-type="{{ atask.task_type }}"
-                data-route-id="{{ atask.id }}"
-                data-recalculated="{{ atask.recalculated|yesno:'true,false' }}"
-                title="Cargar y trazar ruta segura en el salón">
-                Atender ➔
-              </button>
+              <div class="assigned-task-actions-inline">
+                <button type="button" class="btn btn-sm btn-accent btn-quick-load"
+                  data-origin="{{ atask.origin }}"
+                  data-dest="{{ atask.destination }}"
+                  data-task-type="{{ atask.task_type }}"
+                  data-route-id="{{ atask.id }}"
+                  data-distance="{{ atask.distance }}"
+                  data-assigner="{{ atask.user.get_full_name|default:atask.user.username }}"
+                  data-path="{{ atask.path_json }}"
+                  data-recalculated="{{ atask.recalculated|yesno:'true,false' }}"
+                  title="Trazar ruta asignada en el mapa sin duplicar registro">
+                  Atender ➔
+                </button>
+                <button type="button" class="btn btn-sm btn-success btn-complete-assigned"
+                  data-route-id="{{ atask.id }}"
+                  title="Marcar tarea asignada como finalizada y avisar al supervisor">
+                  ✓ Finalizar
+                </button>
+              </div>
+
+
+
+
+
+
+
+
             </div>
           {% endfor %}
         </div>
@@ -168,7 +186,7 @@
             <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
             <td>
               <span id="status-pill-{{ item.id }}" class="status-pill {% if item.completed %}normal{% else %}moderada{% endif %}">
-                {% if item.completed %}Finalizada{% else %}Consultada{% endif %}
+                {% if item.completed %}Finalizada{% elif item.assigned_waiter %}Pendiente{% else %}En curso{% endif %}
               </span>
             </td>
           </tr>
