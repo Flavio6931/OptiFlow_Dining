@@ -70,9 +70,10 @@
     });
   }
 
-  const WAITER_SPEED = 230; // px del lienzo por segundo
-  const WAITER_MIN_S = 1.8;
-  const WAITER_MAX_S = 6.5;
+  // Ritmo de paseo: lo bastante lento para seguir el recorrido con la vista (Cocina → Mesa 08 ≈ 6 s).
+  const WAITER_SPEED = 150; // px del lienzo por segundo
+  const WAITER_MIN_S = 2.6;
+  const WAITER_MAX_S = 8;
   // El plano se muestra reducido (~0.65x en escritorio, ~0.6x en móvil): el mesero se dibuja
   // a 1.25x para que mida unos 55 px en pantalla.
   const WAITER_SCALE = 1.25;
@@ -156,7 +157,8 @@
     const dx = table[0] - prev[0];
     const dy = table[1] - prev[1];
     const segment = Math.hypot(dx, dy) || 1;
-    const back = dy < 0 ? segment * 0.9 : Math.min(84, segment * 0.75);
+    // Tarjeta de mesa ≈ 140 × 70: en horizontal se queda a su lado; bajando, con los pies en su borde.
+    const back = dy < 0 ? segment * 0.9 : Math.min(dy > 0 ? 40 : 84, segment * 0.75);
     return [table[0] - (dx / segment) * back, table[1] - (dy / segment) * back];
   }
 
@@ -181,7 +183,12 @@
     }
     const waiter = svg('g', { class: 'floor-waiter', 'aria-hidden': 'true' });
     waiter.append(buildWaiter());
-    canvas.append(anchor, waiter);
+    // Tramo ya recorrido: se dibuja detrás del mesero a medida que avanza.
+    const trail = svg('polyline', {
+      points: points.map(([x, y]) => `${x},${y}`).join(' '),
+      class: 'floor-route-walked',
+    });
+    canvas.append(trail, anchor, waiter);
 
     // Mira hacia donde avanza en horizontal; en tramos verticales conserva la última dirección.
     const facings = [];
@@ -194,27 +201,40 @@
     const lengths = points.slice(1).map(([x, y], i) => Math.hypot(x - points[i][0], y - points[i][1]));
     const total = lengths.reduce((a, b) => a + b, 0);
 
+    // La ruta completa queda tenue mientras camina y se ilumina según la recorre.
+    const route = canvas.querySelectorAll('.floor-route, .floor-route-shadow');
+    trail.setAttribute('stroke-dasharray', `${total} ${total}`);
+    const showWalked = (covered) => trail.setAttribute('stroke-dashoffset', String(total - covered));
+
     const arrive = () => {
+      showWalked(total);
+      route.forEach((line) => line.classList.remove('is-pending'));
       waiter.classList.remove('is-walking');
       waiter.classList.add('has-arrived');
       anchor.firstChild.classList.add('is-visible');
     };
 
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion || total === 0) {
+    if (total === 0) {
       placeWaiter(waiter, points[points.length - 1], facing);
       arrive();
       return;
     }
 
+    // El paseo se muestra aunque el sistema pida reducir movimiento (p. ej. "Efectos de animación"
+    // desactivados en Windows): lo inicia el usuario al pedir la ruta y es la forma de ver el
+    // recorrido. Ese ajuste sí desactiva las animaciones decorativas (ver app.css).
     const duration = Math.min(WAITER_MAX_S, Math.max(WAITER_MIN_S, total / WAITER_SPEED)) * 1000;
     const startTime = performance.now();
+    route.forEach((line) => line.classList.add('is-pending'));
     waiter.classList.add('is-walking');
     placeWaiter(waiter, points[0], facings[0] || 1);
+    showWalked(0);
 
     const step = (now) => {
       if (!waiter.isConnected) return; // el plano se volvió a dibujar
-      let travelled = Math.min(1, (now - startTime) / duration) * total;
+      const covered = Math.min(1, (now - startTime) / duration) * total;
+      showWalked(covered);
+      let travelled = covered;
       let i = 0;
       while (i < lengths.length - 1 && travelled > lengths[i]) {
         travelled -= lengths[i];

@@ -1681,6 +1681,21 @@ input:disabled,select:disabled {
   stroke-width: 4;
 }
 
+/* Mientras el mesero camina, la ruta pendiente queda tenue y el tramo recorrido se ilumina */
+.floor-route.is-pending,
+.floor-route-shadow.is-pending {
+  opacity: 0.3;
+}
+
+.floor-route-walked {
+  fill: none;
+  stroke: #ffb38a;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 10px rgba(255, 123, 61, 0.95));
+}
+
 /* Mesero de perfil que recorre la ruta calculada (floor_plan.js · drawWaiter) */
 .floor-waiter {
   pointer-events: none;
@@ -1792,15 +1807,15 @@ input:disabled,select:disabled {
 }
 
 .floor-waiter.is-walking .floor-waiter-leg.front {
-  animation: waiterLegSwing 0.42s ease-in-out infinite alternate;
+  animation: waiterLegSwing 0.36s ease-in-out infinite alternate;
 }
 
 .floor-waiter.is-walking .floor-waiter-leg.back {
-  animation: waiterLegSwing 0.42s ease-in-out infinite alternate-reverse;
+  animation: waiterLegSwing 0.36s ease-in-out infinite alternate-reverse;
 }
 
 .floor-waiter.is-walking .floor-waiter-figure {
-  animation: waiterBob 0.21s ease-in-out infinite alternate;
+  animation: waiterBob 0.18s ease-in-out infinite alternate;
 }
 
 /* En reposo (cocina) o al llegar: respiración suave */
@@ -1837,10 +1852,10 @@ input:disabled,select:disabled {
 
 @keyframes waiterLegSwing {
   from {
-    transform: rotate(-24deg);
+    transform: rotate(-30deg);
   }
   to {
-    transform: rotate(24deg);
+    transform: rotate(30deg);
   }
 }
 
@@ -1863,10 +1878,12 @@ input:disabled,select:disabled {
   }
 }
 
+/* Reducir movimiento: se quitan las animaciones decorativas (respirar, rebote del ✓). El paseo
+   hasta la mesa y sus pasos se mantienen porque los inicia el usuario y muestran el recorrido. */
 @media (prefers-reduced-motion: reduce) {
-  .floor-waiter .floor-waiter-figure,
-  .floor-waiter .floor-waiter-leg {
-    animation: none !important;
+  .floor-waiter.is-idle .floor-waiter-figure,
+  .floor-waiter.has-arrived .floor-waiter-figure {
+    animation: none;
   }
 
   .floor-waiter-badge {
