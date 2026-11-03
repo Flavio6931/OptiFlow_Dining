@@ -149,17 +149,57 @@
     waiter.firstChild.setAttribute('transform', `scale(${facing * WAITER_SCALE} ${WAITER_SCALE})`);
   }
 
+  // Tarjeta de mesa: 128 × 74 centrada en el nodo (ver floorPlan). El mesero se coloca en el
+  // pasillo junto a uno de sus lados, de perfil y mirando hacia ella.
+  const TABLE_HALF_W = 64;
+  const TABLE_HALF_H = 37;
+  const WAITER_SIDE_GAP = 30; // del borde de la tarjeta a los pies del mesero
+
   /**
-   * Punto donde se detiene antes de la mesa para no taparla: a un lado si llega en horizontal,
-   * encima si baja hacia ella, y casi en el nodo anterior si sube (el cuerpo queda por encima de los pies).
+   * Cambia el final de la ruta (el centro de la mesa) por el sitio donde se queda el mesero.
+   * Si llega en horizontal, se detiene a ese lado de la mesa. Si llega en vertical, sube o baja
+   * por el pasillo de al lado (el del lado por el que venía) y se para junto a la mesa: así no
+   * tapa la tarjeta con el cuerpo. Devuelve los puntos del paseo y hacia dónde mira al llegar.
    */
-  function stopPoint(prev, table) {
+  function approachTable(points, svgWidth) {
+    const table = points[points.length - 1];
+    const prev = points[points.length - 2];
+    const route = points.slice(0, -1);
     const dx = table[0] - prev[0];
-    const dy = table[1] - prev[1];
-    const segment = Math.hypot(dx, dy) || 1;
-    // Tarjeta de mesa ≈ 140 × 70: en horizontal se queda a su lado; bajando, con los pies en su borde.
-    const back = dy < 0 ? segment * 0.9 : Math.min(dy > 0 ? 40 : 84, segment * 0.75);
-    return [table[0] - (dx / segment) * back, table[1] - (dy / segment) * back];
+
+    if (Math.abs(dx) > 0.5) {
+      const segment = Math.abs(dx);
+      const back = Math.min(TABLE_HALF_W + 20, segment * 0.75);
+      route.push([table[0] - Math.sign(dx) * back, table[1]]);
+      return { points: route, facing: Math.sign(dx) };
+    }
+
+    // Lado por el que venía: el de su último desplazamiento horizontal (por defecto, la izquierda).
+    let side = 1;
+    for (let i = route.length - 1; i > 0; i -= 1) {
+      const step = route[i][0] - route[i - 1][0];
+      if (Math.abs(step) > 0.5) {
+        side = Math.sign(step);
+        break;
+      }
+    }
+    let standX = table[0] - side * (TABLE_HALF_W + WAITER_SIDE_GAP);
+    if (standX < 24 || standX > svgWidth - 24) {
+      side = -side;
+      standX = table[0] - side * (TABLE_HALF_W + WAITER_SIDE_GAP);
+    }
+    // Paso hacia el pasillo. Si ese punto ya está en el tramo horizontal por el que llega, gira
+    // ahí mismo en lugar de pasarse hasta el nodo y volver atrás.
+    const before = route[route.length - 2];
+    const onIncomingRow = before && Math.abs(before[1] - prev[1]) < 0.5
+      && (standX - before[0]) * (standX - prev[0]) < 0;
+    if (onIncomingRow) {
+      route[route.length - 1] = [standX, prev[1]];
+    } else {
+      route.push([standX, prev[1]]);
+    }
+    route.push([standX, table[1] + TABLE_HALF_H]); // pies a la altura del borde inferior de la mesa
+    return { points: route, facing: side };
   }
 
   /** Mesero en reposo junto a la cocina cuando todavía no hay ruta calculada. */
@@ -175,11 +215,13 @@
 
   /** Anima un mesero que recorre la ruta calculada y marca la llegada a la mesa. */
   function drawWaiter(canvas, path) {
-    const points = path.map(xy);
+    let points = path.map(xy);
     const table = points[points.length - 1];
     const anchor = buildArrivalBadge(table);
+    let arrivalFacing = 0;
     if (points.length > 1) {
-      points[points.length - 1] = stopPoint(points[points.length - 2], table);
+      const svgWidth = canvas.viewBox.baseVal?.width || 960;
+      ({ points, facing: arrivalFacing } = approachTable(points, svgWidth));
     }
     const waiter = svg('g', { class: 'floor-waiter', 'aria-hidden': 'true' });
     waiter.append(buildWaiter());
@@ -197,6 +239,11 @@
       const dx = points[i][0] - points[i - 1][0];
       if (Math.abs(dx) > 0.5) facing = Math.sign(dx);
       facings.push(facing);
+    }
+    // En el último tramo (y al llegar) mira hacia la mesa.
+    if (arrivalFacing && facings.length) {
+      facing = arrivalFacing;
+      facings[facings.length - 1] = arrivalFacing;
     }
     const lengths = points.slice(1).map(([x, y], i) => Math.hypot(x - points[i][0], y - points[i][1]));
     const total = lengths.reduce((a, b) => a + b, 0);
