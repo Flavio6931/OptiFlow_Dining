@@ -70,30 +70,65 @@
     });
   }
 
-  const WAITER_SPEED = 260; // px del lienzo por segundo
-  const WAITER_MIN_S = 1.6;
-  const WAITER_MAX_S = 6;
+  const WAITER_SPEED = 230; // px del lienzo por segundo
+  const WAITER_MIN_S = 1.8;
+  const WAITER_MAX_S = 6.5;
+  // El plano se muestra reducido (~0.65x en escritorio, ~0.6x en móvil): el mesero se dibuja
+  // a 1.25x para que mida unos 55 px en pantalla.
+  const WAITER_SCALE = 1.25;
+  const HIP_Y = -27; // altura de la cadera: eje de giro de las piernas
 
-  /** Mesero visto desde arriba, mirando hacia +x (animateMotion lo gira con la ruta). */
+  let waiterFrame = 0; // requestAnimationFrame del recorrido en curso
+
+  /** Pierna que gira desde la cadera; `cls` decide si va delante o detrás y `x` la separa de la otra. */
+  function waiterLeg(cls, x) {
+    // El desplazamiento va en un grupo exterior: la animación CSS de la pierna pisaría el atributo.
+    const hip = svg('g', { transform: `translate(${x} 0)` });
+    const leg = svg('g', { class: `floor-waiter-leg ${cls}` });
+    leg.append(svg('path', { d: `M 0 ${HIP_Y} L 0 -3`, class: 'floor-waiter-trousers' }));
+    leg.append(svg('ellipse', { cx: 2.5, cy: -2, rx: 5.2, ry: 2.6, class: 'floor-waiter-shoe' }));
+    hip.append(leg);
+    return hip;
+  }
+
+  /**
+   * Mesero de perfil mirando a la derecha, con los pies en (0, 0): camisa blanca, chaleco
+   * azul marino, pajarita y delantal, y una bandeja con campana en la mano delantera.
+   */
   function buildWaiter() {
-    // El plano se muestra reducido (~0.65x en escritorio, menos en móvil): se dibuja a 1.4x.
-    // La escala va en un grupo exterior porque el balanceo CSS del interior pisaría el atributo.
-    const scaled = svg('g', { transform: 'scale(1.4)' });
-    const figure = svg('g', { class: 'floor-waiter-figure' });
-    scaled.append(figure);
-    figure.append(svg('ellipse', { cx: 2, cy: 3, rx: 17, ry: 15, class: 'floor-waiter-shadow' }));
-    // Brazos extendidos hacia delante sujetando la bandeja
-    figure.append(svg('path', { d: 'M -2 -11 L 12 -9', class: 'floor-waiter-arm' }));
-    figure.append(svg('path', { d: 'M -2 11 L 12 9', class: 'floor-waiter-arm' }));
-    figure.append(svg('ellipse', { cx: -2, cy: 0, rx: 9, ry: 14, class: 'floor-waiter-body' }));
-    figure.append(svg('path', { d: 'M 3 -8 Q 7 0 3 8', class: 'floor-waiter-apron' }));
-    // Pelo detrás de la cabeza: solo asoma una media luna por la nuca
-    figure.append(svg('circle', { cx: -3.5, cy: 0, r: 6, class: 'floor-waiter-hair' }));
-    figure.append(svg('circle', { cx: 0, cy: 0, r: 5.8, class: 'floor-waiter-head' }));
-    figure.append(svg('circle', { cx: 16, cy: 0, r: 8.5, class: 'floor-waiter-tray' }));
-    figure.append(svg('circle', { cx: 14, cy: -2.5, r: 2.6, class: 'floor-waiter-dish' }));
-    figure.append(svg('circle', { cx: 18.5, cy: 2.5, r: 2.2, class: 'floor-waiter-dish' }));
-    return scaled;
+    const flip = svg('g', { class: 'floor-waiter-flip', transform: `scale(${WAITER_SCALE})` });
+    const body = svg('g', { class: 'floor-waiter-figure' });
+    flip.append(svg('ellipse', { cx: 2, cy: 0, rx: 17, ry: 4, class: 'floor-waiter-shadow' }), body);
+
+    body.append(
+      // Brazo trasero, caído junto al cuerpo
+      svg('path', { d: 'M -3 -47 Q -7 -38 -5 -31', class: 'floor-waiter-sleeve back' }),
+      svg('circle', { cx: -5, cy: -30, r: 2.4, class: 'floor-waiter-skin' }),
+      waiterLeg('back', -2.5),
+      waiterLeg('front', 2.5),
+      // Torso: camisa, chaleco y delantal largo
+      svg('rect', { x: -8.5, y: -52, width: 17, height: 27, rx: 6, class: 'floor-waiter-shirt' }),
+      svg('path', { d: 'M -8.5 -46 Q -8 -51 -3 -51 L 2 -43 L 7 -51 Q 8.5 -50 8.5 -46 L 8.5 -29 L -8.5 -29 Z', class: 'floor-waiter-vest' }),
+      svg('path', { d: 'M -9 -29 L 9 -29 L 10 -12 Q 0 -10 -10 -12 Z', class: 'floor-waiter-apron' }),
+      svg('path', { d: 'M -9 -29 L 9 -29', class: 'floor-waiter-belt' }),
+      // Cuello y cabeza
+      svg('rect', { x: -2.5, y: -56, width: 5, height: 6, class: 'floor-waiter-skin' }),
+      svg('circle', { cx: 1, cy: -63, r: 8.5, class: 'floor-waiter-skin' }),
+      svg('circle', { cx: 9.3, cy: -62, r: 1.9, class: 'floor-waiter-skin' }), // nariz
+      svg('path', { d: 'M -7.5 -62 Q -9 -73 1 -73 Q 9.5 -73 9.6 -66 Q 4 -69 0 -66 Q -2 -63 -3.5 -60 Z', class: 'floor-waiter-hair' }),
+      svg('circle', { cx: -1.5, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
+      svg('circle', { cx: 5.6, cy: -64, r: 1.2, class: 'floor-waiter-eye' }),
+      svg('path', { d: 'M 4.5 -58.5 Q 6.5 -57.5 8 -59', class: 'floor-waiter-smile' }),
+      // Pajarita naranja
+      svg('path', { d: 'M 2 -51 L -1.5 -53.2 L -1.5 -48.8 Z M 2 -51 L 5.5 -53.2 L 5.5 -48.8 Z', class: 'floor-waiter-bowtie' }),
+      // Brazo delantero doblado sosteniendo la bandeja a la altura del hombro
+      svg('path', { d: 'M 3 -47 Q 9 -38 14 -43 L 17 -51', class: 'floor-waiter-sleeve front' }),
+      svg('circle', { cx: 17.5, cy: -52, r: 2.4, class: 'floor-waiter-skin' }),
+      svg('ellipse', { cx: 18, cy: -54.5, rx: 12, ry: 2.4, class: 'floor-waiter-tray' }),
+      svg('path', { d: 'M 9 -55 A 9 8 0 0 1 27 -55 Z', class: 'floor-waiter-cloche' }),
+      svg('circle', { cx: 18, cy: -63.5, r: 1.7, class: 'floor-waiter-cloche-knob' })
+    );
+    return flip;
   }
 
   /** Muestra el ✓ de llegada en la mesa de destino. */
@@ -107,7 +142,34 @@
     return anchor;
   }
 
-  const WAITER_STOP_BEFORE = 84; // px: se detiene junto a la mesa (media tarjeta ≈ 70), sin tapar su nombre
+  /** Coloca al mesero con los pies en (x, y), mirando a la derecha (1) o a la izquierda (-1). */
+  function placeWaiter(waiter, [x, y], facing) {
+    waiter.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    waiter.firstChild.setAttribute('transform', `scale(${facing * WAITER_SCALE} ${WAITER_SCALE})`);
+  }
+
+  /**
+   * Punto donde se detiene antes de la mesa para no taparla: a un lado si llega en horizontal,
+   * encima si baja hacia ella, y casi en el nodo anterior si sube (el cuerpo queda por encima de los pies).
+   */
+  function stopPoint(prev, table) {
+    const dx = table[0] - prev[0];
+    const dy = table[1] - prev[1];
+    const segment = Math.hypot(dx, dy) || 1;
+    const back = dy < 0 ? segment * 0.9 : Math.min(84, segment * 0.75);
+    return [table[0] - (dx / segment) * back, table[1] - (dy / segment) * back];
+  }
+
+  /** Mesero en reposo junto a la cocina cuando todavía no hay ruta calculada. */
+  function drawIdleWaiter(canvas, layout) {
+    const kitchen = (layout.origins || []).find((o) => o.id === 'cocina');
+    if (!kitchen) return;
+    const [kx, ky] = xy(kitchen.node);
+    const waiter = svg('g', { class: 'floor-waiter is-idle', 'aria-hidden': 'true' });
+    waiter.append(buildWaiter());
+    placeWaiter(waiter, [kx + 82, ky + 36], 1);
+    canvas.append(waiter);
+  }
 
   /** Anima un mesero que recorre la ruta calculada y marca la llegada a la mesa. */
   function drawWaiter(canvas, path) {
@@ -115,48 +177,60 @@
     const table = points[points.length - 1];
     const anchor = buildArrivalBadge(table);
     if (points.length > 1) {
-      const [px, py] = points[points.length - 2];
-      const segment = Math.hypot(table[0] - px, table[1] - py);
-      const back = Math.min(WAITER_STOP_BEFORE, segment / 2) / (segment || 1);
-      points[points.length - 1] = [table[0] - (table[0] - px) * back, table[1] - (table[1] - py) * back];
+      points[points.length - 1] = stopPoint(points[points.length - 2], table);
     }
-    const end = points[points.length - 1];
     const waiter = svg('g', { class: 'floor-waiter', 'aria-hidden': 'true' });
     waiter.append(buildWaiter());
     canvas.append(anchor, waiter);
 
+    // Mira hacia donde avanza en horizontal; en tramos verticales conserva la última dirección.
+    const facings = [];
+    let facing = 1;
+    for (let i = 1; i < points.length; i += 1) {
+      const dx = points[i][0] - points[i - 1][0];
+      if (Math.abs(dx) > 0.5) facing = Math.sign(dx);
+      facings.push(facing);
+    }
+    const lengths = points.slice(1).map(([x, y], i) => Math.hypot(x - points[i][0], y - points[i][1]));
+    const total = lengths.reduce((a, b) => a + b, 0);
+
     const arrive = () => {
       waiter.classList.remove('is-walking');
+      waiter.classList.add('has-arrived');
       anchor.firstChild.classList.add('is-visible');
     };
 
-    const length = points.slice(1).reduce(
-      (sum, [x, y], i) => sum + Math.hypot(x - points[i][0], y - points[i][1]),
-      0
-    );
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion || length === 0) {
-      // Sin animación: colocarlo ya en destino, mirando en la dirección del último tramo.
-      const prev = points[points.length - 2] || end;
-      const angle = (Math.atan2(end[1] - prev[1], end[0] - prev[0]) * 180) / Math.PI;
-      waiter.setAttribute('transform', `translate(${end[0]} ${end[1]}) rotate(${angle.toFixed(1)})`);
+    if (reduceMotion || total === 0) {
+      placeWaiter(waiter, points[points.length - 1], facing);
       arrive();
       return;
     }
 
-    const seconds = Math.min(WAITER_MAX_S, Math.max(WAITER_MIN_S, length / WAITER_SPEED));
-    const motion = svg('animateMotion', {
-      path: `M ${points.map(([x, y]) => `${x} ${y}`).join(' L ')}`,
-      dur: `${seconds.toFixed(2)}s`,
-      rotate: 'auto',
-      fill: 'freeze',
-      begin: 'indefinite',
-      calcMode: 'paced',
-    });
-    motion.addEventListener('endEvent', arrive, { once: true });
-    waiter.append(motion);
+    const duration = Math.min(WAITER_MAX_S, Math.max(WAITER_MIN_S, total / WAITER_SPEED)) * 1000;
+    const startTime = performance.now();
     waiter.classList.add('is-walking');
-    motion.beginElement();
+    placeWaiter(waiter, points[0], facings[0] || 1);
+
+    const step = (now) => {
+      if (!waiter.isConnected) return; // el plano se volvió a dibujar
+      let travelled = Math.min(1, (now - startTime) / duration) * total;
+      let i = 0;
+      while (i < lengths.length - 1 && travelled > lengths[i]) {
+        travelled -= lengths[i];
+        i += 1;
+      }
+      const t = lengths[i] ? Math.min(1, travelled / lengths[i]) : 1;
+      const [ax, ay] = points[i];
+      const [bx, by] = points[i + 1];
+      placeWaiter(waiter, [ax + (bx - ax) * t, ay + (by - ay) * t], facings[i]);
+      if (now - startTime < duration) {
+        waiterFrame = requestAnimationFrame(step);
+      } else {
+        arrive();
+      }
+    };
+    waiterFrame = requestAnimationFrame(step);
   }
 
   /** Renderiza el plano vectorial SVG escalando dinámicamente a (columns x rows) sin desbordes. */
@@ -171,6 +245,7 @@
 
     canvas.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
     canvas.classList.toggle('is-expanded-grid', cols > 6 || rows > 6);
+    cancelAnimationFrame(waiterFrame);
     canvas.replaceChildren();
 
     if (!window.currentTableStates) {
@@ -461,6 +536,9 @@
       canvas.append(svg('circle', { cx: start[0], cy: start[1], r: 10, class: 'floor-route-dot' }));
       canvas.append(svg('circle', { cx: end[0], cy: end[1], r: 10, class: 'floor-route-dot' }));
       drawWaiter(canvas, boundedPath);
+    } else if (!canvas.classList.contains('layout-floor-plan')) {
+      // En Rutas el mesero espera en la cocina; en el editor del plano no se muestra.
+      drawIdleWaiter(canvas, layout);
     }
 
     // 9. Marcadores interactivos de congestión dentro del mapa

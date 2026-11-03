@@ -1406,6 +1406,9 @@ input:disabled,select:disabled {
   .map-surface {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    /* Centrado flex + desbordamiento recorta la izquierda sin poder desplazarse hasta ella
+       (cocina y entrada quedaban ocultas): en móvil el plano empieza a la izquierda. */
+    justify-content: flex-start;
     border-radius: 14px;
   }
   .floor-plan {
@@ -1678,60 +1681,132 @@ input:disabled,select:disabled {
   stroke-width: 4;
 }
 
-/* Mesero animado que recorre la ruta calculada (floor_plan.js · drawWaiter) */
+/* Mesero de perfil que recorre la ruta calculada (floor_plan.js · drawWaiter) */
 .floor-waiter {
   pointer-events: none;
 }
 
+/* Contorno claro + sombra para que destaque sobre el plano oscuro */
 .floor-waiter-figure {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.floor-waiter.is-walking .floor-waiter-figure {
-  animation: waiterStep 0.34s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.95)) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
 }
 
 .floor-waiter-shadow {
-  fill: rgba(2, 6, 23, 0.55);
+  fill: rgba(2, 6, 23, 0.6);
 }
 
-.floor-waiter-arm {
+.floor-waiter-trousers {
   fill: none;
-  stroke: #e2e8f0;
-  stroke-width: 4.5;
+  stroke: #111827;
+  stroke-width: 6;
   stroke-linecap: round;
 }
 
-.floor-waiter-body {
-  fill: #0f1d3a;
+.floor-waiter-leg.back .floor-waiter-trousers {
+  stroke: #273449;
+}
+
+.floor-waiter-shoe {
+  fill: #0b0f19;
+}
+
+.floor-waiter-shirt {
+  fill: #f8fafc;
+}
+
+.floor-waiter-vest {
+  fill: #13254a;
   stroke: #ff7b3d;
-  stroke-width: 2.5;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
 }
 
 .floor-waiter-apron {
-  fill: none;
-  stroke: #e2e8f0;
+  fill: #0f172a;
+}
+
+.floor-waiter-belt {
+  stroke: #ff7b3d;
   stroke-width: 2;
   stroke-linecap: round;
+}
+
+.floor-waiter-skin {
+  fill: #f2c9a0;
+}
+
+.floor-waiter-ear {
+  fill: #e0ad80;
 }
 
 .floor-waiter-hair {
   fill: #3b2416;
 }
 
-.floor-waiter-head {
-  fill: #f2c9a0;
+.floor-waiter-eye {
+  fill: #1e293b;
+}
+
+.floor-waiter-smile {
+  fill: none;
+  stroke: #9a4f2b;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.floor-waiter-bowtie {
+  fill: #ff7b3d;
+}
+
+.floor-waiter-sleeve {
+  fill: none;
+  stroke: #f8fafc;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.floor-waiter-sleeve.back {
+  stroke: #cbd5e1;
 }
 
 .floor-waiter-tray {
-  fill: #cbd5e1;
-  stroke: #ffffff;
-  stroke-width: 1.5;
+  fill: #94a3b8;
+  stroke: #e2e8f0;
+  stroke-width: 1;
 }
 
-.floor-waiter-dish {
+.floor-waiter-cloche {
+  fill: #e2e8f0;
+  stroke: #94a3b8;
+  stroke-width: 1;
+}
+
+.floor-waiter-cloche-knob {
   fill: #ff7b3d;
+}
+
+/* Caminar: piernas que se alternan desde la cadera y un leve rebote del cuerpo */
+.floor-waiter-leg {
+  transform-origin: 0 -27px;
+}
+
+.floor-waiter.is-walking .floor-waiter-leg.front {
+  animation: waiterLegSwing 0.42s ease-in-out infinite alternate;
+}
+
+.floor-waiter.is-walking .floor-waiter-leg.back {
+  animation: waiterLegSwing 0.42s ease-in-out infinite alternate-reverse;
+}
+
+.floor-waiter.is-walking .floor-waiter-figure {
+  animation: waiterBob 0.21s ease-in-out infinite alternate;
+}
+
+/* En reposo (cocina) o al llegar: respiración suave */
+.floor-waiter.is-idle .floor-waiter-figure,
+.floor-waiter.has-arrived .floor-waiter-figure {
+  animation: waiterBreathe 2.4s ease-in-out infinite;
 }
 
 .floor-waiter-badge {
@@ -1760,18 +1835,38 @@ input:disabled,select:disabled {
   stroke-linejoin: round;
 }
 
-@keyframes waiterStep {
+@keyframes waiterLegSwing {
   from {
-    transform: scale(1, 1) rotate(-3deg);
+    transform: rotate(-24deg);
   }
   to {
-    transform: scale(1.05, 0.95) rotate(3deg);
+    transform: rotate(24deg);
+  }
+}
+
+@keyframes waiterBob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-1.6px);
+  }
+}
+
+@keyframes waiterBreathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .floor-waiter.is-walking .floor-waiter-figure {
-    animation: none;
+  .floor-waiter .floor-waiter-figure,
+  .floor-waiter .floor-waiter-leg {
+    animation: none !important;
   }
 
   .floor-waiter-badge {
