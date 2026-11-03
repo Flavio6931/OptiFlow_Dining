@@ -17,6 +17,30 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
+rem Si Docker (docker compose) ya ocupa el puerto 8000, runserver no puede arrancar y el
+rem navegador abriria la version de Docker en lugar de la local.
+netstat -ano | findstr /R /C:":8000 .*LISTENING" /C:":8000 .*ESCUCHANDO" >nul
+if not errorlevel 1 (
+    echo [AVISO] El puerto 8000 ya esta en uso, probablemente por Docker.
+    echo         Si sigues, veras la version de Docker y no la de este lanzador.
+    echo         Detenlo con:  docker compose down
+    echo         y vuelve a ejecutar iniciar.cmd.
+    echo.
+    pause
+    exit /b 1
+)
+
+rem Con DJANGO_DEBUG=0, WhiteNoise sirve CSS/JS desde web\staticfiles: hay que recopilarlos
+rem en cada arranque o el navegador recibe la version antigua.
+echo [0/3] Actualizando archivos estaticos (CSS/JS)...
+.venv\Scripts\python.exe web\manage.py collectstatic --noinput --clear -v 0
+if errorlevel 1 (
+    echo [ERROR] No se pudieron preparar los archivos estaticos.
+    echo.
+    pause
+    exit /b 1
+)
+
 echo [1/3] Levantando Django Web en puerto 8000...
 start "OptiFlow - Django Web (:8000)" cmd /k "title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && .venv\Scripts\python.exe web\manage.py runserver 0.0.0.0:8000"
 

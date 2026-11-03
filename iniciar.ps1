@@ -18,6 +18,24 @@ Write-Host "   Iniciando OptiFlow Dining (Django + Microservicios)   " -Foregrou
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
+# Si Docker (docker compose) ya ocupa el puerto 8000, runserver no puede arrancar y el
+# navegador abriria la version de Docker en lugar de la local.
+if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
+    Write-Host "[AVISO] El puerto 8000 ya esta en uso, probablemente por Docker." -ForegroundColor Yellow
+    Write-Host "        Si sigues, veras la version de Docker y no la de este lanzador." -ForegroundColor Yellow
+    Write-Host "        Detenlo con:  docker compose down   y vuelve a ejecutar iniciar.ps1." -ForegroundColor Yellow
+    exit 1
+}
+
+# Con DJANGO_DEBUG=0, WhiteNoise sirve CSS/JS desde web\staticfiles: hay que recopilarlos
+# en cada arranque o el navegador recibe la version antigua.
+Write-Host "[0/3] Actualizando archivos estaticos (CSS/JS)..." -ForegroundColor Green
+& $python web/manage.py collectstatic --noinput --clear -v 0
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] No se pudieron preparar los archivos estaticos." -ForegroundColor Red
+    exit 1
+}
+
 # 1. Django Web (Puerto 8000)
 Write-Host "[1/3] Iniciando Django Web en puerto 8000..." -ForegroundColor Green
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "[Console]::Title = 'OptiFlow - Django Web (:8000)'; cd '$root'; Write-Host '--- Django Web (:8000) ---' -ForegroundColor Cyan; & '$python' web/manage.py runserver 0.0.0.0:8000"
