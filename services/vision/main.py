@@ -10,6 +10,7 @@ import base64
 import math
 import os
 import threading
+import time
 from typing import Any, Dict, List, Tuple
 
 os.environ.setdefault("OPENCV_IO_MAX_IMAGE_PIXELS", "16000000")
@@ -62,6 +63,12 @@ NMS_IOU = 0.55  # comensales sentados juntos se solapan mucho; un IoU bajo los f
 # 1024 para personas de primer plano que quedan cortadas en los recortes pequeños. El solape debe
 # superar el tamaño típico de una persona a esa escala.
 TILE_LEVELS = ((640, 160), (1024, 256))
+# Cámara en vivo: fotogramas de hasta 960 px. Modo rápido = solo la foto completa (1 inferencia,
+# ~5 fps en CPU; puede perder personas lejanas). Modo preciso = además un nivel de mosaico
+# (~3 inferencias, ~1,5 fps), que en salones llenos cuenta casi lo mismo que la captura.
+LIVE_MAX_DIMENSION = 960
+LIVE_TILE_LEVELS = ((640, 160),)
+LIVE_MAX_SIZE: int = 1024 * 1024  # 1 MB por fotograma
 EDGE_MARGIN = 3  # px: una caja que toca un borde interior del recorte está cortada
 
 YOLOX_NET = None
@@ -123,13 +130,15 @@ def _tile_origins(length: int, size: int, overlap: int) -> List[int]:
     return [round(i * step) for i in range(count)]
 
 
-def _detect_yolox(image: np.ndarray) -> Tuple[List[List[int]], List[float]]:
-    """Foto completa + mosaico de recortes solapados a dos escalas; cajas en píxeles de `image`."""
+def _detect_yolox(
+    image: np.ndarray, levels: Tuple[Tuple[int, int], ...] = TILE_LEVELS
+) -> Tuple[List[List[int]], List[float]]:
+    """Foto completa + mosaico de recortes solapados en `levels`; cajas en píxeles de `image`."""
     h, w = image.shape[:2]
     boxes, scores = _yolox_people(image)
     all_boxes, all_scores = [boxes], [scores]
 
-    for size, overlap in TILE_LEVELS:
+    for size, overlap in levels:
         if max(h, w) <= size:
             continue
         for y0 in _tile_origins(h, size, overlap):
@@ -276,6 +285,83 @@ def _fit(image: np.ndarray, max_side: int, min_side: int = 0) -> np.ndarray:
     return cv2.resize(image, (round(w * scale), round(h * scale)), interpolation=interpolation)
 
 
+def _decode(raw: bytes) -> np.ndarray:
+    """Decodifica una imagen JPEG/PNG/WebP y valida su resolución."""
+    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError('El archivo no contiene una imagen válida.')
+    height, width = image.shape[:2]
+    if height * width > MAX_PIXELS:
+        raise ValueError('La imagen supera el límite de resolución permitido.')
+    return image
+
+
+def _detect_people(
+    image: np.ndarray, live: bool = False, precise: bool = False
+) -> Tuple[List[Tuple[float, float, float, float, float]], str]:
+    """Personas detectadas como (x, y, w, h, score) en píxeles de `image`, y el método usado.
+
+    `live` usa la configuración de la cámara en vivo (sin ampliar); con `precise` añade el
+    mosaico de LIVE_TILE_LEVELS y si no, solo analiza la foto completa.
+    """
+    if YOLOX_NET is not None:
+        if live:
+            detect_image = _fit(image, LIVE_MAX_DIMENSION)
+            levels = LIVE_TILE_LEVELS if precise else ()
+            candidate_boxes, scores = _detect_yolox(detect_image, levels)
+            method = f"OpenCV DNN · YOLOX-S (OpenCV Zoo) en vivo · {'preciso' if precise else 'rápido'}"
+        else:
+            detect_image = _fit(image, DETECT_MAX_DIMENSION, DETECT_MIN_DIMENSION)
+            candidate_boxes, scores = _detect_yolox(detect_image)
+            method = 'OpenCV DNN · YOLOX-S (OpenCV Zoo) con mosaico de recortes + NMS'
+        score_threshold, nms_threshold = PERSON_SCORE, NMS_IOU
+    else:
+        detect_image = _fit(image, MAX_DIMENSION)
+        candidate_boxes, scores = _detect_legacy(detect_image)
+        score_threshold, nms_threshold = 0.25, 0.35
+        method = 'OpenCV Ensamble DNN MobileNet-SSD + Haar + HOG + NMS'
+
+    h, w = image.shape[:2]
+    scale = w / detect_image.shape[1]
+    people: List[Tuple[float, float, float, float, float]] = []
+    # Fusión y eliminación de solapamientos con Non-Maximum Suppression (NMS)
+    if candidate_boxes:
+        indices = cv2.dnn.NMSBoxes(candidate_boxes, scores, score_threshold, nms_threshold)
+        for idx in _drop_partial_duplicates(candidate_boxes, scores, np.array(indices).flatten()):
+            x, y, bw, bh = (v * scale for v in candidate_boxes[idx])
+            x = max(0.0, min(x, w - 1.0))
+            y = max(0.0, min(y, h - 1.0))
+            people.append((x, y, max(1.0, min(bw, w - x)), max(1.0, min(bh, h - y)), scores[idx]))
+    return people, method
+
+
+def _zone_counts(people: List[Tuple[float, float, float, float, float]], width: int) -> Dict[str, int]:
+    """Reparte las personas en las zonas A/B/C según el tercio horizontal de su centro."""
+    counts = {'A': 0, 'B': 0, 'C': 0}
+    for x, _y, bw, _bh, _score in people:
+        cx = (x + bw / 2) / max(1, width)
+        counts['A' if cx < 1 / 3 else 'B' if cx < 2 / 3 else 'C'] += 1
+    return counts
+
+
+def detect_bytes(raw: bytes, precise: bool = False) -> Dict[str, Any]:
+    """Detección para la cámara en vivo: solo cajas normalizadas (0-1), sin imagen anotada."""
+    started = time.perf_counter()
+    image = _decode(raw)
+    h, w = image.shape[:2]
+    people, method = _detect_people(image, live=True, precise=precise)
+    return {
+        'people_count': len(people),
+        'zone_counts': _zone_counts(people, w),
+        'boxes': [
+            [round(x / w, 4), round(y / h, 4), round(bw / w, 4), round(bh / h, 4), round(score, 3)]
+            for x, y, bw, bh, score in people
+        ],
+        'method': method,
+        'elapsed_ms': round((time.perf_counter() - started) * 1000),
+    }
+
+
 def analyze_bytes(raw: bytes) -> Dict[str, Any]:
     """Decodifica una imagen y cuenta las personas por zonas A/B/C.
 
@@ -288,45 +374,17 @@ def analyze_bytes(raw: bytes) -> Dict[str, Any]:
     Raises:
         ValueError: Si la imagen no es válida o excede límites dimensionales.
     """
-    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
-    if image is None:
-        raise ValueError('El archivo no contiene una imagen válida.')
-
-    height, width = image.shape[:2]
-    if height * width > MAX_PIXELS:
-        raise ValueError('La imagen supera el límite de resolución permitido.')
+    image = _decode(raw)
+    people, method = _detect_people(image)
 
     output = _fit(image, MAX_DIMENSION)
-    if YOLOX_NET is not None:
-        detect_image = _fit(image, DETECT_MAX_DIMENSION, DETECT_MIN_DIMENSION)
-        candidate_boxes, scores = _detect_yolox(detect_image)
-        score_threshold, nms_threshold = PERSON_SCORE, NMS_IOU
-        method = 'OpenCV DNN · YOLOX-S (OpenCV Zoo) con mosaico de recortes + NMS'
-    else:
-        detect_image = output
-        candidate_boxes, scores = _detect_legacy(output)
-        score_threshold, nms_threshold = 0.25, 0.35
-        method = 'OpenCV Ensamble DNN MobileNet-SSD + Haar + HOG + NMS'
-
     h, w = output.shape[:2]
-    scale = w / detect_image.shape[1]
-    zone_counts = {'A': 0, 'B': 0, 'C': 0}
-    final_rectangles: List[Tuple[int, int, int, int, float]] = []
-
-    # Fusión y eliminación de solapamientos con Non-Maximum Suppression (NMS)
-    if candidate_boxes:
-        indices = cv2.dnn.NMSBoxes(candidate_boxes, scores, score_threshold, nms_threshold)
-        for idx in _drop_partial_duplicates(candidate_boxes, scores, np.array(indices).flatten()):
-            x, y, bw, bh = (round(v * scale) for v in candidate_boxes[idx])
-            x = max(0, min(x, w - 1))
-            y = max(0, min(y, h - 1))
-            bw = max(1, min(bw, w - x))
-            bh = max(1, min(bh, h - y))
-
-            cx = (x + bw / 2) / max(1, w)
-            zone = 'A' if cx < 1 / 3 else 'B' if cx < 2 / 3 else 'C'
-            zone_counts[zone] += 1
-            final_rectangles.append((x, y, bw, bh, scores[idx]))
+    scale = w / image.shape[1]
+    final_rectangles = [
+        (round(x * scale), round(y * scale), round(bw * scale), round(bh * scale), score)
+        for x, y, bw, bh, score in people
+    ]
+    zone_counts = _zone_counts(people, image.shape[1])
 
     overlay = output.copy()
     for (x, y, bw, bh, _confidence) in final_rectangles:
@@ -400,5 +458,24 @@ async def analyze(file: UploadFile = File(...)) -> Dict[str, Any]:
     try:
         # Ejecución en threadpool AnyIO para no bloquear el event loop asíncrono (ECC)
         return await asyncio.to_thread(analyze_bytes, raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post('/detect')
+async def detect(file: UploadFile = File(...), precise: bool = False) -> Dict[str, Any]:
+    """Fotograma de la cámara en vivo: devuelve las cajas de las personas (0-1) y el conteo.
+
+    `?precise=true` añade el mosaico de recortes (más lento, cuenta mejor a los lejanos).
+    """
+    if file.content_type not in ('image/jpeg', 'image/png', 'image/webp'):
+        raise HTTPException(status_code=400, detail='Formato no permitido: usa JPG, PNG o WebP.')
+
+    raw = await file.read(LIVE_MAX_SIZE + 1)
+    if len(raw) > LIVE_MAX_SIZE:
+        raise HTTPException(status_code=413, detail='El fotograma supera 1 MB.')
+
+    try:
+        return await asyncio.to_thread(detect_bytes, raw, precise)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

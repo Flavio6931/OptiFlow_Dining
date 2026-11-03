@@ -55,6 +55,8 @@
       <div class="camera-stream-container" id="camera-stream-container">
         <!-- Video Stream -->
         <video id="camera-video" autoplay playsinline muted class="camera-video-elem" hidden></video>
+        <!-- Recuadros de YOLOX en vivo sobre el vídeo (vision_zones.js · drawLiveBoxes) -->
+        <canvas id="camera-live-overlay" class="camera-live-overlay" aria-hidden="true"></canvas>
         <canvas id="camera-capture-canvas" hidden></canvas>
 
         <!-- Estado Standby / Cámara Apagada -->
@@ -76,6 +78,7 @@
         <div id="camera-hud-box" class="camera-hud-box" hidden>
           <div class="hud-header">
             <span class="hud-live-badge"><span class="pulse-red-dot"></span> EN DIRECTO</span>
+            <span class="hud-live-count" id="hud-live-count" role="status" aria-live="polite">YOLOX · —</span>
             <span class="hud-resolution-badge" id="hud-cam-res">1280x720</span>
           </div>
           <div class="hud-crosshair-reticle">
@@ -94,6 +97,10 @@
           <span class="btn-cam-snap-icon">📸</span>
           <span>Capturar y Analizar con OpenCV</span>
           <span class="btn-arrow-right">→</span>
+        </button>
+        <button type="button" id="btn-live-mode" class="btn btn-outline btn-live-mode" aria-pressed="false"
+                title="Rápido: más fluido, puede no ver a los lejanos. Preciso: cuenta mejor, se actualiza más despacio.">
+          ⚡ Rápido
         </button>
         <button type="button" id="btn-stop-camera" class="btn btn-outline btn-stop-cam" title="Detener transmisión">
           <svg class="ic"><use href="#i-refresh"/></svg> Apagar

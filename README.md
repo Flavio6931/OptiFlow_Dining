@@ -65,7 +65,7 @@ Contenedores Docker Compose:
 
 - **web**: Django + Django Templates + JS/CSS; REST JSON propio, validación, base de datos, autenticación, roles y AWS SDK (`8000`).
 - **routing**: FastAPI independiente; `POST /route`, `GET /layout`, `GET /health` (`8001`, no expuesto públicamente).
-- **vision**: FastAPI + OpenCV DNN (YOLOX-S); `POST /analyze`, `GET /health` (`8002`, no expuesto públicamente).
+- **vision**: FastAPI + OpenCV DNN (YOLOX-S); `POST /analyze` (foto con imagen anotada), `POST /detect` (fotograma de la cámara en vivo: solo cajas y conteo, `?precise=true` para el modo preciso), `GET /health` (`8002`, no expuesto públicamente).
 - **base de datos**: SQLite guardada en volumen Docker para desarrollo. Puede migrarse a PostgreSQL mediante `DATABASE_URL` para producción.
 
 La carpeta `config/salon.json` define las coordenadas iniciales, las mesas y nodos congestionados. **Django es la única fuente de verdad del plano**: lo edita (crear, mover, unificar o separar mesas) y lo envía en cada petición `POST /route` (campo `layout`), así el microservicio de rutas siempre calcula sobre el plano vigente aunque no comparta disco con Django. En Docker, el plano editado persiste en el volumen `optiflow_config`, que se inicializa con el `salon.json` del repositorio la primera vez; si cambias ese archivo en el repo y quieres aplicarlo, elimina el volumen (`docker volume rm optiflow_dining_optiflow_config`).

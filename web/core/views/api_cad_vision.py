@@ -185,6 +185,36 @@ def api_update_layout_dimensions(request):
         return Response({'error': str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+LIVE_FRAME_MAX_BYTES = 1024 * 1024  # 1 MB, igual que el microservicio
+
+
+@api_view(['POST'])
+@drf_role_required('gerente')
+@parser_classes([MultiPartParser, FormParser])
+def api_vision_live(request):
+    """Detección en vivo de un fotograma de la cámara: devuelve cajas y conteo.
+
+    No guarda el fotograma (ni en S3 ni en local), no crea registros ni modifica las zonas:
+    para eso está la captura con /api/vision/.
+    """
+    frame = request.FILES.get('file')
+    if frame is None:
+        return Response({'error': 'Falta el fotograma.'}, status=status.HTTP_400_BAD_REQUEST)
+    if frame.content_type not in {'image/jpeg', 'image/png', 'image/webp'}:
+        return Response({'error': 'Solo se admiten fotogramas JPEG, PNG o WebP.'}, status=status.HTTP_400_BAD_REQUEST)
+    if frame.size > LIVE_FRAME_MAX_BYTES:
+        return Response({'error': 'El fotograma supera 1 MB.'}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
+    try:
+        precise = request.data.get('modo') == 'preciso'
+        http_code, result = views_pkg.detect_live_frame(frame.read(), frame.content_type, precise)
+    except views_pkg.ServiceUnavailable as exc:
+        return Response({'error': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    if http_code != 200:
+        return Response({'error': result.get('detail', 'Fotograma inválido')}, status=http_code)
+    return Response(result)
+
+
 @api_view(['POST'])
 @drf_role_required('gerente')
 @parser_classes([MultiPartParser, FormParser])

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from services.vision import main
-from services.vision.main import _drop_partial_duplicates, _tile_origins, analyze_bytes
+from services.vision.main import _drop_partial_duplicates, _tile_origins, analyze_bytes, detect_bytes
 
 
 def _jpeg(image: np.ndarray) -> bytes:
@@ -64,6 +64,52 @@ class VisionServiceTests(unittest.TestCase):
             cv2.IMREAD_COLOR,
         )
         self.assertEqual(max(annotated.shape[:2]), main.MAX_DIMENSION)
+
+
+class LiveDetectionTests(unittest.TestCase):
+    """Detección rápida de la cámara en vivo (POST /detect)."""
+
+    def test_live_frame_returns_normalized_boxes_without_image(self):
+        result = detect_bytes(_jpeg(np.full((540, 960, 3), 200, dtype=np.uint8)))
+        self.assertEqual(result['people_count'], 0)
+        self.assertEqual(result['boxes'], [])
+        self.assertEqual(result['zone_counts'], {'A': 0, 'B': 0, 'C': 0})
+        self.assertNotIn('annotated_image', result)
+        self.assertIn('en vivo', result['method'])
+        self.assertIsInstance(result['elapsed_ms'], int)
+
+    def test_live_mode_uses_fewer_tiles(self):
+        """En vivo solo hay un nivel de mosaico y no se amplía el fotograma."""
+        self.assertEqual(len(main.LIVE_TILE_LEVELS), 1)
+        self.assertLess(len(main.LIVE_TILE_LEVELS), len(main.TILE_LEVELS))
+        self.assertLessEqual(main.LIVE_MAX_DIMENSION, main.DETECT_MAX_DIMENSION)
+
+    def test_fast_mode_skips_tiles_and_precise_mode_uses_them(self):
+        calls = []
+        original = main._detect_yolox
+        main._detect_yolox = lambda image, levels=main.TILE_LEVELS: calls.append(levels) or ([], [])
+        try:
+            frame = _jpeg(np.zeros((540, 960, 3), dtype=np.uint8))
+            self.assertIn('rápido', detect_bytes(frame)['method'])
+            self.assertIn('preciso', detect_bytes(frame, precise=True)['method'])
+        finally:
+            main._detect_yolox = original
+        self.assertEqual(calls, [(), main.LIVE_TILE_LEVELS])
+
+    def test_live_boxes_are_normalized(self):
+        """Las cajas que se devuelven quedan dentro de 0-1 aunque la detección se salga del borde."""
+        fake = [(950.0, 530.0, 40.0, 40.0, 0.9)]
+        original = main._detect_people
+        main._detect_people = lambda image, **_kwargs: (fake, 'prueba en vivo')
+        try:
+            result = detect_bytes(_jpeg(np.zeros((540, 960, 3), dtype=np.uint8)))
+        finally:
+            main._detect_people = original
+        x, y, w, h, score = result['boxes'][0]
+        self.assertAlmostEqual(x, 950 / 960, places=3)
+        self.assertAlmostEqual(y, 530 / 540, places=3)
+        self.assertEqual(score, 0.9)
+        self.assertEqual(result['zone_counts']['C'], 1)
 
 
 if __name__ == '__main__':

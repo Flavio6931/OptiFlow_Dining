@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import Profile, RouteConsultation, TableState, VisionAnalysis, Zone
+from .services import ServiceUnavailable
 
 NO_STORAGE = {'storage': 'none', 'key': '', 'bucket': '', 'error': ''}
 S3_DISABLED = {'state': 'disabled', 'icon': '⚪', 'label': 'No configurado', 'bucket': '', 'region': '', 'reason': ''}
@@ -1079,3 +1080,48 @@ class RoutingLayoutSyncTests(TestCase):
         sent = mocked_post.call_args.kwargs['json']
         self.assertEqual(sent['layout'], get_layout())
         self.assertEqual(sent['origin'], 'cocina')
+
+
+class VisionLiveTests(TestCase):
+    """Detección en vivo de la cámara: reenvía el fotograma y no guarda nada."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager = User.objects.create_user(username='gerente_live', password='Segura-12345-Live')
+        Profile.objects.create(user=cls.manager, role='gerente')
+        cls.waiter = User.objects.create_user(username='mesero_live', password='Segura-12345-Live')
+        Profile.objects.create(user=cls.waiter, role='mesero')
+
+    def _post(self, data=b'jpeg', content_type='image/jpeg'):
+        frame = SimpleUploadedFile('frame.jpg', data, content_type=content_type)
+        return self.client.post(reverse('api_vision_live'), {'file': frame})
+
+    @patch('core.views.optional_upload_s3')
+    @patch('core.views.detect_live_frame', return_value=(200, {
+        'people_count': 2, 'zone_counts': {'A': 1, 'B': 1, 'C': 0},
+        'boxes': [[0.1, 0.2, 0.1, 0.3, 0.9], [0.5, 0.2, 0.1, 0.3, 0.8]],
+    }))
+    def test_manager_gets_boxes_and_nothing_is_stored(self, mocked_detect, mocked_s3):
+        self.client.force_login(self.manager)
+        response = self._post()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['people_count'], 2)
+        self.assertEqual(len(response.json()['boxes']), 2)
+        mocked_detect.assert_called_once()
+        mocked_s3.assert_not_called()
+        self.assertEqual(VisionAnalysis.objects.count(), 0)
+
+    def test_waiter_cannot_use_live_detection(self):
+        self.client.force_login(self.waiter)
+        self.assertEqual(self._post().status_code, 403)
+
+    def test_rejects_missing_wrong_type_and_oversized_frames(self):
+        self.client.force_login(self.manager)
+        self.assertEqual(self.client.post(reverse('api_vision_live'), {}).status_code, 400)
+        self.assertEqual(self._post(content_type='text/plain').status_code, 400)
+        self.assertEqual(self._post(data=b'x' * (1024 * 1024 + 1)).status_code, 413)
+
+    @patch('core.views.detect_live_frame', side_effect=ServiceUnavailable('caído'))
+    def test_service_down_returns_503(self, _mocked):
+        self.client.force_login(self.manager)
+        self.assertEqual(self._post().status_code, 503)

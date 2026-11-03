@@ -3,6 +3,7 @@ from ..services import (
     ServiceUnavailable,
     analyze_image,
     calculate_route,
+    detect_live_frame,
     get_s3_presigned_url,
     optional_upload_s3,
 )
@@ -15,6 +16,7 @@ from .api_cad_vision import (
     api_update_layout_dimensions,
     api_update_table,
     api_vision,
+    api_vision_live,
 )
 from .api_routing import api_complete, api_route, api_update_zone
 from .auth_profile import (
@@ -40,6 +42,7 @@ from .pages import (
 __all__ = [
     'ServiceUnavailable',
     'analyze_image',
+    'detect_live_frame',
     'calculate_route',
     'optional_upload_s3',
     'get_s3_presigned_url',
@@ -68,6 +71,7 @@ __all__ = [
     'api_separate_table',
     'api_update_layout_dimensions',
     'api_vision',
+    'api_vision_live',
     'api_latest_vision',
     'api_mark_notification_read',
     'api_notifications_summary',

@@ -122,6 +122,45 @@ def analyze_image(name: str, raw: bytes, mime: str) -> Tuple[int, Dict[str, Any]
         raise ServiceUnavailable('El microservicio OpenCV no está disponible.') from exc
 
 
+def detect_live_frame(raw: bytes, mime: str, precise: bool = False) -> Tuple[int, Dict[str, Any]]:
+    """Envía un fotograma de la cámara en vivo al microservicio OpenCV (POST /detect).
+
+    A diferencia de analyze_image, no hay imagen anotada ni se guarda nada: solo cajas y conteo.
+    `precise` activa el mosaico de recortes (más lento, cuenta mejor a los lejanos).
+
+    Returns:
+        Tupla (código_http, datos_respuesta).
+    """
+    try:
+        response = requests.post(
+            f"{settings.VISION_SERVICE_URL}/detect",
+            params={'precise': 'true' if precise else 'false'},
+            files={'file': ('frame.jpg', raw, mime)},
+            timeout=10,
+        )
+        data = response.json()
+        if response.status_code in (400, 413, 422):
+            return response.status_code, data
+        response.raise_for_status()
+        return 200, data
+    except (requests.RequestException, ValueError) as exc:
+        # Fallback local automático para desarrollo sin Docker
+        try:
+            root = Path(__file__).resolve().parents[2]
+            if str(root) not in sys.path:
+                sys.path.insert(0, str(root))
+            from services.vision.main import detect_bytes
+
+            try:
+                return 200, detect_bytes(raw, precise)
+            except ValueError as ve:
+                return 400, {'detail': str(ve)}
+        except (ImportError, ModuleNotFoundError, AttributeError) as local_err:
+            logger.debug("Fallback local de visión en vivo no disponible: %s", local_err)
+
+        raise ServiceUnavailable('El microservicio OpenCV no está disponible.') from exc
+
+
 def _get_s3_client(config=None):
     """Construye el cliente de Amazon S3 con credenciales de entorno si están presentes."""
     import boto3
