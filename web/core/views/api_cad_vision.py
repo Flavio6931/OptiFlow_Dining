@@ -186,6 +186,7 @@ def api_update_layout_dimensions(request):
 
 
 LIVE_FRAME_MAX_BYTES = 1024 * 1024  # 1 MB, igual que el microservicio
+LIVE_MODES = {'rapido', 'normal', 'preciso'}
 
 
 @api_view(['POST'])
@@ -206,8 +207,9 @@ def api_vision_live(request):
         return Response({'error': 'El fotograma supera 1 MB.'}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
 
     try:
-        precise = request.data.get('modo') == 'preciso'
-        http_code, result = views_pkg.detect_live_frame(frame.read(), frame.content_type, precise)
+        mode = request.data.get('modo')
+        mode = mode if mode in LIVE_MODES else 'rapido'
+        http_code, result = views_pkg.detect_live_frame(frame.read(), frame.content_type, mode)
     except views_pkg.ServiceUnavailable as exc:
         return Response({'error': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     if http_code != 200:

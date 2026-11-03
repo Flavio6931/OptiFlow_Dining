@@ -122,11 +122,11 @@ def analyze_image(name: str, raw: bytes, mime: str) -> Tuple[int, Dict[str, Any]
         raise ServiceUnavailable('El microservicio OpenCV no está disponible.') from exc
 
 
-def detect_live_frame(raw: bytes, mime: str, precise: bool = False) -> Tuple[int, Dict[str, Any]]:
+def detect_live_frame(raw: bytes, mime: str, mode: str = 'rapido') -> Tuple[int, Dict[str, Any]]:
     """Envía un fotograma de la cámara en vivo al microservicio OpenCV (POST /detect).
 
     A diferencia de analyze_image, no hay imagen anotada ni se guarda nada: solo cajas y conteo.
-    `precise` activa el mosaico de recortes (más lento, cuenta mejor a los lejanos).
+    `mode`: 'rapido', 'normal' o 'preciso' (de más fluido a más preciso).
 
     Returns:
         Tupla (código_http, datos_respuesta).
@@ -134,7 +134,7 @@ def detect_live_frame(raw: bytes, mime: str, precise: bool = False) -> Tuple[int
     try:
         response = requests.post(
             f"{settings.VISION_SERVICE_URL}/detect",
-            params={'precise': 'true' if precise else 'false'},
+            params={'mode': mode},
             files={'file': ('frame.jpg', raw, mime)},
             timeout=10,
         )
@@ -152,7 +152,7 @@ def detect_live_frame(raw: bytes, mime: str, precise: bool = False) -> Tuple[int
             from services.vision.main import detect_bytes
 
             try:
-                return 200, detect_bytes(raw, precise)
+                return 200, detect_bytes(raw, mode)
             except ValueError as ve:
                 return 400, {'detail': str(ve)}
         except (ImportError, ModuleNotFoundError, AttributeError) as local_err:

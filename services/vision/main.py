@@ -11,7 +11,7 @@ import math
 import os
 import threading
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 os.environ.setdefault("OPENCV_IO_MAX_IMAGE_PIXELS", "16000000")
 
@@ -63,11 +63,17 @@ NMS_IOU = 0.55  # comensales sentados juntos se solapan mucho; un IoU bajo los f
 # 1024 para personas de primer plano que quedan cortadas en los recortes pequeños. El solape debe
 # superar el tamaño típico de una persona a esa escala.
 TILE_LEVELS = ((640, 160), (1024, 256))
-# Cámara en vivo: fotogramas de hasta 960 px. Modo rápido = solo la foto completa (1 inferencia,
-# ~5 fps en CPU; puede perder personas lejanas). Modo preciso = además un nivel de mosaico
-# (~3 inferencias, ~1,5 fps), que en salones llenos cuenta casi lo mismo que la captura.
+# Cámara en vivo: modos (lado de entrada de YOLOX, niveles de mosaico). Tiempos en una CPU de
+# escritorio: la red admite entradas menores que 640, que son mucho más rápidas pero ven peor a
+# las personas pequeñas (en un salón lleno, 416 px detecta ~la mitad que 640 px).
+LIVE_MODES = {
+    'rapido': (416, ()),  # ~80 ms: webcam con personas cerca
+    'normal': (640, ()),  # ~175 ms: foto completa a resolución nativa
+    'preciso': (640, ((640, 160),)),  # ~600 ms: con mosaico, ve también a los lejanos
+}
+LIVE_DEFAULT_MODE = 'rapido'
 LIVE_MAX_DIMENSION = 960
-LIVE_TILE_LEVELS = ((640, 160),)
+LIVE_TILE_LEVELS = LIVE_MODES['preciso'][1]
 LIVE_MAX_SIZE: int = 1024 * 1024  # 1 MB por fotograma
 EDGE_MARGIN = 3  # px: una caja que toca un borde interior del recorte está cortada
 
@@ -82,27 +88,35 @@ if os.path.exists(YOLOX_ONNX):
 NET_LOCK = threading.Lock()
 
 
-def _yolox_grid() -> Tuple[np.ndarray, np.ndarray]:
-    """Rejilla de celdas y paso (stride) de cada una de las 8400 salidas de YOLOX."""
-    grids, strides = [], []
-    for stride in YOLOX_STRIDES:
-        size = YOLOX_INPUT // stride
-        xv, yv = np.meshgrid(np.arange(size), np.arange(size))
-        grids.append(np.stack((xv, yv), axis=2).reshape(-1, 2))
-        strides.append(np.full((size * size, 1), stride))
-    return np.concatenate(grids).astype(np.float32), np.concatenate(strides).astype(np.float32)
+_GRIDS: Dict[int, Tuple[np.ndarray, np.ndarray]] = {}
 
 
-YOLOX_GRID, YOLOX_GRID_STRIDES = _yolox_grid()
+def _yolox_grid(input_size: int = YOLOX_INPUT) -> Tuple[np.ndarray, np.ndarray]:
+    """Rejilla de celdas y paso (stride) de cada salida de YOLOX para una entrada cuadrada dada."""
+    if input_size not in _GRIDS:
+        grids, strides = [], []
+        for stride in YOLOX_STRIDES:
+            size = input_size // stride
+            xv, yv = np.meshgrid(np.arange(size), np.arange(size))
+            grids.append(np.stack((xv, yv), axis=2).reshape(-1, 2))
+            strides.append(np.full((size * size, 1), stride))
+        _GRIDS[input_size] = (
+            np.concatenate(grids).astype(np.float32),
+            np.concatenate(strides).astype(np.float32),
+        )
+    return _GRIDS[input_size]
 
 
-def _yolox_people(region: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Detecta personas en una región BGR. Devuelve cajas [x, y, w, h] en píxeles de la región y scores."""
+def _yolox_people(region: np.ndarray, input_size: int = YOLOX_INPUT) -> Tuple[np.ndarray, np.ndarray]:
+    """Detecta personas en una región BGR. Devuelve cajas [x, y, w, h] en píxeles de la región y scores.
+
+    `input_size` (múltiplo de 32) es el lado de la entrada de la red: 640 es el nativo del modelo.
+    """
     rh, rw = region.shape[:2]
-    ratio = min(YOLOX_INPUT / rh, YOLOX_INPUT / rw)
+    ratio = min(input_size / rh, input_size / rw)
     resized = cv2.resize(region, (int(rw * ratio), int(rh * ratio)), interpolation=cv2.INTER_LINEAR)
     # Letterbox como en la demo de OpenCV Zoo: lienzo gris (114) con la imagen arriba a la izquierda.
-    canvas = np.full((YOLOX_INPUT, YOLOX_INPUT, 3), 114, dtype=np.uint8)
+    canvas = np.full((input_size, input_size, 3), 114, dtype=np.uint8)
     canvas[:resized.shape[0], :resized.shape[1]] = resized
     blob = cv2.dnn.blobFromImage(canvas, 1.0, swapRB=True)
 
@@ -115,8 +129,9 @@ def _yolox_people(region: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     if not np.any(keep):
         return np.empty((0, 4), dtype=np.float32), np.empty(0, dtype=np.float32)
     out = out[keep]
-    centers = (out[:, :2] + YOLOX_GRID[keep]) * YOLOX_GRID_STRIDES[keep]
-    sizes = np.exp(out[:, 2:4]) * YOLOX_GRID_STRIDES[keep]
+    grid, grid_strides = _yolox_grid(input_size)
+    centers = (out[:, :2] + grid[keep]) * grid_strides[keep]
+    sizes = np.exp(out[:, 2:4]) * grid_strides[keep]
     boxes = np.concatenate((centers - sizes / 2, sizes), axis=1) / ratio
     return boxes, person[keep]
 
@@ -131,11 +146,13 @@ def _tile_origins(length: int, size: int, overlap: int) -> List[int]:
 
 
 def _detect_yolox(
-    image: np.ndarray, levels: Tuple[Tuple[int, int], ...] = TILE_LEVELS
+    image: np.ndarray,
+    levels: Tuple[Tuple[int, int], ...] = TILE_LEVELS,
+    input_size: int = YOLOX_INPUT,
 ) -> Tuple[List[List[int]], List[float]]:
-    """Foto completa + mosaico de recortes solapados en `levels`; cajas en píxeles de `image`."""
+    """Foto completa (a `input_size`) + mosaico de recortes en `levels`; cajas en píxeles de `image`."""
     h, w = image.shape[:2]
-    boxes, scores = _yolox_people(image)
+    boxes, scores = _yolox_people(image, input_size)
     all_boxes, all_scores = [boxes], [scores]
 
     for size, overlap in levels:
@@ -297,19 +314,19 @@ def _decode(raw: bytes) -> np.ndarray:
 
 
 def _detect_people(
-    image: np.ndarray, live: bool = False, precise: bool = False
+    image: np.ndarray, live_mode: Optional[str] = None
 ) -> Tuple[List[Tuple[float, float, float, float, float]], str]:
     """Personas detectadas como (x, y, w, h, score) en píxeles de `image`, y el método usado.
 
-    `live` usa la configuración de la cámara en vivo (sin ampliar); con `precise` añade el
-    mosaico de LIVE_TILE_LEVELS y si no, solo analiza la foto completa.
+    Con `live_mode` (clave de LIVE_MODES) usa la configuración de la cámara en vivo, sin ampliar
+    el fotograma; sin él, la del análisis de fotos (máxima precisión).
     """
     if YOLOX_NET is not None:
-        if live:
+        if live_mode:
+            input_size, levels = LIVE_MODES[live_mode]
             detect_image = _fit(image, LIVE_MAX_DIMENSION)
-            levels = LIVE_TILE_LEVELS if precise else ()
-            candidate_boxes, scores = _detect_yolox(detect_image, levels)
-            method = f"OpenCV DNN · YOLOX-S (OpenCV Zoo) en vivo · {'preciso' if precise else 'rápido'}"
+            candidate_boxes, scores = _detect_yolox(detect_image, levels, input_size)
+            method = f'OpenCV DNN · YOLOX-S (OpenCV Zoo) en vivo · {live_mode} ({input_size} px)'
         else:
             detect_image = _fit(image, DETECT_MAX_DIMENSION, DETECT_MIN_DIMENSION)
             candidate_boxes, scores = _detect_yolox(detect_image)
@@ -344,12 +361,16 @@ def _zone_counts(people: List[Tuple[float, float, float, float, float]], width: 
     return counts
 
 
-def detect_bytes(raw: bytes, precise: bool = False) -> Dict[str, Any]:
-    """Detección para la cámara en vivo: solo cajas normalizadas (0-1), sin imagen anotada."""
+def detect_bytes(raw: bytes, mode: str = LIVE_DEFAULT_MODE) -> Dict[str, Any]:
+    """Detección para la cámara en vivo: solo cajas normalizadas (0-1), sin imagen anotada.
+
+    `mode` es una clave de LIVE_MODES; un valor desconocido usa el modo por defecto.
+    """
     started = time.perf_counter()
     image = _decode(raw)
     h, w = image.shape[:2]
-    people, method = _detect_people(image, live=True, precise=precise)
+    mode = mode if mode in LIVE_MODES else LIVE_DEFAULT_MODE
+    people, method = _detect_people(image, live_mode=mode)
     return {
         'people_count': len(people),
         'zone_counts': _zone_counts(people, w),
@@ -358,6 +379,7 @@ def detect_bytes(raw: bytes, precise: bool = False) -> Dict[str, Any]:
             for x, y, bw, bh, score in people
         ],
         'method': method,
+        'mode': mode,
         'elapsed_ms': round((time.perf_counter() - started) * 1000),
     }
 
@@ -463,10 +485,10 @@ async def analyze(file: UploadFile = File(...)) -> Dict[str, Any]:
 
 
 @app.post('/detect')
-async def detect(file: UploadFile = File(...), precise: bool = False) -> Dict[str, Any]:
+async def detect(file: UploadFile = File(...), mode: str = LIVE_DEFAULT_MODE) -> Dict[str, Any]:
     """Fotograma de la cámara en vivo: devuelve las cajas de las personas (0-1) y el conteo.
 
-    `?precise=true` añade el mosaico de recortes (más lento, cuenta mejor a los lejanos).
+    `?mode=rapido|normal|preciso`: de más fluido a más preciso (ver LIVE_MODES).
     """
     if file.content_type not in ('image/jpeg', 'image/png', 'image/webp'):
         raise HTTPException(status_code=400, detail='Formato no permitido: usa JPG, PNG o WebP.')
@@ -476,6 +498,6 @@ async def detect(file: UploadFile = File(...), precise: bool = False) -> Dict[st
         raise HTTPException(status_code=413, detail='El fotograma supera 1 MB.')
 
     try:
-        return await asyncio.to_thread(detect_bytes, raw, precise)
+        return await asyncio.to_thread(detect_bytes, raw, mode)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

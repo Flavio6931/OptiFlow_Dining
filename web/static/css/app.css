@@ -3978,7 +3978,13 @@ input:disabled,select:disabled {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-.btn-live-mode[aria-pressed='true'] {
+.btn-live-mode[data-mode='normal'] {
+  color: #ffffff;
+  border-color: rgba(59, 130, 246, 0.7);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.btn-live-mode[data-mode='preciso'] {
   color: #ffffff;
   border-color: rgba(255, 123, 61, 0.8);
   background: rgba(255, 123, 61, 0.12);

@@ -76,6 +76,7 @@ class LiveDetectionTests(unittest.TestCase):
         self.assertEqual(result['zone_counts'], {'A': 0, 'B': 0, 'C': 0})
         self.assertNotIn('annotated_image', result)
         self.assertIn('en vivo', result['method'])
+        self.assertEqual(result['mode'], main.LIVE_DEFAULT_MODE)
         self.assertIsInstance(result['elapsed_ms'], int)
 
     def test_live_mode_uses_fewer_tiles(self):
@@ -84,17 +85,27 @@ class LiveDetectionTests(unittest.TestCase):
         self.assertLess(len(main.LIVE_TILE_LEVELS), len(main.TILE_LEVELS))
         self.assertLessEqual(main.LIVE_MAX_DIMENSION, main.DETECT_MAX_DIMENSION)
 
-    def test_fast_mode_skips_tiles_and_precise_mode_uses_them(self):
+    def test_each_live_mode_uses_its_input_size_and_tiles(self):
         calls = []
         original = main._detect_yolox
-        main._detect_yolox = lambda image, levels=main.TILE_LEVELS: calls.append(levels) or ([], [])
+        main._detect_yolox = lambda image, levels, input_size: calls.append((input_size, levels)) or ([], [])
         try:
             frame = _jpeg(np.zeros((540, 960, 3), dtype=np.uint8))
-            self.assertIn('rápido', detect_bytes(frame)['method'])
-            self.assertIn('preciso', detect_bytes(frame, precise=True)['method'])
+            for mode in ('rapido', 'normal', 'preciso'):
+                self.assertEqual(detect_bytes(frame, mode)['mode'], mode)
+            # Un modo desconocido no falla: usa el de por defecto
+            self.assertEqual(detect_bytes(frame, 'turbo')['mode'], main.LIVE_DEFAULT_MODE)
         finally:
             main._detect_yolox = original
-        self.assertEqual(calls, [(), main.LIVE_TILE_LEVELS])
+        self.assertEqual(calls[:3], [main.LIVE_MODES[m] for m in ('rapido', 'normal', 'preciso')])
+        self.assertLess(main.LIVE_MODES['rapido'][0], main.YOLOX_INPUT)
+
+    def test_smaller_input_size_still_decodes_boxes(self):
+        """La red acepta entradas menores que 640; la rejilla debe coincidir con su salida."""
+        region = np.full((416, 416, 3), 114, dtype=np.uint8)
+        boxes, scores = main._yolox_people(region, 416)
+        self.assertEqual(boxes.shape[1] if len(boxes) else 4, 4)
+        self.assertEqual(len(main._yolox_grid(416)[0]), sum((416 // s) ** 2 for s in main.YOLOX_STRIDES))
 
     def test_live_boxes_are_normalized(self):
         """Las cajas que se devuelven quedan dentro de 0-1 aunque la detección se salga del borde."""

@@ -8,45 +8,58 @@
   let chefCameraStream = null;
 
   // --- Detección en vivo con YOLOX (microservicio OpenCV vía /api/vision/en-vivo/) ---------
-  const LIVE_FRAME_WIDTH = 960; // px enviados por fotograma (el servicio no amplía en vivo)
-  const LIVE_MIN_INTERVAL_MS = 300; // como mucho ~3 fotogramas por segundo
+  // Cada modo: ancho del fotograma enviado y etiqueta. El servidor usa YOLOX a 416 px (rápido),
+  // 640 px (normal) o 640 px + mosaico (preciso); enviar más píxeles de los que usa solo gasta red.
+  const LIVE_MODES = {
+    rapido: { width: 640, label: '⚡ Rápido', name: 'rápido' },
+    normal: { width: 960, label: '⚖️ Normal', name: 'normal' },
+    preciso: { width: 960, label: '🎯 Preciso', name: 'preciso' },
+  };
+  const LIVE_MODE_ORDER = ['rapido', 'normal', 'preciso'];
+  const LIVE_MIN_INTERVAL_MS = 60; // el ritmo lo marca la respuesta (un fotograma en vuelo)
   const LIVE_JPEG_QUALITY = 0.7;
-
+  const LIVE_MATCH_DISTANCE = 0.12; // distancia normalizada para reconocer la misma persona
   const LIVE_MODE_KEY = 'optiflow.liveMode';
 
   let liveSession = 0; // se incrementa al encender/apagar: invalida respuestas atrasadas
   let liveTimer = 0;
   let liveErrors = 0;
   let liveFrameCanvas = null;
-  // 'rapido' = solo foto completa (~5 fps); 'preciso' = con mosaico (~1,5 fps, ve a los lejanos)
   let liveMode = 'rapido';
   try {
-    liveMode = localStorage.getItem(LIVE_MODE_KEY) === 'preciso' ? 'preciso' : 'rapido';
+    const saved = localStorage.getItem(LIVE_MODE_KEY);
+    if (LIVE_MODES[saved]) liveMode = saved;
   } catch (_) {
     /* almacenamiento no disponible: se queda en rápido */
   }
 
+  // Animación de las cajas entre una respuesta y la siguiente
+  let shownBoxes = [];
+  let liveAnimFrame = 0;
+  let liveFpsAvg = 0;
+
   function renderLiveModeButton() {
     const btn = $('#btn-live-mode');
     if (!btn) return;
-    const precise = liveMode === 'preciso';
-    btn.textContent = precise ? '🎯 Preciso' : '⚡ Rápido';
-    btn.setAttribute('aria-pressed', String(precise));
+    btn.textContent = LIVE_MODES[liveMode].label;
+    btn.dataset.mode = liveMode;
+    btn.setAttribute('aria-label', `Modo de detección en vivo: ${LIVE_MODES[liveMode].name}. Pulsa para cambiar.`);
   }
 
-  function toggleLiveMode() {
-    liveMode = liveMode === 'preciso' ? 'rapido' : 'preciso';
+  function cycleLiveMode() {
+    liveMode = LIVE_MODE_ORDER[(LIVE_MODE_ORDER.indexOf(liveMode) + 1) % LIVE_MODE_ORDER.length];
     try {
       localStorage.setItem(LIVE_MODE_KEY, liveMode);
     } catch (_) {
       /* sin almacenamiento: el cambio vale solo para esta visita */
     }
+    liveFpsAvg = 0;
     renderLiveModeButton();
   }
 
-  /** Reduce el fotograma actual a LIVE_FRAME_WIDTH y lo codifica en JPEG. */
+  /** Reduce el fotograma actual al ancho del modo y lo codifica en JPEG. */
   function grabLiveFrame(video) {
-    const scale = Math.min(1, LIVE_FRAME_WIDTH / video.videoWidth);
+    const scale = Math.min(1, LIVE_MODES[liveMode].width / video.videoWidth);
     liveFrameCanvas = liveFrameCanvas || document.createElement('canvas');
     liveFrameCanvas.width = Math.round(video.videoWidth * scale);
     liveFrameCanvas.height = Math.round(video.videoHeight * scale);
@@ -73,9 +86,10 @@
 
   /**
    * Dibuja las cajas (normalizadas 0-1 respecto al fotograma) sobre el vídeo. El vídeo usa
-   * object-fit: cover, así que se aplica el mismo escalado y recorte centrado.
+   * object-fit: cover, así que se aplica el mismo escalado y recorte centrado. `alphas` permite
+   * que las personas recién aparecidas entren con un fundido.
    */
-  function drawLiveBoxes(video, boxes) {
+  function drawLiveBoxes(video, boxes, alphas = []) {
     const target = prepareLiveOverlay();
     if (!target || !video.videoWidth) return;
     const { ctx, w, h } = target;
@@ -98,11 +112,12 @@
     ctx.setLineDash([]);
 
     ctx.font = '600 11px Inter, system-ui, sans-serif';
-    boxes.forEach(([nx, ny, nw, nh, score]) => {
+    boxes.forEach(([nx, ny, nw, nh, score], i) => {
       const x = offX + nx * shownW;
       const y = offY + ny * shownH;
       const bw = nw * shownW;
       const bh = nh * shownH;
+      ctx.globalAlpha = alphas[i] ?? 1;
       ctx.shadowColor = 'rgba(255, 123, 61, 0.9)';
       ctx.shadowBlur = 8;
       ctx.strokeStyle = '#ff7b3d';
@@ -122,6 +137,55 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillText(label, x + 6, labelY + 13);
     });
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Desliza cada caja desde su posición anterior hasta la nueva durante `durationMs`, para que
+   * entre respuestas los recuadros sigan a las personas en lugar de saltar. Cada caja nueva se
+   * empareja con la caja anterior más cercana; las que no tienen pareja aparecen con un fundido.
+   */
+  function animateLiveBoxes(video, boxes, durationMs) {
+    const center = (b) => [b[0] + b[2] / 2, b[1] + b[3] / 2];
+    const used = new Set();
+    const from = boxes.map((b) => {
+      const [cx, cy] = center(b);
+      let best = -1;
+      let bestDist = LIVE_MATCH_DISTANCE;
+      shownBoxes.forEach((p, i) => {
+        if (used.has(i)) return;
+        const [px, py] = center(p);
+        const dist = Math.hypot(px - cx, py - cy);
+        if (dist < bestDist) {
+          best = i;
+          bestDist = dist;
+        }
+      });
+      if (best < 0) return null;
+      used.add(best);
+      return shownBoxes[best];
+    });
+
+    cancelAnimationFrame(liveAnimFrame);
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const duration = reduceMotion ? 0 : Math.min(300, Math.max(80, durationMs));
+    const start = performance.now();
+    const step = (now) => {
+      const t = duration ? Math.min(1, (now - start) / duration) : 1;
+      const ease = 1 - (1 - t) ** 3;
+      shownBoxes = boxes.map((b, i) =>
+        from[i] ? b.map((v, k) => (k < 4 ? from[i][k] + (v - from[i][k]) * ease : v)) : b
+      );
+      drawLiveBoxes(video, shownBoxes, from.map((f) => (f ? 1 : ease)));
+      if (t < 1) liveAnimFrame = requestAnimationFrame(step);
+    };
+    liveAnimFrame = requestAnimationFrame(step);
+  }
+
+  function clearLiveBoxes() {
+    cancelAnimationFrame(liveAnimFrame);
+    shownBoxes = [];
+    prepareLiveOverlay();
   }
 
   function setLiveBadge(text, state = '') {
@@ -136,7 +200,7 @@
     liveTimer = setTimeout(() => liveTick(session), delay);
   }
 
-  /** Envía un fotograma, dibuja el resultado y programa el siguiente (uno en vuelo a la vez). */
+  /** Envía un fotograma, anima el resultado y programa el siguiente (uno en vuelo a la vez). */
   async function liveTick(session) {
     if (session !== liveSession || !chefCameraStream) return;
     const video = $('#camera-video');
@@ -161,16 +225,20 @@
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
 
-      drawLiveBoxes(video, data.boxes || []);
-      const fps = 1000 / Math.max(LIVE_MIN_INTERVAL_MS, performance.now() - started);
+      const roundTrip = performance.now() - started;
+      animateLiveBoxes(video, data.boxes || [], roundTrip);
+      const fps = 1000 / Math.max(LIVE_MIN_INTERVAL_MS, roundTrip);
+      liveFpsAvg = liveFpsAvg ? liveFpsAvg * 0.7 + fps * 0.3 : fps; // media móvil: cifra estable
       const n = data.people_count || 0;
-      const modeLabel = liveMode === 'preciso' ? 'preciso' : 'rápido';
-      setLiveBadge(`YOLOX ${modeLabel} · ${n} ${n === 1 ? 'persona' : 'personas'} · ${fps.toFixed(1)} fps`, 'ok');
+      setLiveBadge(
+        `YOLOX ${LIVE_MODES[liveMode].name} · ${n} ${n === 1 ? 'persona' : 'personas'} · ${liveFpsAvg.toFixed(1)} fps`,
+        'ok'
+      );
       liveErrors = 0;
     } catch (_) {
       if (session !== liveSession) return;
       liveErrors += 1;
-      prepareLiveOverlay();
+      clearLiveBoxes();
       setLiveBadge('YOLOX en pausa · reintentando…', 'error');
     }
 
@@ -182,6 +250,7 @@
   function startLiveDetection() {
     liveSession += 1;
     liveErrors = 0;
+    liveFpsAvg = 0;
     setLiveBadge('YOLOX · iniciando…');
     scheduleLiveTick(liveSession, 0);
   }
@@ -189,7 +258,7 @@
   function stopLiveDetection() {
     liveSession += 1;
     clearTimeout(liveTimer);
-    prepareLiveOverlay();
+    clearLiveBoxes();
     setLiveBadge('YOLOX · —');
   }
 
@@ -477,7 +546,7 @@
 
     $('#btn-start-camera')?.addEventListener('click', startChefCamera);
     $('#btn-stop-camera')?.addEventListener('click', stopChefCamera);
-    $('#btn-live-mode')?.addEventListener('click', toggleLiveMode);
+    $('#btn-live-mode')?.addEventListener('click', cycleLiveMode);
     renderLiveModeButton();
 
     $('#btn-capture-snapshot')?.addEventListener('click', async () => {
