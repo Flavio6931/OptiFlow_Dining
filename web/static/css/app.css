@@ -1678,6 +1678,107 @@ input:disabled,select:disabled {
   stroke-width: 4;
 }
 
+/* Mesero animado que recorre la ruta calculada (floor_plan.js · drawWaiter) */
+.floor-waiter {
+  pointer-events: none;
+}
+
+.floor-waiter-figure {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.floor-waiter.is-walking .floor-waiter-figure {
+  animation: waiterStep 0.34s ease-in-out infinite alternate;
+}
+
+.floor-waiter-shadow {
+  fill: rgba(2, 6, 23, 0.55);
+}
+
+.floor-waiter-arm {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+}
+
+.floor-waiter-body {
+  fill: #0f1d3a;
+  stroke: #ff7b3d;
+  stroke-width: 2.5;
+}
+
+.floor-waiter-apron {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.floor-waiter-hair {
+  fill: #3b2416;
+}
+
+.floor-waiter-head {
+  fill: #f2c9a0;
+}
+
+.floor-waiter-tray {
+  fill: #cbd5e1;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.floor-waiter-dish {
+  fill: #ff7b3d;
+}
+
+.floor-waiter-badge {
+  opacity: 0;
+  transform: scale(0.3);
+  transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.floor-waiter-badge.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.floor-waiter-badge circle {
+  fill: #10b981;
+  stroke: #ffffff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.8));
+}
+
+.floor-waiter-badge path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes waiterStep {
+  from {
+    transform: scale(1, 1) rotate(-3deg);
+  }
+  to {
+    transform: scale(1.05, 0.95) rotate(3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floor-waiter.is-walking .floor-waiter-figure {
+    animation: none;
+  }
+
+  .floor-waiter-badge {
+    transition: none;
+  }
+}
+
 .zone-map-label {
   fill: rgba(255, 255, 255, 0.45);
   font-weight: 850;
