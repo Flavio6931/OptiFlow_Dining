@@ -1801,6 +1801,36 @@ input:disabled,select:disabled {
   fill: #ff7b3d;
 }
 
+/* Posturas: de perfil (horizontal), de frente (bajando) y de espaldas (subiendo) */
+.floor-waiter-pose {
+  display: none;
+}
+
+.floor-waiter:not([data-pose]) .pose-side,
+.floor-waiter[data-pose='side'] .pose-side,
+.floor-waiter[data-pose='front'] .pose-front,
+.floor-waiter[data-pose='back'] .pose-back {
+  display: inline;
+}
+
+/* De frente o de espaldas, las piernas suben y bajan alternándose */
+.floor-waiter.is-walking .floor-waiter-leg-fb.front {
+  animation: waiterStepFacing 0.36s ease-in-out infinite alternate;
+}
+
+.floor-waiter.is-walking .floor-waiter-leg-fb.back {
+  animation: waiterStepFacing 0.36s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes waiterStepFacing {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-3.5px);
+  }
+}
+
 /* Caminar: piernas que se alternan desde la cadera y un leve rebote del cuerpo */
 .floor-waiter-leg {
   transform-origin: 0 -27px;

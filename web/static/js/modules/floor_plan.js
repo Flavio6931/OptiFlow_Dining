@@ -92,16 +92,89 @@
     return hip;
   }
 
+  /** Pierna vista de frente o de espaldas: al caminar sube y baja alternando con la otra. */
+  function waiterLegFacing(cls, x) {
+    const hip = svg('g', { transform: `translate(${x} 0)` });
+    const leg = svg('g', { class: `floor-waiter-leg-fb ${cls}` });
+    leg.append(svg('path', { d: `M 0 ${HIP_Y} L 0 -3`, class: 'floor-waiter-trousers' }));
+    leg.append(svg('ellipse', { cx: 0, cy: -2, rx: 3.8, ry: 2.5, class: 'floor-waiter-shoe' }));
+    hip.append(leg);
+    return hip;
+  }
+
+  /** Bandeja con campana sostenida por encima del hombro derecho (posturas de frente y espaldas). */
+  function waiterTrayRaised() {
+    return [
+      svg('path', { d: 'M 9.5 -47 Q 17 -42 17 -51', class: 'floor-waiter-sleeve front' }),
+      svg('circle', { cx: 17, cy: -52, r: 2.4, class: 'floor-waiter-skin' }),
+      svg('ellipse', { cx: 17, cy: -54.5, rx: 11, ry: 2.4, class: 'floor-waiter-tray' }),
+      svg('path', { d: 'M 8.5 -55 A 8.5 7.5 0 0 1 25.5 -55 Z', class: 'floor-waiter-cloche' }),
+      svg('circle', { cx: 17, cy: -63, r: 1.7, class: 'floor-waiter-cloche-knob' }),
+    ];
+  }
+
+  /** Mesero de frente (mira hacia abajo en el plano, p. ej. a una mesa que está debajo). */
+  function buildWaiterFront() {
+    const pose = svg('g', { class: 'floor-waiter-pose pose-front' });
+    pose.append(
+      svg('path', { d: 'M -9.5 -47 Q -14 -38 -12 -31', class: 'floor-waiter-sleeve back' }),
+      svg('circle', { cx: -12, cy: -30, r: 2.4, class: 'floor-waiter-skin' }),
+      waiterLegFacing('back', -4),
+      waiterLegFacing('front', 4),
+      svg('rect', { x: -10, y: -52, width: 20, height: 27, rx: 6, class: 'floor-waiter-shirt' }),
+      svg('path', { d: 'M -10 -46 Q -10 -51 -5 -51 L 0 -42 L 5 -51 Q 10 -51 10 -46 L 10 -29 L -10 -29 Z', class: 'floor-waiter-vest' }),
+      svg('path', { d: 'M -10.5 -29 L 10.5 -29 L 11.5 -12 Q 0 -10 -11.5 -12 Z', class: 'floor-waiter-apron' }),
+      svg('path', { d: 'M -10.5 -29 L 10.5 -29', class: 'floor-waiter-belt' }),
+      svg('rect', { x: -2.5, y: -56, width: 5, height: 6, class: 'floor-waiter-skin' }),
+      svg('circle', { cx: -8.6, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
+      svg('circle', { cx: 8.6, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
+      svg('circle', { cx: 0, cy: -63, r: 8.5, class: 'floor-waiter-skin' }),
+      svg('path', { d: 'M -8.6 -62 Q -9.5 -73.5 0 -73.5 Q 9.5 -73.5 8.6 -62 Q 6 -68.5 0 -68.5 Q -6 -68.5 -8.6 -62 Z', class: 'floor-waiter-hair' }),
+      svg('circle', { cx: -3, cy: -63.5, r: 1.2, class: 'floor-waiter-eye' }),
+      svg('circle', { cx: 3, cy: -63.5, r: 1.2, class: 'floor-waiter-eye' }),
+      svg('path', { d: 'M -3 -59 Q 0 -57 3 -59', class: 'floor-waiter-smile' }),
+      svg('path', { d: 'M 0 -51 L -3.6 -53.2 L -3.6 -48.8 Z M 0 -51 L 3.6 -53.2 L 3.6 -48.8 Z', class: 'floor-waiter-bowtie' }),
+      ...waiterTrayRaised()
+    );
+    return pose;
+  }
+
+  /** Mesero de espaldas (mira hacia arriba en el plano, p. ej. a una mesa que está encima). */
+  function buildWaiterBack() {
+    const pose = svg('g', { class: 'floor-waiter-pose pose-back' });
+    pose.append(
+      svg('path', { d: 'M -9.5 -47 Q -14 -38 -12 -31', class: 'floor-waiter-sleeve back' }),
+      svg('circle', { cx: -12, cy: -30, r: 2.4, class: 'floor-waiter-skin' }),
+      waiterLegFacing('back', -4),
+      waiterLegFacing('front', 4),
+      svg('rect', { x: -10, y: -52, width: 20, height: 27, rx: 6, class: 'floor-waiter-shirt' }),
+      // Espalda del chaleco y lazo del delantal en la cintura
+      svg('path', { d: 'M -10 -46 Q -10 -51 -5 -51 L 5 -51 Q 10 -51 10 -46 L 10 -29 L -10 -29 Z', class: 'floor-waiter-vest' }),
+      svg('path', { d: 'M -10.5 -29 L 10.5 -29', class: 'floor-waiter-belt' }),
+      svg('path', { d: 'M 0 -29 L -4.5 -24 M 0 -29 L 4.5 -24', class: 'floor-waiter-belt' }),
+      svg('rect', { x: -2.5, y: -56, width: 5, height: 6, class: 'floor-waiter-skin' }),
+      svg('circle', { cx: -8.6, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
+      svg('circle', { cx: 8.6, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
+      svg('circle', { cx: 0, cy: -63, r: 8.5, class: 'floor-waiter-skin' }),
+      svg('path', { d: 'M -8.7 -61 Q -10 -73.5 0 -73.5 Q 10 -73.5 8.7 -61 Q 8 -56.5 0 -56.5 Q -8 -56.5 -8.7 -61 Z', class: 'floor-waiter-hair' }),
+      ...waiterTrayRaised()
+    );
+    return pose;
+  }
+
   /**
-   * Mesero de perfil mirando a la derecha, con los pies en (0, 0): camisa blanca, chaleco
-   * azul marino, pajarita y delantal, y una bandeja con campana en la mano delantera.
+   * Mesero con los pies en (0, 0) y tres posturas: de perfil mirando a la derecha (para ir a la
+   * izquierda se refleja), de frente y de espaldas. placeWaiter elige la que corresponde.
+   * Camisa blanca, chaleco azul marino, pajarita, delantal y bandeja con campana.
    */
   function buildWaiter() {
     const flip = svg('g', { class: 'floor-waiter-flip', transform: `scale(${WAITER_SCALE})` });
     const body = svg('g', { class: 'floor-waiter-figure' });
     flip.append(svg('ellipse', { cx: 2, cy: 0, rx: 17, ry: 4, class: 'floor-waiter-shadow' }), body);
+    const side = svg('g', { class: 'floor-waiter-pose pose-side' });
+    body.append(side, buildWaiterFront(), buildWaiterBack());
 
-    body.append(
+    side.append(
       // Brazo trasero, caído junto al cuerpo
       svg('path', { d: 'M -3 -47 Q -7 -38 -5 -31', class: 'floor-waiter-sleeve back' }),
       svg('circle', { cx: -5, cy: -30, r: 2.4, class: 'floor-waiter-skin' }),
@@ -143,63 +216,34 @@
     return anchor;
   }
 
-  /** Coloca al mesero con los pies en (x, y), mirando a la derecha (1) o a la izquierda (-1). */
-  function placeWaiter(waiter, [x, y], facing) {
+  /**
+   * Coloca al mesero con los pies en (x, y). `pose` es 'side' (de perfil, mirando a la derecha si
+   * `facing` es 1 o a la izquierda si es -1), 'front' (de frente) o 'back' (de espaldas).
+   */
+  function placeWaiter(waiter, [x, y], facing, pose = 'side') {
     waiter.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-    waiter.firstChild.setAttribute('transform', `scale(${facing * WAITER_SCALE} ${WAITER_SCALE})`);
+    const flipX = pose === 'side' ? facing : 1;
+    waiter.firstChild.setAttribute('transform', `scale(${flipX * WAITER_SCALE} ${WAITER_SCALE})`);
+    if (waiter.dataset.pose !== pose) waiter.dataset.pose = pose;
   }
 
-  // Tarjeta de mesa: 128 × 74 centrada en el nodo (ver floorPlan). El mesero se coloca en el
-  // pasillo junto a uno de sus lados, de perfil y mirando hacia ella.
-  const TABLE_HALF_W = 64;
-  const TABLE_HALF_H = 37;
-  const WAITER_SIDE_GAP = 30; // del borde de la tarjeta a los pies del mesero
+  /** Postura según el tramo: de perfil en horizontal, de espaldas si sube y de frente si baja. */
+  function poseFor([ax, ay], [bx, by]) {
+    if (Math.abs(bx - ax) > 0.5) return 'side';
+    return by < ay ? 'back' : 'front';
+  }
 
   /**
-   * Cambia el final de la ruta (el centro de la mesa) por el sitio donde se queda el mesero.
-   * Si llega en horizontal, se detiene a ese lado de la mesa. Si llega en vertical, sube o baja
-   * por el pasillo de al lado (el del lado por el que venía) y se para junto a la mesa: así no
-   * tapa la tarjeta con el cuerpo. Devuelve los puntos del paseo y hacia dónde mira al llegar.
+   * Punto donde se detiene antes de la mesa para no taparla: a un lado si llega en horizontal,
+   * encima si baja hacia ella, y casi en el nodo anterior si sube (el cuerpo queda por encima de los pies).
    */
-  function approachTable(points, svgWidth) {
-    const table = points[points.length - 1];
-    const prev = points[points.length - 2];
-    const route = points.slice(0, -1);
+  function stopPoint(prev, table) {
     const dx = table[0] - prev[0];
-
-    if (Math.abs(dx) > 0.5) {
-      const segment = Math.abs(dx);
-      const back = Math.min(TABLE_HALF_W + 20, segment * 0.75);
-      route.push([table[0] - Math.sign(dx) * back, table[1]]);
-      return { points: route, facing: Math.sign(dx) };
-    }
-
-    // Lado por el que venía: el de su último desplazamiento horizontal (por defecto, la izquierda).
-    let side = 1;
-    for (let i = route.length - 1; i > 0; i -= 1) {
-      const step = route[i][0] - route[i - 1][0];
-      if (Math.abs(step) > 0.5) {
-        side = Math.sign(step);
-        break;
-      }
-    }
-    let standX = table[0] - side * (TABLE_HALF_W + WAITER_SIDE_GAP);
-    if (standX < 24 || standX > svgWidth - 24) {
-      side = -side;
-      standX = table[0] - side * (TABLE_HALF_W + WAITER_SIDE_GAP);
-    }
-    // Paso hacia el pasillo. Si ese punto ya está en el tramo horizontal por el que llega, gira
-    // ahí mismo en lugar de pasarse hasta el nodo y volver atrás.
-    const before = route[route.length - 2];
-    const onIncomingRow = before && Math.abs(before[1] - prev[1]) < 0.5
-      && (standX - before[0]) * (standX - prev[0]) < 0;
-    if (onIncomingRow) {
-      route[route.length - 1] = [standX, prev[1]];
-    } else {
-      route.push([standX, prev[1]]);
-    }
-    route.push([standX, table[1] + TABLE_HALF_H]); // pies a la altura del borde inferior de la mesa
-    return { points: route, facing: side };
+    const dy = table[1] - prev[1];
+    const segment = Math.hypot(dx, dy) || 1;
+    // Tarjeta de mesa ≈ 140 × 70: en horizontal se queda a su lado; bajando, con los pies en su borde.
+    const back = dy < 0 ? segment * 0.9 : Math.min(dy > 0 ? 40 : 84, segment * 0.75);
+    return [table[0] - (dx / segment) * back, table[1] - (dy / segment) * back];
   }
 
   /** Mesero en reposo junto a la cocina cuando todavía no hay ruta calculada. */
@@ -215,13 +259,11 @@
 
   /** Anima un mesero que recorre la ruta calculada y marca la llegada a la mesa. */
   function drawWaiter(canvas, path) {
-    let points = path.map(xy);
+    const points = path.map(xy);
     const table = points[points.length - 1];
     const anchor = buildArrivalBadge(table);
-    let arrivalFacing = 0;
     if (points.length > 1) {
-      const svgWidth = canvas.viewBox.baseVal?.width || 960;
-      ({ points, facing: arrivalFacing } = approachTable(points, svgWidth));
+      points[points.length - 1] = stopPoint(points[points.length - 2], table);
     }
     const waiter = svg('g', { class: 'floor-waiter', 'aria-hidden': 'true' });
     waiter.append(buildWaiter());
@@ -232,18 +274,16 @@
     });
     canvas.append(trail, anchor, waiter);
 
-    // Mira hacia donde avanza en horizontal; en tramos verticales conserva la última dirección.
+    // Mira hacia donde avanza: de perfil en horizontal, de espaldas al subir y de frente al bajar.
+    // Como el último tramo va hacia la mesa, al llegar se queda mirándola.
     const facings = [];
+    const poses = [];
     let facing = 1;
     for (let i = 1; i < points.length; i += 1) {
       const dx = points[i][0] - points[i - 1][0];
       if (Math.abs(dx) > 0.5) facing = Math.sign(dx);
       facings.push(facing);
-    }
-    // En el último tramo (y al llegar) mira hacia la mesa.
-    if (arrivalFacing && facings.length) {
-      facing = arrivalFacing;
-      facings[facings.length - 1] = arrivalFacing;
+      poses.push(poseFor(points[i - 1], points[i]));
     }
     const lengths = points.slice(1).map(([x, y], i) => Math.hypot(x - points[i][0], y - points[i][1]));
     const total = lengths.reduce((a, b) => a + b, 0);
@@ -262,7 +302,7 @@
     };
 
     if (total === 0) {
-      placeWaiter(waiter, points[points.length - 1], facing);
+      placeWaiter(waiter, points[points.length - 1], facing, poses[poses.length - 1]);
       arrive();
       return;
     }
@@ -274,7 +314,7 @@
     const startTime = performance.now();
     route.forEach((line) => line.classList.add('is-pending'));
     waiter.classList.add('is-walking');
-    placeWaiter(waiter, points[0], facings[0] || 1);
+    placeWaiter(waiter, points[0], facings[0] || 1, poses[0]);
     showWalked(0);
 
     const step = (now) => {
@@ -290,7 +330,7 @@
       const t = lengths[i] ? Math.min(1, travelled / lengths[i]) : 1;
       const [ax, ay] = points[i];
       const [bx, by] = points[i + 1];
-      placeWaiter(waiter, [ax + (bx - ax) * t, ay + (by - ay) * t], facings[i]);
+      placeWaiter(waiter, [ax + (bx - ax) * t, ay + (by - ay) * t], facings[i], poses[i]);
       if (now - startTime < duration) {
         waiterFrame = requestAnimationFrame(step);
       } else {
