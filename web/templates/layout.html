@@ -314,5 +314,5 @@
 </div>
 
 {{ layout|json_script:"floor-layout" }}
-<script id="tables-state-data" type="application/json">{{ tables_map_json|safe }}</script>
+{{ tables_map|json_script:"tables-state-data" }}
 {% endblock %}

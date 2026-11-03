@@ -58,8 +58,9 @@ Una vez que los 3 servicios esten corriendo, entra a:
 --------------------------------------------------------------------
 CREDENCIALES DE ACCESO
 --------------------------------------------------------------------
-Usuario:     admin
-Contraseña:  1234
+No hay credenciales por defecto. Crea tu administrador una sola vez con:
+  .venv\Scripts\python web/manage.py createsuperuser
+o define ADMIN_PASSWORD (minimo 12 caracteres) en .env antes del primer arranque.
 
 (Tambien puedes registrar una nueva cuenta desde el boton "CREAR CUENTA"
 en la pagina principal).

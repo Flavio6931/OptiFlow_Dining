@@ -25,7 +25,7 @@ Bienvenido a OptiFlow Dining. Tienes dos formas de iniciar el sistema:
    - Rutas API: http://127.0.0.1:8001/docs
    - Visión API: http://127.0.0.1:8002/docs
 
-4. CREDENCIALES POR DEFECTO:
-   Usuario:     admin
-   Contraseña:  1234
+4. ACCESO DE ADMINISTRADOR:
+   No hay clave por defecto. Créala con:
+   .venv\Scripts\python web/manage.py createsuperuser
 ====================================================================

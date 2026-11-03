@@ -12,6 +12,10 @@ services:
       - "8000:8000"
     volumes:
       - optiflow_db:/data
+      # Plano editable (mesas creadas/movidas/unificadas). Se inicializa con config/salon.json
+      # la primera vez; después persiste entre reconstrucciones. Para volver al plano del repo:
+      #   docker compose down && docker volume rm optiflow_dining_optiflow_config
+      - optiflow_config:/app/config
     depends_on:
       - routing
       - vision
@@ -32,3 +36,4 @@ services:
     restart: unless-stopped
 volumes:
   optiflow_db:
+  optiflow_config:

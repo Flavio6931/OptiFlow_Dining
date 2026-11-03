@@ -1,6 +1,7 @@
 """Módulo de carga, validación de límites estrictos y persistencia espacial del salón CAD (Req 6)."""
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -8,6 +9,19 @@ from django.db import transaction
 
 LAYOUT_PATH = Path(__file__).resolve().parents[2] / 'config' / 'salon.json'
 VALID_ZONES = ('A', 'B', 'C')
+# Los códigos de mesa se usan como IDs de DOM, selectores CSS y claves JSON: solo caracteres seguros.
+TABLE_CODE_RE = re.compile(r'^[a-z0-9_]{1,40}$')
+
+
+def validate_table_code(code: str) -> str:
+    """Normaliza y valida un código de mesa (minúsculas, dígitos y guion bajo, máx. 40)."""
+    normalized = (code or '').lower().strip()
+    if not TABLE_CODE_RE.fullmatch(normalized):
+        raise ValueError(
+            "Código de mesa inválido. Usa solo letras minúsculas, números y guion bajo "
+            "(máx. 40 caracteres), por ejemplo 'mesa09'."
+        )
+    return normalized
 
 
 def get_layout() -> Dict[str, Any]:
@@ -204,7 +218,7 @@ def add_table(
     """Registra una nueva mesa respetando estrictamente dimensiones, colisiones y pertenencia a la zona."""
     from .models import TableState
 
-    code = code.lower().strip()
+    code = validate_table_code(code)
     zone_upper = zone.upper().strip()
     data = get_layout()
 
@@ -331,7 +345,9 @@ def unify_tables(
     node = primary_table['node']
     zone = primary_table['zone']
 
-    unified_code = unified_code.lower().strip()
+    unified_code = validate_table_code(unified_code)
+    if unified_code in existing_tables and unified_code not in normalized_codes:
+        raise ValueError(f"Ya existe una mesa con el código '{unified_code}'.")
     unified_table = {
         'id': unified_code,
         'label': unified_label.strip(),

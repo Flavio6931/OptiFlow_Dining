@@ -115,7 +115,7 @@ def page_context(request, page_title: str, active: str) -> dict:
         'layout_json': json.dumps(layout, ensure_ascii=False),
         'zones': list(Zone.objects.order_by('code')),
         'tables_state': tables_state,
-        'tables_map_json': json.dumps(states_dict, ensure_ascii=False),
+        'tables_map': states_dict,  # Renderizar SIEMPRE con |json_script (nunca json.dumps + |safe)
         'unread_notifications_count': unread_notifications_count,
         'notifications': notifications,
         'waiter_pending_assigned_count': waiter_pending_assigned_count,

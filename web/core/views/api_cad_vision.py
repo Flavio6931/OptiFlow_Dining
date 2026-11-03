@@ -220,12 +220,8 @@ def api_vision(request):
             status=http_code,
         )
 
-    try:
-        s3_key = views_pkg.optional_upload_s3(raw, uploaded.name, uploaded.content_type)
-    except Exception as s3_err:
-        logger.warning('Fallo al subir evidencia a S3 (%s)', s3_err)
-        s3_key = ''
-        result['aws_warning'] = 'No se pudo guardar la imagen en AWS S3. Revisa el bucket y los permisos IAM.'
+    storage = views_pkg.optional_upload_s3(raw, uploaded.name, uploaded.content_type)
+    s3_key = storage['key']
 
     updated_zones_info = []
     zone_counts = result.get('zone_counts', {})
@@ -258,14 +254,28 @@ def api_vision(request):
         zone_counts=zone_counts,
         s3_key=s3_key,
     )
-    result['aws_saved'] = bool(s3_key)
+    result['storage'] = storage['storage']
+    result['aws_saved'] = storage['storage'] == 's3'
     result['s3_key'] = s3_key
     if s3_key:
-        result['s3_status'] = f'Evidencia archivada en AWS S3 ({s3_key})'
-    elif result.get('aws_warning'):
-        result['s3_status'] = 'Almacenamiento local (falló conexión a AWS S3)'
+        result['presigned_url'] = views_pkg.get_s3_presigned_url(s3_key)
+
+    if storage['storage'] == 's3':
+        result['s3_status'] = f"☁️ Guardado en AWS S3 ({storage['bucket']})"
+    elif storage['error']:
+        result['aws_warning'] = (
+            f"No se pudo subir la imagen a AWS S3 ({storage['error']}). "
+            'Revisa el bucket, la región y las credenciales o el rol IAM.'
+        )
+        result['s3_status'] = (
+            'Guardado solo en este servidor (falló AWS S3)'
+            if storage['storage'] == 'local'
+            else 'No se pudo guardar la imagen'
+        )
+    elif storage['storage'] == 'local':
+        result['s3_status'] = 'Guardado solo en este servidor (AWS S3 no configurado)'
     else:
-        result['s3_status'] = 'Almacenamiento local (AWS S3 no configurado)'
+        result['s3_status'] = 'No se pudo guardar la imagen'
 
     annotated_b64 = result.get('annotated_image', '')
     if annotated_b64 and ',' in annotated_b64:

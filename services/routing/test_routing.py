@@ -91,6 +91,29 @@ class RoutingServiceTests(unittest.TestCase):
         other_tables = {'1,1', '2,1', '3,1', '1,3', '2,3', '3,3', '4,3'}
         self.assertFalse(set(result['path'][:-1]) & other_tables)
 
+    def test_uses_layout_sent_in_request(self):
+        """El plano enviado por Django manda sobre la copia local de salon.json (mesas nuevas o movidas)."""
+        layout = {
+            'columns': 6,
+            'rows': 6,
+            'origins': [{'id': 'cocina', 'node': '0,0'}],
+            'tables': [
+                {'id': 'mesa_nueva', 'node': '5,5'},
+                {'id': 'obstaculo', 'node': '1,0'},
+            ],
+            'zones': [],
+        }
+        result = route(RouteRequest(origin='cocina', destination='mesa_nueva', layout=layout))
+        self.assertEqual(result['path'][0], '0,0')
+        self.assertEqual(result['path'][-1], '5,5')
+        self.assertEqual(result['distance'], 10)
+        self.assertNotIn('1,0', result['path'])
+
+    def test_invalid_layout_is_rejected(self):
+        with self.assertRaises(HTTPException) as ctx:
+            route(RouteRequest(layout={'columns': 5}))
+        self.assertEqual(ctx.exception.status_code, 400)
+
 
 if __name__ == '__main__':
     unittest.main()

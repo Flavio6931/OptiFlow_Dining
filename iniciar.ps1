@@ -43,6 +43,6 @@ Write-Host "  - Panel Admin:       http://127.0.0.1:8000/admin/" -ForegroundColo
 Write-Host "  - Rutas (FastAPI):   http://127.0.0.1:8001/docs" -ForegroundColor White
 Write-Host "  - Vision (OpenCV):   http://127.0.0.1:8002/docs" -ForegroundColor White
 Write-Host ""
-Write-Host "  Credenciales: admin / 1234" -ForegroundColor White
+Write-Host "  Acceso: tu cuenta de administrador (crear: .venv\Scripts\python web\manage.py createsuperuser)" -ForegroundColor White
 Write-Host "  Para detenerlos: Cierra las 3 ventanas de terminal." -ForegroundColor Gray
 Write-Host "==========================================================" -ForegroundColor Yellow

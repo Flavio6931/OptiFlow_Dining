@@ -6,6 +6,6 @@ RUN pip install --no-cache-dir -r /app/web/requirements.txt
 COPY config /app/config
 COPY web /app/web
 WORKDIR /app/web
-RUN chmod +x /app/web/entrypoint.sh && DJANGO_SECRET_KEY=build-only-not-for-runtime python manage.py collectstatic --noinput
+RUN sed -i 's/\r$//' /app/web/entrypoint.sh && chmod +x /app/web/entrypoint.sh &&DJANGO_SECRET_KEY=build-only-not-for-runtime python manage.py collectstatic --noinput
 EXPOSE 8000
 CMD ["/app/web/entrypoint.sh"]

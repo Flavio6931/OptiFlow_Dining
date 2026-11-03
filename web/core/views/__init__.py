@@ -3,6 +3,7 @@ from ..services import (
     ServiceUnavailable,
     analyze_image,
     calculate_route,
+    get_s3_presigned_url,
     optional_upload_s3,
 )
 from .api_cad_vision import (
@@ -41,6 +42,7 @@ __all__ = [
     'analyze_image',
     'calculate_route',
     'optional_upload_s3',
+    'get_s3_presigned_url',
     'role_for',
     'role_required',
     'drf_role_required',

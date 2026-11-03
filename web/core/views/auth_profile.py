@@ -57,7 +57,7 @@ def login_view(request):
                 return redirect(nxt)
             return redirect('dashboard')
     else:
-        form = LoginForm(request, initial={'username': 'admin'})
+        form = LoginForm(request)
     return render(
         request,
         'login.html',

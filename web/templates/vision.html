@@ -13,7 +13,7 @@
       <img src="{% static 'img/chef_cam_wheel_512.png' %}" alt="Rueda de apertura" class="chef-cam-wheel-spin">
       <img src="{% static 'img/chef_cam_center_512.png' %}" alt="Cámara Chef" class="chef-cam-center-fg">
     </div>
-    <span>Chef Vision · OpenCV HOG</span>
+    <span>Chef Vision · OpenCV DNN</span>
   </div>
 </div>
 
@@ -119,18 +119,26 @@
     </div>
 
     <div class="info-box vision-disclaimer">
-      Ensamble OpenCV optimizado para comensales sentados en mesas y personal en pasillos (Haar Upperbody + Rostros + HOG + CLAHE). No realiza identificación biométrica ni almacena datos personales.
+      OpenCV DNN con el modelo YOLOX-S: cuenta comensales sentados y personal desde cualquier ángulo, analizando la foto completa y por recortes. No realiza identificación biométrica ni almacena datos personales.
     </div>
 
     <div class="storage-note">
       Almacenamiento Cloud AWS S3:
-      <strong>
-        {% if s3_enabled %}
-          🟢 Conectado (Bucket: {{ s3_bucket }} · Región: {{ aws_region }})
+      <strong data-s3-state="{{ s3.state }}">
+        {{ s3.icon }} {{ s3.label }}
+        {% if s3.state == 'disabled' %}
+          (las fotos se guardan solo en este servidor. Para activar S3, configura <code>AWS_STORAGE_BUCKET_NAME</code> y credenciales en <code>.env</code>)
         {% else %}
-          ⚪ No configurado (procesamiento en memoria. Para activar S3, configura <code>AWS_STORAGE_BUCKET_NAME</code> y credenciales en <code>.env</code>)
+          (Bucket: {{ s3.bucket }} · Región: {{ s3.region }}{% if s3.reason %} · {{ s3.reason }}{% endif %})
         {% endif %}
       </strong>
+      {% if s3.state != 'disabled' and s3.state != 'connected' %}
+        <br>Las fotos se están guardando solo en este servidor.
+        {% if s3.state == 'no_credentials' %}Define <code>AWS_ACCESS_KEY_ID</code> y <code>AWS_SECRET_ACCESS_KEY</code> en <code>.env</code> o usa un rol IAM en EC2.{% endif %}
+      {% endif %}
+      {% if s3.state != 'disabled' %}
+        <a href="?verificar_s3=1">Verificar ahora</a>
+      {% endif %}
     </div>
   </section>
 
@@ -217,7 +225,13 @@
             <td>{{ item.people_count }}</td>
             <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
             <td>
-              {% if item.presigned_url %}
+              {% if item.is_local_copy %}
+                {% if item.presigned_url and media_served %}
+                  <a href="{{ item.presigned_url }}" target="_blank" rel="noopener noreferrer" title="Copia guardada solo en este servidor (no está en AWS S3)">📁 Local ↗</a>
+                {% else %}
+                  <span class="text-muted" title="Copia guardada solo en este servidor (no está en AWS S3)">📁 Solo local</span>
+                {% endif %}
+              {% elif item.presigned_url %}
                 <a href="{{ item.presigned_url }}" target="_blank" rel="noopener noreferrer" class="text-orange" title="Abrir imagen resguardada en S3 (URL prefirmada válida por 1h)" style="text-decoration: underline; font-weight: 600;">
                   ☁️ Ver en S3 ↗
                 </a>

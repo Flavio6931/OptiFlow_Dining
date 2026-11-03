@@ -37,6 +37,31 @@ class RouteRequest(BaseModel):
     task_type: str = Field(default='entrega', description='Tipo de servicio (entrega o retiro).')
     avoid_congestion: bool = Field(default=False, description='Si es True, evade nodos congestionados.')
     zone_levels: Dict[str, str] = Field(default_factory=dict, description='Niveles actuales de zonas.')
+    layout: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            'Plano vigente enviado por Django (columns, rows, origins, tables, zones). '
+            'Si se omite, se usa config/salon.json local del servicio.'
+        ),
+    )
+
+
+def _validate_layout(layout: Dict[str, Any]) -> Dict[str, Any]:
+    """Comprueba la estructura mínima del plano recibido en la petición."""
+    try:
+        columns, rows = int(layout['columns']), int(layout['rows'])
+        origins, tables = layout['origins'], layout['tables']
+        if columns < 1 or rows < 1 or not isinstance(origins, list) or not isinstance(tables, list):
+            raise ValueError
+        for item in (*origins, *tables):
+            if not isinstance(item.get('id'), str) or not isinstance(item.get('node'), str):
+                raise ValueError
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail='Plano inválido: se requieren columns, rows, origins[] y tables[] con id y node.',
+        ) from exc
+    return layout
 
 
 def _in_bounds(node: str, width: int, height: int) -> bool:
@@ -138,7 +163,9 @@ def layout() -> Dict[str, Any]:
 @app.post('/route')
 def route(request: RouteRequest) -> Dict[str, Any]:
     """Calcula la ruta óptima entre dos puntos, considerando la congestión operativa y topología dinámica."""
-    cur_layout = get_current_layout()
+    # Django es la fuente de verdad del plano: en Docker cada contenedor tiene su propia copia
+    # de salon.json, así que se usa el plano recibido y solo como respaldo el archivo local.
+    cur_layout = _validate_layout(request.layout) if request.layout is not None else get_current_layout()
     cur_origins = {o['id']: o['node'] for o in cur_layout.get('origins', [])}
     cur_tables = {t['id']: t['node'] for t in cur_layout.get('tables', [])}
 

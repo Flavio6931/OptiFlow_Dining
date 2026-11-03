@@ -39,7 +39,7 @@ Accede a `http://localhost:8000/admin/`, abre **Profiles**, selecciona el usuari
 | M2 Rutas | Motor Dijkstra en microservicio FastAPI: consulta, detección de nodos congestionados y alternativa; registro y finalización de tareas | Mesero, Capitán |
 | M3 Saturación | Modificación de nivel y permanencia, alertas cuando la zona crítica supera 4 minutos | Capitán (edición), Gerente (lectura) |
 | M3 Indicadores | Conteos reales de rutas consultadas, recalculadas, finalizadas y zonas críticas | Capitán, Gerente |
-| OpenCV | Detección aproximada de personas de pie con HOG en fotografía JPEG/PNG/WebP y división del resultado en tres sectores | Capitán |
+| OpenCV | Conteo de personas (sentadas, de pie, de espaldas o en ángulo) con OpenCV DNN y el modelo YOLOX-S de OpenCV Zoo en fotografía JPEG/PNG/WebP, y división del resultado en tres sectores | Capitán |
 | AWS S3 | Resguardo privado opcional de fotografías cuando se configura un bucket e identidad IAM | Capitán |
 
 ### Límites de esta iteración
@@ -47,7 +47,7 @@ Accede a `http://localhost:8000/admin/`, abre **Profiles**, selecciona el usuari
 - El **plano es esquemático y precargado**. Aún no existe un editor geométrico completo ni zonificación dinámica automática de mesas.
 - El **ruteo** utiliza una red de pasillos de ejemplo (5×5), no sensores físicos ni una representación milimétrica del restaurante. Los estados de congestión se registran manualmente.
 - Los indicadores reflejan **registros realmente almacenados**, no métricas inventadas. Los tiempos físicos de desplazamiento, cruces reales y alertas automáticas por sensores necesitarían fuentes de datos adicionales.
-- **OpenCV HOG** es un ejemplo de visión computacional clásica. El conteo puede fallar con personas sentadas, oclusiones, tomas cenitales, iluminación insuficiente o aglomeraciones. No se usa reconocimiento facial. La estimación visual **no modifica automáticamente** la saturación operativa del salón.
+- **OpenCV DNN + YOLOX-S** (`services/vision/models/object_detection_yolox_2022nov.onnx`, OpenCV Zoo, Apache-2.0) se ejecuta con `cv2.dnn`, sin otras librerías de IA. Analiza la foto completa y un mosaico de recortes solapados para no perder personas lejanas. El conteo es una estimación: puede omitir personas muy tapadas o fuera de cuadro. No se usa reconocimiento facial. Si falta el modelo ONNX, el servicio vuelve al ensamble anterior (MobileNet-SSD + Haar + HOG). La estimación visual **no modifica automáticamente** la saturación operativa del salón.
 - El diseño es responsive y sigue la identidad azul marino/naranja del prototipo suministrado.
 
 ## 3. Arquitectura de microservicios
@@ -65,10 +65,10 @@ Contenedores Docker Compose:
 
 - **web**: Django + Django Templates + JS/CSS; REST JSON propio, validación, base de datos, autenticación, roles y AWS SDK (`8000`).
 - **routing**: FastAPI independiente; `POST /route`, `GET /layout`, `GET /health` (`8001`, no expuesto públicamente).
-- **vision**: FastAPI + OpenCV HOG; `POST /analyze`, `GET /health` (`8002`, no expuesto públicamente).
+- **vision**: FastAPI + OpenCV DNN (YOLOX-S); `POST /analyze`, `GET /health` (`8002`, no expuesto públicamente).
 - **base de datos**: SQLite guardada en volumen Docker para desarrollo. Puede migrarse a PostgreSQL mediante `DATABASE_URL` para producción.
 
-La carpeta `config/salon.json` define las coordenadas iniciales, las mesas y nodos congestionados; es **configuración compartida** empaquetada dentro de cada contenedor, no una base de datos de microservicios.
+La carpeta `config/salon.json` define las coordenadas iniciales, las mesas y nodos congestionados. **Django es la única fuente de verdad del plano**: lo edita (crear, mover, unificar o separar mesas) y lo envía en cada petición `POST /route` (campo `layout`), así el microservicio de rutas siempre calcula sobre el plano vigente aunque no comparta disco con Django. En Docker, el plano editado persiste en el volumen `optiflow_config`, que se inicializa con el `salon.json` del repositorio la primera vez; si cambias ese archivo en el repo y quieres aplicarlo, elimina el volumen (`docker volume rm optiflow_dining_optiflow_config`).
 
 ## 4. Usar AWS en producción
 

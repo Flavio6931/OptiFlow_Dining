@@ -136,8 +136,21 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ROUTING_SERVICE_URL = os.environ.get('ROUTING_SERVICE_URL', 'http://127.0.0.1:8001')
 VISION_SERVICE_URL = os.environ.get('VISION_SERVICE_URL', 'http://127.0.0.1:8002')
-AWS_S3_BUCKET = os.environ.get('AWS_S3_BUCKET', '')
+
+# Almacenamiento Cloud AWS S3 (Soporte unificado de variables y conector automático)
+AWS_STORAGE_BUCKET_NAME = (
+    os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    or os.environ.get('AWS_S3_BUCKET')
+    or ''  # Vacío = S3 desactivado. Sin valor por defecto para no "simular" un bucket inexistente.
+)
+AWS_S3_BUCKET = AWS_STORAGE_BUCKET_NAME
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+AWS_SESSION_TOKEN = os.environ.get('AWS_SESSION_TOKEN', '')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media' 
 
 # Configuración estructurada de logging empresarial (ECC)
 LOGGING = {

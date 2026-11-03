@@ -8,7 +8,7 @@ from django.db.models import Avg, Q, Sum
 from django.shortcuts import render
 
 from ..models import RouteConsultation, TableState, VisionAnalysis, Zone
-from ..services import get_s3_presigned_url
+from ..services import LOCAL_KEY_PREFIX, get_s3_presigned_url, s3_connection_status
 from .helpers import SUPERVISOR_ROLES, page_context, role_required
 
 
@@ -113,7 +113,7 @@ def routes_view(request):
         'waiters': waiters,
         'recent_routes': recent_routes,
         'assigned_to_me': assigned_to_me,
-        'latest_vision_json': json.dumps(latest_vision_payload, ensure_ascii=False),
+        'latest_vision': latest_vision_payload,
     })
     return render(request, 'routes.html', context)
 
@@ -240,7 +240,7 @@ def layout_view(request):
 
     context.update({
         'enriched_tables': enriched_tables,
-        'tables_map_json': json.dumps(states_dict, ensure_ascii=False),
+        'tables_map': states_dict,
         'total_capacity': total_capacity,
         'available_count': available_count,
         'active_count': active_count,
@@ -257,8 +257,8 @@ def vision_view(request):
     history = list(VisionAnalysis.objects.order_by('-created_at')[:6])
     for item in history:
         item.presigned_url = get_s3_presigned_url(item.s3_key) if item.s3_key else ''
+        item.is_local_copy = item.s3_key.startswith(LOCAL_KEY_PREFIX)
     context['analysis_history'] = history
-    context['s3_enabled'] = bool(settings.AWS_S3_BUCKET)
-    context['s3_bucket'] = settings.AWS_S3_BUCKET or ''
-    context['aws_region'] = settings.AWS_REGION or ''
+    context['media_served'] = settings.DEBUG  # /media/ solo se sirve con DEBUG=1 (ver optiflow/urls.py)
+    context['s3'] = s3_connection_status(refresh=request.GET.get('verificar_s3') == '1')
     return render(request, 'vision.html', context)

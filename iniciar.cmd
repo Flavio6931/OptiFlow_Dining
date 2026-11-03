@@ -40,9 +40,8 @@ echo   - Panel Admin Django:   http://127.0.0.1:8000/admin/
 echo   - Microservicio Rutas:  http://127.0.0.1:8001/docs
 echo   - Microservicio Vision: http://127.0.0.1:8002/docs
 echo.
-echo   Credenciales de Acceso:
-echo   - Usuario:  admin
-echo   - Password: 1234
+echo   Acceso: usa tu cuenta de administrador.
+echo   Si no tienes una: .venv\Scripts\python web\manage.py createsuperuser
 echo.
 echo   Para detener los servicios: cierra las 3 ventanas de terminal.
 echo ==========================================================
