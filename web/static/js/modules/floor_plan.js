@@ -16,6 +16,35 @@
     return [ORIGIN_X + x * STEP_X, ORIGIN_Y + y * STEP_Y];
   }
 
+  const ORIGIN_BOX_MIN_W = 144;
+  const ORIGIN_BOX_PAD_X = 16;
+  const ORIGIN_BOX_MARGIN = 22; // distancia mínima al borde del lienzo (el marco empieza en x=14)
+  const APPROX_CHAR_W = 10.5; // respaldo si el SVG aún no se ha pintado y no se puede medir
+
+  /**
+   * Ensancha la caja de un punto de origen para que quepa su texto más largo y la
+   * mantiene dentro del lienzo, recentrando los textos sobre la caja resultante.
+   */
+  function fitOriginBox(box, texts, px, svgWidth) {
+    const textW = Math.max(
+      ...texts.map((t) => {
+        let w = 0;
+        try {
+          w = t.getComputedTextLength();
+        } catch (_) {
+          w = 0;
+        }
+        return w > 0 ? w : t.textContent.length * APPROX_CHAR_W;
+      })
+    );
+    const width = Math.max(ORIGIN_BOX_MIN_W, Math.ceil(textW + ORIGIN_BOX_PAD_X * 2));
+    const maxLeft = svgWidth - ORIGIN_BOX_MARGIN - width;
+    const left = Math.max(ORIGIN_BOX_MARGIN, Math.min(px - width / 2, maxLeft));
+    box.setAttribute('x', left);
+    box.setAttribute('width', width);
+    texts.forEach((t) => t.setAttribute('x', left + width / 2));
+  }
+
   /** Construye los rectángulos de sectores A, B y C ajustados dinámicamente a las columnas activas. */
   function buildZoneRects(layout, cols, svgWidth) {
     const palette = {
@@ -520,31 +549,25 @@
       const origG = svg('g', {
         class: isKitchen ? 'blueprint-origin-kitchen' : 'blueprint-origin-entrance',
       });
-      origG.append(
-        svg('rect', {
-          x: px - 72,
-          y: py - (isKitchen ? 34 : 32),
-          width: 144,
-          height: isKitchen ? 68 : 64,
-          rx: 14,
-          class: isKitchen ? 'kitchen-box' : 'entrance-box',
-        })
+      const box = svg('rect', {
+        y: py - (isKitchen ? 34 : 32),
+        height: isKitchen ? 68 : 64,
+        rx: 14,
+        class: isKitchen ? 'kitchen-box' : 'entrance-box',
+      });
+      const title = svg(
+        'text',
+        { y: py - 3, class: isKitchen ? 'kitchen-text' : 'entrance-text' },
+        isKitchen ? '♨ COCINA' : `🚪 ${(orig.label || orig.id).toUpperCase()}`
       );
-      origG.append(
-        svg(
-          'text',
-          { x: px, y: py - 3, class: isKitchen ? 'kitchen-text' : 'entrance-text' },
-          isKitchen ? '♨ COCINA' : `🚪 ${(orig.label || orig.id).toUpperCase()}`
-        )
+      const subtitle = svg(
+        'text',
+        { y: py + 16, class: isKitchen ? 'kitchen-subtext' : 'entrance-subtext' },
+        isKitchen ? 'Despacho y Pase' : 'Recepción / Clientes'
       );
-      origG.append(
-        svg(
-          'text',
-          { x: px, y: py + 16, class: isKitchen ? 'kitchen-subtext' : 'entrance-subtext' },
-          isKitchen ? 'Despacho y Pase' : 'Recepción / Clientes'
-        )
-      );
+      origG.append(box, title, subtitle);
       canvas.append(origG);
+      fitOriginBox(box, [title, subtitle], px, svgWidth);
     });
 
     // 6. Mesas interactivas dentro de los límites estrictos del salón
