@@ -23,11 +23,13 @@ for _default_host in ('127.0.0.1', 'localhost', '0.0.0.0', '[::1]'):
 try:
     _local_ips = socket.gethostbyname_ex(socket.gethostname())[2]
     for _ip in _local_ips:
-        if _ip not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(_ip)
-        _origin = f'http://{_ip}:8000'
-        if _origin not in CSRF_TRUSTED_ORIGINS:
-            CSRF_TRUSTED_ORIGINS.append(_origin)
+        # El QR usa el dominio nip.io de cada IP: los lectores lo abren como enlace web.
+        for _host in (_ip, f"{_ip.replace('.', '-')}.nip.io"):
+            if _host not in ALLOWED_HOSTS:
+                ALLOWED_HOSTS.append(_host)
+            _origin = f'http://{_host}:8000'
+            if _origin not in CSRF_TRUSTED_ORIGINS:
+                CSRF_TRUSTED_ORIGINS.append(_origin)
 except OSError:
     pass
 INSTALLED_APPS = [

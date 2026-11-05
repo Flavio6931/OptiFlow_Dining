@@ -1,10 +1,13 @@
 import json
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from optiflow import urls
 
 from .models import Profile, RouteConsultation, TableState, VisionAnalysis, Zone
 from .services import ServiceUnavailable
@@ -594,6 +597,8 @@ class OptiFlowTests(TestCase):
         self.assertIn('lan_url', res.context)
         self.assertTrue(res.context['lan_url'].startswith('http://'))
         self.assertIn(':8000', res.context['lan_url'])
+        self.assertIn('.nip.io:8000/login/', res.context['lan_url'])
+        self.assertIn(res.context['lan_ip'], res.context['lan_direct_url'])
 
         # 4. Validar que la plantilla HTML renderice el boton de acceso LAN y modal QR
         html = res.content.decode('utf-8')
@@ -1125,3 +1130,33 @@ class VisionLiveTests(TestCase):
     def test_service_down_returns_503(self, _mocked):
         self.client.force_login(self.manager)
         self.assertEqual(self._post().status_code, 503)
+
+
+class LocalMediaAccessTests(TestCase):
+    """Las fotos guardadas en el servidor se abren con sesión iniciada, también sin DEBUG."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        (Path(self.tmp.name) / 'foto.jpg').write_bytes(b'imagen')
+        patcher = patch.dict(
+            next(p for p in urls.urlpatterns if 'media' in str(p.pattern)).default_args,
+            {'document_root': self.tmp.name},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        res = self.client.get('/media/foto.jpg')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('login', res['Location'])
+
+    def test_logged_in_user_can_open_photo(self):
+        self.client.force_login(User.objects.create_user('foto_user', password='x'))
+        res = self.client.get('/media/foto.jpg')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(b''.join(res.streaming_content), b'imagen')
+
+    def test_path_traversal_is_rejected(self):
+        self.client.force_login(User.objects.create_user('foto_user2', password='x'))
+        self.assertEqual(self.client.get('/media/../settings.py').status_code, 400)

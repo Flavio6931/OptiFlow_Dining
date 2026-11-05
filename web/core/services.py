@@ -334,7 +334,7 @@ def get_s3_presigned_url(key: str, expiration: int = 3600) -> str:
     """Genera una URL temporal para ver una evidencia.
 
     Para objetos en S3 devuelve una URL prefirmada; para copias locales ('local:...') la ruta
-    bajo MEDIA_URL (solo servida por Django con DEBUG=1). Devuelve '' si no es posible.
+    bajo MEDIA_URL (requiere sesión iniciada). Devuelve '' si no es posible.
     """
     if not key:
         return ''

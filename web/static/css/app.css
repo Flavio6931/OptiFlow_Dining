@@ -1516,6 +1516,16 @@ input:disabled,select:disabled {
   font-weight: 600;
 }
 
+.plan-table-unified {
+  stroke-width: 2.5;
+}
+
+.plan-table-seam {
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 5;
+}
+
 /* Estado: DISPONIBLE (Verde Esmeralda) */
 .state-disponible .plan-table-surface {
   fill: #061914;
@@ -1854,6 +1864,23 @@ input:disabled,select:disabled {
   animation: waiterBreathe 2.4s ease-in-out infinite;
 }
 
+.floor-waiter.is-blocked .floor-waiter-figure {
+  animation: none;
+}
+
+.floor-waiter-blocked-bubble rect {
+  fill: #2a0d10;
+  stroke: #f87171;
+  stroke-width: 1.5;
+}
+
+.floor-waiter-blocked-bubble text {
+  fill: #fecaca;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
 .floor-waiter-badge {
   opacity: 0;
   transform: scale(0.3);
@@ -1916,7 +1943,24 @@ input:disabled,select:disabled {
     animation: none;
   }
 
-  .floor-waiter-badge {
+  .floor-waiter.is-blocked .floor-waiter-figure {
+  animation: none;
+}
+
+.floor-waiter-blocked-bubble rect {
+  fill: #2a0d10;
+  stroke: #f87171;
+  stroke-width: 1.5;
+}
+
+.floor-waiter-blocked-bubble text {
+  fill: #fecaca;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.floor-waiter-badge {
     transition: none;
   }
 }

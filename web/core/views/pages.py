@@ -259,6 +259,5 @@ def vision_view(request):
         item.presigned_url = get_s3_presigned_url(item.s3_key) if item.s3_key else ''
         item.is_local_copy = item.s3_key.startswith(LOCAL_KEY_PREFIX)
     context['analysis_history'] = history
-    context['media_served'] = settings.DEBUG  # /media/ solo se sirve con DEBUG=1 (ver optiflow/urls.py)
     context['s3'] = s3_connection_status(refresh=request.GET.get('verificar_s3') == '1')
     return render(request, 'vision.html', context)

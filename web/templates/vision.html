@@ -233,7 +233,7 @@
             <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
             <td>
               {% if item.is_local_copy %}
-                {% if item.presigned_url and media_served %}
+                {% if item.presigned_url %}
                   <a href="{{ item.presigned_url }}" target="_blank" rel="noopener noreferrer" title="Copia guardada solo en este servidor (no está en AWS S3)">📁 Local ↗</a>
                 {% else %}
                   <span class="text-muted" title="Copia guardada solo en este servidor (no está en AWS S3)">📁 Solo local</span>

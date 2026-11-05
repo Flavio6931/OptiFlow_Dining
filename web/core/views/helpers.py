@@ -120,6 +120,8 @@ def page_context(request, page_title: str, active: str) -> dict:
         'notifications': notifications,
         'waiter_pending_assigned_count': waiter_pending_assigned_count,
         'lan_ip': lan_ip,
-        'lan_url': f'http://{lan_ip}:8000/login/',
+        # Con dominio, los lectores de QR ofrecen abrir el navegador en vez de solo copiar.
+        'lan_url': f"http://{lan_ip.replace('.', '-')}.nip.io:8000/login/",
+        'lan_direct_url': f'http://{lan_ip}:8000/login/',
     }
 

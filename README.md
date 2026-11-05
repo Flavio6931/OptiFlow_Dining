@@ -8,7 +8,7 @@ Proyecto académico de **Construcción de Software**, construido sobre los docum
 
 Necesitas **Python 3.11 o superior**. Al instalarlo, marca «Add python.exe to PATH».
 
-Da doble clic a `iniciar.cmd`. La primera vez instala lo necesario y puede tardar varios minutos; después abre la aplicación en el navegador. Para detenerla, cierra las tres ventanas de los servicios. Sin claves de AWS, S3 queda desactivado y las fotos se guardan solo en tu equipo. La ventana del lanzador muestra los usuarios de prueba `mesero_demo`, `capitan_demo` y `gerente_demo` con su contraseña, generada al azar en cada equipo; el análisis de fotos requiere `gerente_demo`.
+Da doble clic a `iniciar.cmd`. La primera vez instala lo necesario y puede tardar varios minutos; después abre la aplicación en el navegador. Para detenerla, cierra las tres ventanas de los servicios. Sin claves de AWS, S3 queda desactivado y las fotos se guardan solo en tu equipo. Para abrirla desde un móvil en la misma red, escanea el QR de la aplicación y, si Windows lo pregunta, permite el acceso a Python. La ventana del lanzador muestra los usuarios de prueba `mesero_demo`, `capitan_demo` y `gerente_demo` con su contraseña, generada al azar en cada equipo; el análisis de fotos requiere `gerente_demo`.
 
 ## 1.1. Ejecutar con Docker (alternativa)
 

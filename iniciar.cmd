@@ -38,6 +38,9 @@ if exist ".env" goto port_check
 if errorlevel 1 goto install_error
 
 :port_check
+rem La app queda visible en la red para el acceso movil: nunca en modo desarrollo.
+set "DJANGO_DEBUG=0"
+
 rem Si Docker (docker compose) ya ocupa el puerto 8000, runserver no puede arrancar y el
 rem navegador abriria la version de Docker en lugar de la local.
 netstat -ano | findstr /R /C:":8000 .*LISTENING" /C:":8000 .*ESCUCHANDO" >nul
@@ -65,7 +68,7 @@ if errorlevel 1 goto db_error
 if errorlevel 1 goto db_error
 
 echo [1/3] Levantando Django Web en puerto 8000...
-start "OptiFlow - Django Web (:8000)" cmd /k "title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && .venv\Scripts\python.exe web\manage.py runserver 127.0.0.1:8000"
+start "OptiFlow - Django Web (:8000)" cmd /k "title Django Web (:8000) && echo ======================================== && echo  Servicio 1: Django Web (Puerto 8000) && echo ======================================== && .venv\Scripts\python.exe web\manage.py runserver 0.0.0.0:8000"
 
 echo [2/3] Levantando Microservicio de Rutas en puerto 8001...
 start "OptiFlow - Rutas FastAPI (:8001)" cmd /k "title Rutas FastAPI (:8001) && echo ======================================== && echo  Servicio 2: Rutas FastAPI (Puerto 8001) && echo ======================================== && .venv\Scripts\python.exe -m uvicorn services.routing.main:app --port 8001"
@@ -102,6 +105,7 @@ echo   - Panel Admin Django:   http://127.0.0.1:8000/admin/
 echo   - Microservicio Rutas:  http://127.0.0.1:8001/docs
 echo   - Microservicio Vision: http://127.0.0.1:8002/docs
 echo.
+echo   Movil: usa la misma red y escanea el QR de la app. Si Windows pregunta, permite el acceso a Python.
 echo   Acceso: pulsa "Crear cuenta" para registrarte.
 findstr /b /c:"ENABLE_DEMO_USERS=1" .env >nul
 if errorlevel 1 goto after_demo

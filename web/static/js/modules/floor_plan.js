@@ -9,6 +9,18 @@
   const STEP_Y = 113;
   const ORIGIN_X = 97;
   const ORIGIN_Y = 73;
+  const PLAN_FRAME_X = 14;
+
+  // Medidas de las tarjetas de mesa en el plano.
+  const TABLE_CARD = { halfWidth: 64, halfHeight: 37 };
+  const UNIFIED_CARD = { halfWidth: 88, halfHeight: 46 };
+  const UNIFIED_MAX_CHAIRS = 16;
+
+  // Mesero detenido ante una zona saturada.
+  const CONGESTION_STOP_GAP = 46;
+  const HEAD_TURN_MS = 1500;
+  const HEAD_MIN_SCALE = 0.45;
+  const HEAD_TILT_DEG = 7;
 
   /** Convierte coordenadas lógicas 'X,Y' a píxeles dentro del lienzo SVG. */
   function xy(node) {
@@ -216,12 +228,7 @@
       svg('path', { d: 'M -9 -29 L 9 -29', class: 'floor-waiter-belt' }),
       // Cuello y cabeza
       svg('rect', { x: -2.5, y: -56, width: 5, height: 6, class: 'floor-waiter-skin' }),
-      svg('circle', { cx: 1, cy: -63, r: 8.5, class: 'floor-waiter-skin' }),
-      svg('circle', { cx: 9.3, cy: -62, r: 1.9, class: 'floor-waiter-skin' }), // nariz
-      svg('path', { d: 'M -7.5 -62 Q -9 -73 1 -73 Q 9.5 -73 9.6 -66 Q 4 -69 0 -66 Q -2 -63 -3.5 -60 Z', class: 'floor-waiter-hair' }),
-      svg('circle', { cx: -1.5, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
-      svg('circle', { cx: 5.6, cy: -64, r: 1.2, class: 'floor-waiter-eye' }),
-      svg('path', { d: 'M 4.5 -58.5 Q 6.5 -57.5 8 -59', class: 'floor-waiter-smile' }),
+      buildWaiterHead(),
       // Pajarita naranja
       svg('path', { d: 'M 2 -51 L -1.5 -53.2 L -1.5 -48.8 Z M 2 -51 L 5.5 -53.2 L 5.5 -48.8 Z', class: 'floor-waiter-bowtie' }),
       // Brazo delantero doblado sosteniendo la bandeja a la altura del hombro
@@ -232,6 +239,52 @@
       svg('circle', { cx: 18, cy: -63.5, r: 1.7, class: 'floor-waiter-cloche-knob' })
     );
     return flip;
+  }
+
+  /** Cabeza de perfil, en su propio grupo para que pueda girar cuando el mesero se detiene. */
+  function buildWaiterHead() {
+    const head = svg('g', { class: 'floor-waiter-head' });
+    head.append(
+      svg('circle', { cx: 1, cy: -63, r: 8.5, class: 'floor-waiter-skin' }),
+      svg('circle', { cx: 9.3, cy: -62, r: 1.9, class: 'floor-waiter-skin' }), // nariz
+      svg('path', { d: 'M -7.5 -62 Q -9 -73 1 -73 Q 9.5 -73 9.6 -66 Q 4 -69 0 -66 Q -2 -63 -3.5 -60 Z', class: 'floor-waiter-hair' }),
+      svg('circle', { cx: -1.5, cy: -62, r: 2.1, class: 'floor-waiter-ear' }),
+      svg('circle', { cx: 5.6, cy: -64, r: 1.2, class: 'floor-waiter-eye' }),
+      svg('path', { d: 'M 4.5 -58.5 Q 6.5 -57.5 8 -59', class: 'floor-waiter-smile' })
+    );
+    return head;
+  }
+
+  /** Aviso sobre el mesero cuando una zona saturada le impide avanzar. */
+  function buildBlockedBubble() {
+    // Bajo los pies: encima taparía la mesa de la fila superior.
+    const bubble = svg('g', { class: 'floor-waiter-blocked-bubble', transform: 'translate(0 24)' });
+    bubble.append(
+      svg('rect', { x: -56, y: -11, width: 112, height: 22, rx: 11 }),
+      svg('text', { x: 0, y: 4 }, '✋ Zona saturada')
+    );
+    return bubble;
+  }
+
+  /** Deja al mesero detenido mirando a ambos lados: se dibuja con JS para verse aunque Windows reduzca animaciones. */
+  function blockWaiter(waiter, point, facing) {
+    placeWaiter(waiter, point, facing, 'side');
+    waiter.classList.remove('is-walking');
+    waiter.classList.add('is-blocked');
+    waiter.append(buildBlockedBubble());
+    const head = waiter.querySelector('.pose-side .floor-waiter-head');
+    const startTime = performance.now();
+    const lookAround = (now) => {
+      if (!waiter.isConnected) return; // el plano se volvió a dibujar
+      const turn = Math.sin(((now - startTime) / HEAD_TURN_MS) * 2 * Math.PI);
+      const scaleX = Math.sign(turn || 1) * Math.max(HEAD_MIN_SCALE, Math.abs(turn));
+      head.setAttribute(
+        'transform',
+        `translate(1 0) scale(${scaleX.toFixed(3)} 1) translate(-1 0) rotate(${(turn * HEAD_TILT_DEG).toFixed(1)} 1 -56)`
+      );
+      waiterFrame = requestAnimationFrame(lookAround);
+    };
+    waiterFrame = requestAnimationFrame(lookAround);
   }
 
   /** Muestra el ✓ de llegada en la mesa de destino. */
@@ -266,13 +319,22 @@
    * Punto donde se detiene antes de la mesa para no taparla: a un lado si llega en horizontal,
    * encima si baja hacia ella, y casi en el nodo anterior si sube (el cuerpo queda por encima de los pies).
    */
-  function stopPoint(prev, table) {
+  function stopPoint(prev, table, card = TABLE_CARD) {
     const dx = table[0] - prev[0];
     const dy = table[1] - prev[1];
     const segment = Math.hypot(dx, dy) || 1;
-    // Tarjeta de mesa ≈ 140 × 70: en horizontal se queda a su lado; bajando, con los pies en su borde.
-    const back = dy < 0 ? segment * 0.9 : Math.min(dy > 0 ? 40 : 84, segment * 0.75);
+    // En horizontal se queda al lado de la tarjeta; bajando, con los pies en su borde.
+    const back = dy < 0 ? segment * 0.9 : Math.min(dy > 0 ? card.halfHeight + 3 : card.halfWidth + 20, segment * 0.75);
     return [table[0] - (dx / segment) * back, table[1] - (dy / segment) * back];
+  }
+
+  /** Punto donde se detiene antes de un nodo saturado, sin pisar su marcador. */
+  function pointBefore(prev, node) {
+    const dx = node[0] - prev[0];
+    const dy = node[1] - prev[1];
+    const segment = Math.hypot(dx, dy) || 1;
+    const back = Math.min(CONGESTION_STOP_GAP, segment * 0.6);
+    return [node[0] - (dx / segment) * back, node[1] - (dy / segment) * back];
   }
 
   /** Mesero en reposo junto a la cocina cuando todavía no hay ruta calculada. */
@@ -286,13 +348,17 @@
     canvas.append(waiter);
   }
 
-  /** Anima un mesero que recorre la ruta calculada y marca la llegada a la mesa. */
-  function drawWaiter(canvas, path) {
-    const points = path.map(xy);
+  /** Anima un mesero que recorre la ruta y marca la llegada, o se detiene antes de un nodo saturado. */
+  function drawWaiter(canvas, path, congested = [], card = TABLE_CARD) {
+    const blockedIndex = path.findIndex((node, i) => i > 0 && congested.includes(node));
+    const isBlocked = blockedIndex > 0;
+    const points = (isBlocked ? path.slice(0, blockedIndex + 1) : path).map(xy);
     const table = points[points.length - 1];
     const anchor = buildArrivalBadge(table);
-    if (points.length > 1) {
-      points[points.length - 1] = stopPoint(points[points.length - 2], table);
+    if (isBlocked) {
+      points[points.length - 1] = pointBefore(points[points.length - 2], table);
+    } else if (points.length > 1) {
+      points[points.length - 1] = stopPoint(points[points.length - 2], table, card);
     }
     const waiter = svg('g', { class: 'floor-waiter', 'aria-hidden': 'true' });
     waiter.append(buildWaiter());
@@ -324,6 +390,11 @@
 
     const arrive = () => {
       showWalked(total);
+      if (isBlocked) {
+        // El resto de la ruta sigue tenue: no se ha recorrido ni se recorrerá sin recalcular.
+        blockWaiter(waiter, points[points.length - 1], facing);
+        return;
+      }
       route.forEach((line) => line.classList.remove('is-pending'));
       waiter.classList.remove('is-walking');
       waiter.classList.add('has-arrived');
@@ -367,6 +438,64 @@
       }
     };
     waiterFrame = requestAnimationFrame(step);
+  }
+
+  function isUnifiedTable(table) {
+    return Array.isArray(table.unified_from) && table.unified_from.length > 1;
+  }
+
+  /** Reparte sillas en una fila a lo largo de la tarjeta de una mesa unificada. */
+  function appendChairRow(group, cx, y, count) {
+    if (count < 1) return;
+    const usable = UNIFIED_CARD.halfWidth * 2 - 16;
+    const spacing = usable / count;
+    const width = Math.min(26, spacing - 5);
+    for (let i = 0; i < count; i += 1) {
+      const chairX = cx - usable / 2 + spacing * (i + 0.5);
+      group.append(svg('rect', { x: chairX - width / 2, y, width, height: 8, rx: 4, class: 'chair-elem' }));
+    }
+  }
+
+  /** Dibuja una mesa unificada: más grande, con una división por cada mesa que la forma. */
+  function drawUnifiedTable(group, table, x, y, state, seats, svgWidth) {
+    const { halfWidth, halfHeight } = UNIFIED_CARD;
+    // En la primera columna se desplaza lo justo para no cruzar el marco del salón.
+    const minX = PLAN_FRAME_X + 6 + halfWidth;
+    const cx = Math.max(minX, Math.min(x, svgWidth - minX));
+    const merged = table.unified_from.length;
+    const label = String(table.label).replace(/\s*\(grupo\)\s*$/i, '');
+    const titleSize = Math.max(11, Math.min(16, (halfWidth * 2 - 20) / (label.length * 0.58)));
+    const chairsPerRow = Math.min(UNIFIED_MAX_CHAIRS, seats);
+
+    appendChairRow(group, cx, y - halfHeight - 11, Math.ceil(chairsPerRow / 2));
+    appendChairRow(group, cx, y + halfHeight + 3, Math.floor(chairsPerRow / 2));
+    group.append(
+      svg('rect', {
+        x: cx - halfWidth,
+        y: y - halfHeight,
+        width: halfWidth * 2,
+        height: halfHeight * 2,
+        rx: 16,
+        class: 'plan-table-surface plan-table-unified',
+      })
+    );
+    for (let i = 1; i < merged; i += 1) {
+      const seamX = cx - halfWidth + (halfWidth * 2 * i) / merged;
+      // Marcas cortas en los bordes: una línea completa cruzaría los textos.
+      group.append(
+        svg('line', { x1: seamX, y1: y - halfHeight + 1, x2: seamX, y2: y - halfHeight + 9, class: 'plan-table-seam' }),
+        svg('line', { x1: seamX, y1: y + halfHeight - 9, x2: seamX, y2: y + halfHeight - 1, class: 'plan-table-seam' })
+      );
+    }
+    const title = svg('text', { x: cx, y: y - 19, class: 'plan-table-title' }, label);
+    title.style.fontSize = `${titleSize.toFixed(1)}px`;
+    group.append(
+      svg('title', {}, table.label),
+      title,
+      svg('text', { x: cx, y: y - 2, class: 'plan-table-capacity' }, `👥 ${seats} personas · ${merged} mesas`),
+      svg('rect', { x: cx - 52, y: y + 12, width: 104, height: 22, rx: 11, class: 'plan-table-pill-bg' }),
+      svg('text', { x: cx, y: y + 27, class: 'plan-table-status-text' }, `● ${String(state).toUpperCase()}`)
+    );
   }
 
   /** Renderiza el plano vectorial SVG escalando dinámicamente a (columns x rows) sin desbordes. */
@@ -585,6 +714,14 @@
         'data-table-id': t.id,
       });
 
+      if (isUnifiedTable(t)) {
+        drawUnifiedTable(group, t, x, y, st, seats, svgWidth);
+        group.style.cursor = 'pointer';
+        group.addEventListener('click', () => selectAndFocusTable(t.id));
+        canvas.append(group);
+        return;
+      }
+
       if (seats === 2) {
         group.append(svg('rect', { x: x - 74, y: y - 12, width: 8, height: 24, rx: 4, class: 'chair-elem' }));
         group.append(svg('rect', { x: x + 66, y: y - 12, width: 8, height: 24, rx: 4, class: 'chair-elem' }));
@@ -665,7 +802,8 @@
       const end = xy(boundedPath[boundedPath.length - 1]);
       canvas.append(svg('circle', { cx: start[0], cy: start[1], r: 10, class: 'floor-route-dot' }));
       canvas.append(svg('circle', { cx: end[0], cy: end[1], r: 10, class: 'floor-route-dot' }));
-      drawWaiter(canvas, boundedPath);
+      const target = (layout.tables || []).find((t) => t.id === destination);
+      drawWaiter(canvas, boundedPath, congested || [], target && isUnifiedTable(target) ? UNIFIED_CARD : TABLE_CARD);
     } else if (!canvas.classList.contains('layout-floor-plan')) {
       // En Rutas el mesero espera en la cocina; en el editor del plano no se muestra.
       drawIdleWaiter(canvas, layout);

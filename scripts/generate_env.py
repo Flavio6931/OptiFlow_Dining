@@ -10,10 +10,9 @@ if target.exists():
 sample = (root / '.env.example').read_text(encoding='utf-8')
 sample = sample.replace('REEMPLAZAR_POR_CLAVE_ALEATORIA', secrets.token_urlsafe(64))
 sample = sample.replace('REEMPLAZAR_POR_CONTRASENA_SEGURA', secrets.token_urlsafe(18))
-# --demo: usuarios de prueba y modo desarrollo para uso local con el lanzador; no usar en un servidor público.
+# --demo: usuarios de prueba para uso local con el lanzador; no usar en un servidor público.
 if '--demo' in sys.argv:
     sample = sample.replace('ENABLE_DEMO_USERS=0', 'ENABLE_DEMO_USERS=1')
-    sample = sample.replace('DJANGO_DEBUG=0', 'DJANGO_DEBUG=1')
 target.write_text(sample, encoding='utf-8')
 try: target.chmod(0o600)
 except OSError: pass
