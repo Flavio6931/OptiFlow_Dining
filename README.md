@@ -4,20 +4,22 @@ Proyecto académico de **Construcción de Software**, construido sobre los docum
 
 > **Importante:** es un MVP funcional/de demostración, **no** un sistema desplegado en AWS ni una solución de visión artificial validada para estimar ocupación real del restaurante.
 
-## 1. Ejecutar con Docker (recomendado)
+## 1. Ejecutar en Windows, sin Docker (recomendado)
+
+Necesitas **Python 3.11 o superior**. Al instalarlo, marca «Add python.exe to PATH».
+
+Da doble clic a `iniciar.cmd`. La primera vez instala lo necesario y puede tardar varios minutos; después abre la aplicación en el navegador. Para detenerla, cierra las tres ventanas de los servicios. Sin claves de AWS, S3 queda desactivado y las fotos se guardan solo en tu equipo. La ventana del lanzador muestra los usuarios de prueba `mesero_demo`, `capitan_demo` y `gerente_demo` con su contraseña, generada al azar en cada equipo; el análisis de fotos requiere `gerente_demo`.
+
+## 1.1. Ejecutar con Docker (alternativa)
 
 Necesitas **Docker Desktop** (Windows, macOS) o Docker Engine con Compose.
-
-**En Windows:** da doble clic a `abrir_optiflow.cmd`. Abre Docker Desktop, levanta la aplicación y abre el navegador. La primera vez puede tardar varios minutos.
-
-**En otros sistemas, o desde una terminal:**
 
 ```bash
 # Desde la carpeta OptiFlow_Dining:
 docker compose up --build -d
 ```
 
-No hace falta un archivo `.env`: sin él la app funciona con **S3 desactivado** y las fotos se guardan solo en el servidor. Para activar S3, crear un administrador inicial o cambiar otros ajustes, genera el archivo con `python scripts/generate_env.py`, complétalo y vuelve a ejecutar `docker compose up -d --force-recreate`. Las claves de AWS nunca se suben a Git.
+No hace falta un archivo `.env`. Para activar S3, crear un administrador inicial o cambiar otros ajustes, genera el archivo con `python scripts/generate_env.py`, complétalo y vuelve a ejecutar `docker compose up -d --force-recreate`. Las claves de AWS nunca se suben a Git.
 
 Abre **http://localhost:8000**. Presiona **«Crear cuenta»** y regístrate. Un usuario nuevo tiene rol **Mesero / Runner**. Luego inicia sesión, entra a «Rutas de servicio», selecciona «Zona de cocina» y «Mesa 08» y calcula la ruta. Verás el mensaje de congestión; pulsa **«Recalcular ruta»** y después **«Finalizar tarea»**. El resultado queda guardado en la base de datos.
 
