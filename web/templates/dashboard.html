@@ -4,7 +4,7 @@
   <div>
     <div class="eyebrow dark-eyebrow">PANEL PRINCIPAL <span>·</span> OPERACIÓN EN VIVO</div>
     <h1>¡Hola, {{ display_name|default:request.user.username }}! <span class="wave">✦</span></h1>
-    <p>Resumen claro del estado del salón, ocupación de mesas y flujo de servicio.</p>
+    <p>Lo que pasa ahora en el salón: mesas, viajes de hoy y zonas con demora.</p>
   </div>
   <div class="header-actions-wrap">
     <div class="header-status-pill">
@@ -49,12 +49,12 @@
       <span class="kpi-badge">Servicio</span>
     </div>
     <div class="simple-kpi-number">{{ completed_routes }} <span class="denom">/ {{ total_routes }}</span></div>
-    <div class="simple-kpi-title">Viajes atendidos</div>
+    <div class="simple-kpi-title">Viajes finalizados hoy</div>
     <p class="simple-kpi-desc">
       {% if total_routes > 0 %}
-        <strong>{{ completed_routes }} finalizados</strong> · {{ recalculated }} con desvío
+        <strong>{{ open_routes }} sin finalizar</strong> · {{ recalculated }} con desvío
       {% else %}
-        Sin viajes registrados hoy
+        Aún no hay viajes hoy
       {% endif %}
     </p>
   </div>
@@ -71,19 +71,13 @@
         <span class="kpi-badge badge-ok">Despejado</span>
       {% endif %}
     </div>
-    <div class="simple-kpi-number">
-      {% if congestion_count > 0 %}
-        {{ congestion_count }} <span class="denom">demora</span>
-      {% else %}
-        0 <span class="denom">demoras</span>
-      {% endif %}
-    </div>
-    <div class="simple-kpi-title">Tráfico en pasillos</div>
+    <div class="simple-kpi-number">{{ congestion_count }} <span class="denom">de {{ zones|length }}</span></div>
+    <div class="simple-kpi-title">Zonas con demora</div>
     <p class="simple-kpi-desc">
       {% if congestion_count > 0 %}
-        {{ congestion_count }} zona con demora · Desvío automático
+        Las rutas pueden recalcularse para evitarlas
       {% else %}
-        <strong>{{ zones_normal_count }} de {{ zones|length }} zonas</strong> con tránsito fluido
+        <strong>{{ zones_normal_count }} de {{ zones|length }} zonas</strong> en estado normal
       {% endif %}
     </p>
   </div>
@@ -96,13 +90,13 @@
       </span>
       <span class="kpi-badge">Visión</span>
     </div>
-    <div class="simple-kpi-number">{{ recent_people_count }} <span class="denom">pax</span></div>
-    <div class="simple-kpi-title">Comensales detectados</div>
+    <div class="simple-kpi-number">{{ recent_people_count }} <span class="denom">personas</span></div>
+    <div class="simple-kpi-title">Último conteo de cámara</div>
     <p class="simple-kpi-desc">
       {% if recent_vision %}
-        Último escaneo: {{ recent_vision.created_at|timesince }} atrás
+        Hace {{ recent_vision.created_at|timesince }}
       {% else %}
-        Cámara lista para escanear
+        Aún no se ha analizado ninguna foto
       {% endif %}
     </p>
   </div>
@@ -130,57 +124,46 @@
   <div class="panel-card dashboard-zones-card">
     <div class="card-heading">
       <div>
-        <h3>Estado de los pasillos</h3>
-        <p>Tiempo de permanencia y fluidez por cada zona del salón</p>
+        <h3>Estado de las zonas</h3>
+        <p>Cuánto tiempo permanecen los meseros en cada zona</p>
       </div>
       {% if role == 'capitan' or role == 'gerente' or role == 'admin' %}
         <a href="{% url 'saturation' %}" class="card-link-action">Ajustar saturación <span>→</span></a>
       {% endif %}
     </div>
 
-    <div class="zone-traffic-list">
-      {% for zone in zones %}
-        <div class="zone-traffic-item">
-          <div class="zone-traffic-left">
-            <span class="zone-pill-code">{{ zone.code }}</span>
-            <div class="zone-info-text">
-              <strong>Zona {{ zone.code }}</strong>
-              <small>{{ zone.dwell_minutes|floatformat:1 }} min de permanencia promedio</small>
-            </div>
-          </div>
-
-          <div class="zone-traffic-right">
-            {% if zone.level == 'normal' %}
-              <span class="traffic-pill pill-green">🟢 Rápido</span>
-            {% elif zone.level == 'moderada' %}
-              <span class="traffic-pill pill-yellow">🟡 Moderado</span>
-            {% else %}
-              <span class="traffic-pill pill-red">🔴 Demora</span>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
-    </div>
+    {% include '_zone_traffic.html' %}
 
     <div class="zone-bottom-status">
       {% if congestion_count > 0 %}
-        <span class="status-note note-warn">⚠️ Hay {{ congestion_count }} zona con demora. El sistema calcula desvíos automáticamente.</span>
+        <span class="status-note note-warn">⚠️ {{ congestion_count }} zona{{ congestion_count|pluralize }} con demora. Al calcular una ruta podrás recalcularla para evitarla{{ congestion_count|pluralize }}.</span>
       {% else %}
-        <span class="status-note note-ok">✔ Tránsito fluido en todos los pasillos. Sin retrasos en las entregas.</span>
+        <span class="status-note note-ok">✔ Ninguna zona con demora.</span>
       {% endif %}
     </div>
+
+    <!-- Mini Banner Cámara Chef -->
+    {% if role == 'capitan' or role == 'admin' %}
+      <div class="mini-chef-cam-banner">
+        <div class="mini-cam-left">
+          <span class="mini-cam-icon">📸</span>
+          <div>
+            <strong>Cámara y Visión OpenCV</strong>
+            <small>Detección en tiempo real con escaneo de salón</small>
+          </div>
+        </div>
+        <a href="{% url 'vision' %}" class="btn btn-sm btn-ghost-accent">Abrir cámara ➔</a>
+      </div>
+    {% endif %}
   </div>
 
   <!-- Panel 2: Actividad del Turno -->
   <div class="panel-card dashboard-feed-card">
     <div class="card-heading">
       <div>
-        <h3>Actividad del turno</h3>
-        <p>Recorridos de servicio y trazabilidad de meseros</p>
+        <h3>Últimos viajes</h3>
+        <p>Los recorridos más recientes y quién los atiende</p>
       </div>
-      <span class="live-beacon-tag">
-        <span class="live-dot"></span> EN VIVO
-      </span>
     </div>
 
     <div class="simple-feed-list">
@@ -190,7 +173,7 @@
             <div class="feed-left">
               <span class="feed-arrow-badge {% if r.completed %}completed-badge{% endif %}">➔</span>
               <div>
-                <strong>{{ r.origin|title }} hacia {{ r.destination|upper }}</strong>
+                <strong>{{ r.origin_label }} → {{ r.destination_label }}</strong>
                 <div class="feed-meta-row">
                   <span class="feed-author">Pedido por {{ r.user.get_full_name|default:r.user.username }}</span>
                   {% if r.assigned_waiter %}
@@ -209,7 +192,7 @@
               {% else %}
                 {% if r.assigned_waiter %}<span class="badge-tag tag-warning">⏳ Pendiente</span>{% else %}<span class="badge-tag tag-neutral">En curso</span>{% endif %}
               {% endif %}
-              <span class="feed-time">{{ r.created_at|timesince }} atrás</span>
+              <span class="feed-time">Hace {{ r.created_at|timesince }}</span>
             </div>
           </div>
         {% endfor %}
@@ -225,19 +208,6 @@
       {% endif %}
     </div>
 
-    <!-- Mini Banner Cámara Chef -->
-    {% if role == 'capitan' or role == 'admin' %}
-      <div class="mini-chef-cam-banner">
-        <div class="mini-cam-left">
-          <span class="mini-cam-icon">📸</span>
-          <div>
-            <strong>Cámara y Visión OpenCV</strong>
-            <small>Detección en tiempo real con escaneo de salón</small>
-          </div>
-        </div>
-        <a href="{% url 'vision' %}" class="btn btn-sm btn-ghost-accent">Abrir cámara ➔</a>
-      </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}

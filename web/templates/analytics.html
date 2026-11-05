@@ -13,8 +13,8 @@
   </div>
 </div>
 
-<!-- 3 Tarjetas Claras y Directas -->
-<div class="simple-kpi-grid">
+<!-- Tarjetas claras y directas -->
+<div class="simple-kpi-grid four-cards">
   <!-- Tarjeta 1: Rutas Atendidas -->
   <div class="simple-kpi-card">
     <div class="simple-kpi-header">
@@ -22,12 +22,29 @@
       <span class="kpi-badge">RUTAS</span>
     </div>
     <div class="simple-kpi-number">{{ total_routes }}</div>
-    <div class="simple-kpi-title">Rutas atendidas hoy</div>
+    <div class="simple-kpi-title">Rutas de hoy</div>
     <p class="simple-kpi-desc">
       {% if total_routes > 0 %}
         {{ direct_routes }} directas · {{ recalculated }} con desvío
       {% else %}
         Aún no se han enviado pedidos a las mesas hoy.
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Tarjeta: Rutas finalizadas -->
+  <div class="simple-kpi-card">
+    <div class="simple-kpi-header">
+      <span class="kpi-icon blue"><svg class="ic"><use href="#i-check"/></svg></span>
+      <span class="kpi-badge">FINALIZADAS</span>
+    </div>
+    <div class="simple-kpi-number">{{ completed }} <span class="denom">/ {{ total_routes }}</span></div>
+    <div class="simple-kpi-title">Rutas finalizadas</div>
+    <p class="simple-kpi-desc">
+      {% if total_routes > 0 %}
+        {{ open_routes }} sin finalizar · {{ completion_rate }}% completado
+      {% else %}
+        Aún no hay rutas hoy.
       {% endif %}
     </p>
   </div>
@@ -81,66 +98,45 @@
       {% endif %}
     </div>
 
-    <div class="zone-traffic-list">
-      {% for zone in zones %}
-        <div class="zone-traffic-item zone-border-{{ zone.level }}">
-          <div class="traffic-left">
-            <span class="traffic-avatar traffic-avatar-{{ zone.level }}">{{ zone.code }}</span>
-            <div class="traffic-info">
-              <strong>Zona {{ zone.code }}</strong>
-              <span class="traffic-time">Tiempo de permanencia: {{ zone.dwell_minutes|floatformat:1 }} min</span>
-            </div>
-          </div>
-          <div class="traffic-right">
-            {% if zone.level == 'normal' %}
-              <span class="traffic-pill pill-normal">🟢 Paso rápido</span>
-            {% elif zone.level == 'moderada' %}
-              <span class="traffic-pill pill-moderada">🟡 Tráfico medio</span>
-            {% else %}
-              <span class="traffic-pill pill-critica">🔴 Lento / Demora</span>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-
-    <div class="zone-simple-legend">
-      <span>🟢 <strong>Rápido:</strong> Sin demoras</span>
-      <span>🟡 <strong>Medio:</strong> Atención normal</span>
-      <span>🔴 <strong>Lento:</strong> Ruta desviada automáticamente</span>
-    </div>
+    {% include '_zone_traffic.html' %}
   </div>
 
   <!-- Columna 2: Distribución de Pedidos y Rutas -->
   <div class="panel-card">
     <div class="card-heading">
       <div>
-        <h2>Resumen de viajes y tareas</h2>
-        <p>Qué tipo de pedidos han llevado los meseros</p>
+        <h2>Resumen de hoy</h2>
+        <p>Cómo se reparten las rutas calculadas hoy</p>
       </div>
     </div>
 
     {% if total_routes > 0 %}
+      <div class="split-bar-block">
+        <div class="split-bar-title"><span>Tipo de camino</span><small>{{ total_routes }} ruta{{ total_routes|pluralize }}</small></div>
+        <div class="split-bar" role="img" aria-label="{{ direct_routes }} directas y {{ recalculated }} con desvío">
+          <span class="seg-green" style="width: {{ direct_pct|stringformat:'.1f' }}%"></span>
+          <span class="seg-yellow" style="width: {{ recalculated_pct|stringformat:'.1f' }}%"></span>
+        </div>
+        <div class="split-bar-legend">
+          <span>🟢 {{ direct_routes }} directa{{ direct_routes|pluralize }}</span>
+          <span>🟡 {{ recalculated }} con desvío</span>
+        </div>
+      </div>
+      <div class="split-bar-block">
+        <div class="split-bar-title"><span>Tipo de servicio</span></div>
+        <div class="split-bar" role="img" aria-label="{{ entregas_count }} entregas y {{ retiros_count }} retiros">
+          <span class="seg-orange" style="width: {{ entregas_pct|stringformat:'.1f' }}%"></span>
+          <span class="seg-purple" style="width: {{ retiros_pct|stringformat:'.1f' }}%"></span>
+        </div>
+        <div class="split-bar-legend">
+          <span>🟠 {{ entregas_count }} entrega{{ entregas_count|pluralize }} de comida</span>
+          <span>🟣 {{ retiros_count }} retiro{{ retiros_count|pluralize }} de vajilla</span>
+        </div>
+      </div>
       <div class="route-simple-summary">
         <div class="summary-stat-row">
-          <span class="row-label"><span class="dot-bullet green"></span> Rutas por camino directo</span>
-          <strong class="row-val text-green">{{ direct_routes }}</strong>
-        </div>
-        <div class="summary-stat-row">
-          <span class="row-label"><span class="dot-bullet yellow"></span> Rutas con desvío (evitando zonas lentas)</span>
-          <strong class="row-val text-yellow">{{ recalculated }}</strong>
-        </div>
-        <div class="summary-stat-row">
-          <span class="row-label"><span class="dot-bullet orange"></span> Entregas de comida a mesas</span>
-          <strong class="row-val text-orange">{{ entregas_count }}</strong>
-        </div>
-        <div class="summary-stat-row">
-          <span class="row-label"><span class="dot-bullet purple"></span> Retiros de platos / vajilla</span>
-          <strong class="row-val text-purple">{{ retiros_count }}</strong>
-        </div>
-        <div class="summary-stat-row">
           <span class="row-label"><span class="dot-bullet blue"></span> Distancia promedio por viaje</span>
-          <strong class="row-val">{{ avg_distance }} metros</strong>
+          <strong class="row-val">{{ avg_distance }} tramos</strong>
         </div>
       </div>
     {% else %}
@@ -162,8 +158,8 @@
 <div class="panel-card" style="margin-top: 24px;">
   <div class="card-heading">
     <div>
-      <h2>Historial reciente de viajes</h2>
-      <p>Los últimos pedidos consultados por el personal</p>
+      <h2>Últimos viajes</h2>
+      <p>Las rutas más recientes, de hoy o de días anteriores</p>
     </div>
   </div>
 
@@ -174,17 +170,17 @@
           <div class="feed-left">
             <span class="feed-arrow-badge">➔</span>
             <div>
-              <strong>{{ r.origin }} hacia {{ r.destination }}</strong>
+              <strong>{{ r.origin_label }} → {{ r.destination_label }}</strong>
               <small>{{ r.get_task_type_display }} · Solicitado por {{ r.user.first_name|default:r.user.username }}</small>
             </div>
           </div>
           <div class="feed-right">
             {% if r.recalculated %}
-              <span class="badge-tag tag-warning">Desviada por zona lenta ({{ r.distance }}m)</span>
+              <span class="badge-tag tag-warning">Con desvío · {{ r.distance }} tramos</span>
             {% else %}
-              <span class="badge-tag tag-success">Camino directo ({{ r.distance }}m)</span>
+              <span class="badge-tag tag-success">Directa · {{ r.distance }} tramos</span>
             {% endif %}
-            <span class="feed-time">{{ r.created_at|timesince }} atrás</span>
+            <span class="feed-time">Hace {{ r.created_at|timesince }}</span>
           </div>
         </div>
       {% endfor %}

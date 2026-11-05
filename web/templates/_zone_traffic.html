@@ -1,0 +1,23 @@
+<div class="zone-traffic-list">
+  {% for zone in zones %}
+    <div class="zone-traffic-item zone-border-{{ zone.level }}">
+      <div class="traffic-left">
+        <span class="traffic-avatar traffic-avatar-{{ zone.level }}">{{ zone.code }}</span>
+        <div class="traffic-info">
+          <strong>Zona {{ zone.code }} · {{ zone.display_name }}</strong>
+          <span class="traffic-time">{{ zone.dwell_minutes|floatformat:1 }} min de permanencia · {{ zone.tables_label }}</span>
+          <span class="zone-meter" aria-hidden="true"><span class="zone-meter-fill meter-{{ zone.level }}" style="width: {{ zone.saturation_pct }}%"></span></span>
+        </div>
+      </div>
+      <div class="traffic-right">
+        {% if zone.level == 'normal' %}
+          <span class="traffic-pill pill-normal">🟢 Rápido</span>
+        {% elif zone.level == 'moderada' %}
+          <span class="traffic-pill pill-moderada">🟡 Moderado</span>
+        {% else %}
+          <span class="traffic-pill pill-critica">🔴 Con demora</span>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>

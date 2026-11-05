@@ -38,6 +38,12 @@ class TableState(models.Model):
         return f'{self.code} {self.state}'
 
 
+def readable_table_name(code: str) -> str:
+    """Convierte códigos como 'mesa08' o 'mesa_01_02' en 'Mesa 08' o 'Mesa 01+02'."""
+    parts = code.lower().replace('mesa', '', 1).strip('_').split('_')
+    return f"Mesa {'+'.join(parts)}" if code.lower().startswith('mesa') else code.title()
+
+
 class Zone(models.Model):
     """Nivel de saturación y tiempo de permanencia por zona del salón."""
     LEVEL_CHOICES = [
@@ -81,6 +87,14 @@ class RouteConsultation(models.Model):
     congested = models.BooleanField(default=False)
     completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def origin_label(self):
+        return self.origin.title()
+
+    @property
+    def destination_label(self):
+        return readable_table_name(self.destination)
 
     def __str__(self):
         return f'{self.origin} → {self.destination}'

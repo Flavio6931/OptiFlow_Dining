@@ -9,16 +9,19 @@ from django.shortcuts import render
 
 from ..models import RouteConsultation, TableState, VisionAnalysis, Zone
 from ..services import LOCAL_KEY_PREFIX, get_s3_presigned_url, s3_connection_status
-from .helpers import SUPERVISOR_ROLES, page_context, role_required
+from .helpers import SUPERVISOR_ROLES, page_context, role_required, routes_today
+
+DASHBOARD_FEED_SIZE = 6
 
 
 @login_required
 def dashboard(request):
     """Panel principal con métricas operativas y estado en tiempo real del salón."""
     context = page_context(request, 'Panel principal', 'dashboard')
-    routes = RouteConsultation.objects.count()
-    completed_routes = RouteConsultation.objects.filter(completed=True).count()
-    recalculated = RouteConsultation.objects.filter(recalculated=True).count()
+    today = routes_today()
+    routes = today.count()
+    completed_routes = today.filter(completed=True).count()
+    recalculated = today.filter(recalculated=True).count()
     congestion = Zone.objects.filter(level='critica').count()
 
     tables = list(TableState.objects.all())
@@ -28,17 +31,15 @@ def dashboard(request):
     tables_occupied = sum(1 for t in tables if t.state == 'ocupada')
     occupancy_pct = round((tables_occupied / tables_total * 100), 1) if tables_total > 0 else 0
 
-    zones = list(Zone.objects.order_by('code'))
+    zones = context['zones']
     zones_normal = sum(1 for z in zones if z.level == 'normal')
-    for z in zones:
-        z.saturation_pct = min(100, max(12, int((z.dwell_minutes / 5.0) * 100)))
 
     recent_vision = VisionAnalysis.objects.order_by('-created_at').first()
     efficiency_rate = round(((routes - recalculated) / routes) * 100, 1) if routes > 0 else 100.0
 
     user_role = context['role']
     last_routes = list(
-        RouteConsultation.objects.select_related('user', 'assigned_waiter').order_by('-created_at')[:8]
+        RouteConsultation.objects.select_related('user', 'assigned_waiter').order_by('-created_at')[:DASHBOARD_FEED_SIZE]
     )
     assigned_to_me = []
     if user_role == 'mesero':
@@ -51,6 +52,7 @@ def dashboard(request):
     context.update({
         'total_routes': routes,
         'completed_routes': completed_routes,
+        'open_routes': routes - completed_routes,
         'recalculated': recalculated,
         'route_efficiency': efficiency_rate,
         'congestion_count': congestion,
@@ -130,26 +132,26 @@ def saturation_view(request):
 def analytics_view(request):
     """Vista de indicadores operativos para gerencia y jefatura de meseros."""
     context = page_context(request, 'Indicadores operativos', 'analytics')
-    totals = RouteConsultation.objects.count()
-    completed = RouteConsultation.objects.filter(completed=True).count()
-    recalculated = RouteConsultation.objects.filter(recalculated=True).count()
+    today = routes_today()
+    totals = today.count()
+    completed = today.filter(completed=True).count()
+    recalculated = today.filter(recalculated=True).count()
     direct_routes = max(0, totals - recalculated)
     direct_pct = round((direct_routes / totals * 100), 1) if totals > 0 else 100.0
     completion_rate = round((completed / totals * 100), 1) if totals > 0 else 100.0
 
-    entregas = RouteConsultation.objects.filter(task_type='entrega').count()
-    retiros = RouteConsultation.objects.filter(task_type='retiro').count()
+    entregas = today.filter(task_type='entrega').count()
+    retiros = today.filter(task_type='retiro').count()
+    entregas_pct = round(entregas / totals * 100, 1) if totals > 0 else 0
 
-    distance_agg = RouteConsultation.objects.aggregate(avg_dist=Avg('distance'), total_dist=Sum('distance'))
+    distance_agg = today.aggregate(avg_dist=Avg('distance'), total_dist=Sum('distance'))
     avg_distance = round(distance_agg['avg_dist'] or 0, 1)
     total_distance = distance_agg['total_dist'] or 0
 
-    zones = list(Zone.objects.order_by('code'))
+    zones = context['zones']
     critical_count = sum(1 for z in zones if z.level == 'critica')
     zones_normal_count = sum(1 for z in zones if z.level == 'normal')
     avg_dwell = round(sum(z.dwell_minutes for z in zones) / len(zones), 1) if zones else 0.0
-    for z in zones:
-        z.saturation_pct = min(100, max(10, int((z.dwell_minutes / 5.0) * 100)))
 
     tables = list(TableState.objects.all())
     tables_total = len(tables)
@@ -182,6 +184,10 @@ def analytics_view(request):
         'avg_dwell': avg_dwell,
         'entregas_count': entregas,
         'retiros_count': retiros,
+        'entregas_pct': entregas_pct,
+        'recalculated_pct': round(100 - direct_pct, 1),
+        'retiros_pct': round(100 - entregas_pct, 1) if totals > 0 else 0,
+        'open_routes': totals - completed,
         'avg_distance': avg_distance,
         'total_distance': total_distance,
         'tables_total': tables_total,

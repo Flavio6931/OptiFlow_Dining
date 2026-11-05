@@ -5,12 +5,42 @@
   <div>
     <div class="eyebrow dark-eyebrow">MI CUENTA · GESTIÓN OPERATIVA</div>
     <h1>Perfil y Datos de Cuenta <span class="heading-accent">✦</span></h1>
-    <p>Supervisa tu información de acceso, tu rol asignado en el salón y tus métricas de servicio.</p>
+    <p>Tu cuenta, tu actividad y, si administras, el equipo y los avisos.</p>
   </div>
-  <div class="header-pill">
-    <span class="role-badge role-{{ role }}">{{ role|upper }}</span>
-    <span>Cuenta Verificada</span>
+  <div class="header-status-pill">
+    <span class="live-beacon-dot"></span>
+    <span>Cuenta activa</span>
   </div>
+</div>
+
+<div class="profile-kpi-strip">
+  <div class="profile-kpi-card">
+    <span class="profile-kpi-val text-green" id="kpi-profile-completed">{{ total_completed }}</span>
+    <span class="profile-kpi-lbl">Rutas finalizadas</span>
+  </div>
+  <div class="profile-kpi-card">
+    <span class="profile-kpi-val text-orange">{{ total_assigned }}</span>
+    <span class="profile-kpi-lbl">Rutas asignadas</span>
+  </div>
+  {% if role == 'admin' or role == 'capitan' or role == 'gerente' %}
+    <div class="profile-kpi-card">
+      <span class="profile-kpi-val text-blue">{{ admin_stats.total_waiters }}</span>
+      <span class="profile-kpi-lbl">Meseros registrados</span>
+    </div>
+    <div class="profile-kpi-card">
+      <span class="profile-kpi-val text-purple">{{ admin_stats.unread_notifications }}</span>
+      <span class="profile-kpi-lbl">Avisos sin leer</span>
+    </div>
+  {% else %}
+    <div class="profile-kpi-card">
+      <span class="profile-kpi-val text-yellow" id="kpi-profile-pending">{{ assigned_pending }}</span>
+      <span class="profile-kpi-lbl">Tareas pendientes</span>
+    </div>
+    <div class="profile-kpi-card">
+      <span class="profile-kpi-val text-blue">{{ total_routes }}</span>
+      <span class="profile-kpi-lbl">Rutas consultadas</span>
+    </div>
+  {% endif %}
 </div>
 
 <div class="two-column profile-grid">
@@ -24,26 +54,14 @@
         <div class="profile-title-stack">
           <h2>{% if profile_user.is_superuser %}Administrador Principal{% elif profile_user.first_name %}{{ profile_user.get_full_name }}{% else %}{{ profile_user.username|title }}{% endif %}</h2>
           <span class="profile-username-tag">@{{ profile_user.username }}</span>
-          <span class="status-pill {% if role == 'admin' %}critica{% elif role == 'capitan' %}moderada{% else %}normal{% endif %}">
-            {{ role|upper }} · SALÓN PRINCIPAL
-          </span>
+          <span class="status-pill {% if role == 'admin' %}critica{% elif role == 'capitan' %}moderada{% else %}normal{% endif %}">{{ role_label }}</span>
         </div>
       </div>
 
       <div class="profile-details-list">
         <div class="profile-detail-item">
-          <span class="detail-label">Nombre Completo</span>
-          <strong>{% if profile_user.is_superuser %}Administrador Principal{% elif profile_user.first_name %}{{ profile_user.get_full_name }}{% else %}{{ profile_user.username|title }}{% endif %}</strong>
-        </div>
-
-        <div class="profile-detail-item">
           <span class="detail-label">Correo Electrónico</span>
           <strong>{{ profile_user.email|default:"admin@optiflow.local" }}</strong>
-        </div>
-
-        <div class="profile-detail-item">
-          <span class="detail-label">Rol Operativo</span>
-          <strong class="text-capitalize">{{ role }}</strong>
         </div>
 
         <div class="profile-detail-item">
@@ -53,21 +71,15 @@
 
         <div class="profile-detail-item">
           <span class="detail-label">Estado de Cuenta</span>
-          <span class="account-active-badge">● Habilitada para el Turno</span>
+          <span class="account-active-badge">● Activa</span>
         </div>
       </div>
     </div>
 
     <!-- Tarjeta de Edición Libre de Datos Personales (Req 7) -->
     <div class="panel-card profile-edit-card" style="margin-bottom: 0;">
-      <div class="card-heading">
-        <div>
-          <h3>Editar Datos Personales</h3>
-          <p>Actualiza tu nombre y correo en la plataforma</p>
-        </div>
-        <span class="micro-label">DATOS</span>
-      </div>
-
+      <details class="profile-edit-details">
+      <summary>Editar mis datos</summary>
       <form method="post" action="{% url 'profile' %}" class="profile-edit-form">
         {% csrf_token %}
         <div class="form-row-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
@@ -89,58 +101,17 @@
         <div class="role-shield-note" style="display: flex; align-items: center; gap: 8px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
           <span style="font-size: 16px;">🔒</span>
           <small style="color: var(--text-dim, #94a3b8); font-size: 11px;">
-            <strong>Blindaje de Seguridad:</strong> Tu rol operativo (<strong>{{ role|upper }}</strong>) está protegido y no puede ser auto-modificado.
+            Tu rol (<strong>{{ role_label }}</strong>) solo puede cambiarlo un administrador.
           </small>
         </div>
 
         <button type="submit" class="btn btn-primary btn-sm profile-save-btn" style="width: 100%;">
-          Guardar Mis Datos ➔
+          Guardar mis datos
         </button>
       </form>
+      </details>
     </div>
 
-    <!-- Resumen de Métricas Operativas (Cuadrícula Equilibrada 2x2) -->
-    <div class="panel-card profile-kpi-panel">
-      <div class="card-heading">
-        <div>
-          <h3>Métricas Operativas</h3>
-          <p>Rendimiento en el servicio del salón</p>
-        </div>
-        <span class="micro-label">TURNO</span>
-      </div>
-
-      <div class="profile-kpi-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); row-gap: 12px; column-gap: 12px; margin-top: 14px;">
-        <div class="profile-kpi-card">
-          <span class="profile-kpi-val text-green" id="kpi-profile-completed">{{ total_completed }}</span>
-          <span class="profile-kpi-lbl">Rutas Atendidas</span>
-        </div>
-
-        <div class="profile-kpi-card">
-          <span class="profile-kpi-val text-orange">{{ total_assigned }}</span>
-          <span class="profile-kpi-lbl">Asignadas por Admin</span>
-        </div>
-
-        {% if role == 'admin' or role == 'capitan' or role == 'gerente' %}
-          <div class="profile-kpi-card">
-            <span class="profile-kpi-val text-blue">{{ admin_stats.total_waiters }}</span>
-            <span class="profile-kpi-lbl">Meseros en Turno</span>
-          </div>
-          <div class="profile-kpi-card">
-            <span class="profile-kpi-val text-purple">{{ admin_stats.unread_notifications }}</span>
-            <span class="profile-kpi-lbl">Avisos Pendientes</span>
-          </div>
-        {% else %}
-          <div class="profile-kpi-card">
-            <span class="profile-kpi-val text-yellow" id="kpi-profile-pending">{{ assigned_pending }}</span>
-            <span class="profile-kpi-lbl">Tareas Pendientes</span>
-          </div>
-          <div class="profile-kpi-card">
-            <span class="profile-kpi-val text-blue">{{ total_routes }}</span>
-            <span class="profile-kpi-lbl">Consultas Totales</span>
-          </div>
-        {% endif %}
-      </div>
-    </div>
   </div>
 
   <!-- Columna 2: Avisos Administrativos o Rutas Asignadas -->
@@ -150,20 +121,18 @@
       <div class="panel-card profile-staff-management" style="margin-bottom: 16px;">
         <div class="card-heading">
           <div>
-            <h3>Gestión de Personal y Promoción de Roles</h3>
-            <p>Habilita el rol de <strong>Jefe de Meseros (Capitán)</strong> o reasigna funciones de equipo</p>
+            <h3>Equipo y roles</h3>
+            <p>Elige el rol de cada persona y pulsa Guardar</p>
           </div>
-          <span class="micro-label">ADMIN</span>
         </div>
 
         <div class="simple-table-wrapper">
           <table class="simple-table">
             <thead>
               <tr>
-                <th>Usuario</th>
-                <th>Rol Actual</th>
-                <th>Asignar Rol</th>
-                <th>Acción</th>
+                <th>Persona</th>
+                <th>Rol</th>
+                <th>Guardar</th>
               </tr>
             </thead>
             <tbody>
@@ -172,9 +141,7 @@
                   <td>
                     <strong>@{{ staff.username }}</strong>
                     <small style="display: block; color: var(--text-dim, #94a3b8);">{{ staff.get_full_name|default:"Sin nombre registrado" }}</small>
-                  </td>
-                  <td>
-                    <span class="status-pill {% if staff.profile.role == 'capitan' %}moderada{% elif staff.profile.role == 'gerente' %}critica{% else %}normal{% endif %}" id="user-role-pill-{{ staff.id }}">
+                    <span class="status-pill staff-role-pill {% if staff.profile.role == 'capitan' %}moderada{% elif staff.profile.role == 'gerente' %}critica{% else %}normal{% endif %}" id="user-role-pill-{{ staff.id }}">
                       {{ staff.profile.get_role_display|default:"Mesero / Runner" }}
                     </span>
                   </td>
@@ -189,13 +156,13 @@
                   </td>
                   <td>
                     <button type="button" class="btn btn-sm btn-outline btn-save-role" data-user-id="{{ staff.id }}">
-                      Guardar ➔
+                      Guardar
                     </button>
                   </td>
                 </tr>
               {% empty %}
                 <tr>
-                  <td colspan="4" class="empty-table">No hay otras cuentas registradas en el sistema.</td>
+                  <td colspan="3" class="empty-table">No hay otras cuentas registradas en el sistema.</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -209,10 +176,9 @@
       <div class="panel-card profile-admin-notifs">
         <div class="card-heading">
           <div>
-            <h3>Centro de Avisos y Notificaciones</h3>
-            <p>Registro de nuevas cuentas de meseros y eventos del sistema</p>
+            <h3>Avisos</h3>
+            <p>Nuevas cuentas de meseros y eventos del sistema</p>
           </div>
-          <span class="micro-label">ADMIN</span>
         </div>
 
         <div class="profile-notifs-feed">
@@ -222,14 +188,12 @@
                 <span class="notif-pill-icon">🔔</span>
                 <div class="notif-title-box">
                   <strong>{{ notif.title }}</strong>
-                  <small>{{ notif.created_at|date:'d/m/Y H:i' }} ({{ notif.created_at|timesince }} atrás)</small>
+                  <small>{{ notif.created_at|date:'d/m/Y H:i' }} · hace {{ notif.created_at|timesince }}</small>
                 </div>
                 {% if not notif.read %}
-                  <button type="button" class="btn btn-outline-sm btn-mark-read" data-notif-id="{{ notif.id }}">
-                    Marcar leída ✔
-                  </button>
+                  <button type="button" class="btn-mark-read" data-notif-id="{{ notif.id }}">✓ Marcar como leído</button>
                 {% else %}
-                  <span class="read-stamp">Leída</span>
+                  <span class="read-stamp">Leído</span>
                 {% endif %}
               </div>
               <p class="notif-card-body">{{ notif.message }}</p>
@@ -280,8 +244,7 @@
     <!-- Historial Reciente de Actividad -->
     <div class="panel-card activity-card">
       <div class="card-heading">
-        <h3>Historial Reciente de Servicios</h3>
-        <span class="micro-label">REGISTROS</span>
+        <h3>Mis últimos servicios</h3>
       </div>
       <div class="simple-table-wrapper">
         <table class="simple-table">
@@ -296,7 +259,7 @@
           <tbody>
             {% for item in recent_activity %}
               <tr>
-                <td><strong>{{ item.origin|upper }} ➔ {{ item.destination|upper }}</strong></td>
+                <td><strong>{{ item.origin_label }} → {{ item.destination_label }}</strong></td>
                 <td>{{ item.get_task_type_display }}</td>
                 <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
                 <td>

@@ -1,11 +1,13 @@
 """Utilidades de autorización por rol, contexto común de plantillas y resolución de avisos."""
 import json
+import re
 import socket
 from functools import wraps
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponseForbidden
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -63,6 +65,35 @@ def notifications_queryset_for(user):
     return AdminNotification.objects.filter(Q(recipient=user) | Q(recipient__isnull=True))
 
 
+ZONE_NAMES = {'A': 'Salón Jardín', 'B': 'Pasillo Central', 'C': 'Salón Terraza'}
+ROLE_LABELS = {'admin': 'Administrador', 'capitan': 'Capitán', 'gerente': 'Gerente', 'mesero': 'Mesero'}
+SATURATION_FULL_MINUTES = 5.0
+SATURATION_MIN_PCT = 8
+
+
+def table_short_label(table: dict) -> str:
+    """Devuelve el número visible de una mesa: 'Mesa 01+02 (Grupo)' pasa a '01+02'."""
+    label = str(table.get('label', table.get('id', '')))
+    return re.sub(r'^mesa\s*|\s*\(grupo\)$', '', label, flags=re.IGNORECASE)
+
+
+def zones_with_details(layout: dict) -> list:
+    """Zonas con nombre, mesas del plano vigente y porcentaje para su medidor."""
+    zones = list(Zone.objects.order_by('code'))
+    for zone in zones:
+        numbers = [table_short_label(t) for t in layout.get('tables', []) if t.get('zone') == zone.code]
+        zone.display_name = ZONE_NAMES.get(zone.code, '')
+        zone.tables_label = f"Mesas {', '.join(numbers)}" if numbers else 'Sin mesas'
+        fill = int(zone.dwell_minutes / SATURATION_FULL_MINUTES * 100)
+        zone.saturation_pct = min(100, max(SATURATION_MIN_PCT, fill))
+    return zones
+
+
+def routes_today():
+    """Consultas de ruta creadas hoy en la zona horaria del restaurante."""
+    return RouteConsultation.objects.filter(created_at__date=timezone.localdate())
+
+
 def resolve_lan_ip() -> str:
     """Obtiene la IP privada Wi-Fi/LAN prioritaria del host para acceso móvil directo."""
     try:
@@ -113,7 +144,8 @@ def page_context(request, page_title: str, active: str) -> dict:
         'display_name': full_name,
         'layout': layout,
         'layout_json': json.dumps(layout, ensure_ascii=False),
-        'zones': list(Zone.objects.order_by('code')),
+        'zones': zones_with_details(layout),
+        'role_label': ROLE_LABELS.get(user_role, ''),
         'tables_state': tables_state,
         'tables_map': states_dict,  # Renderizar SIEMPRE con |json_script (nunca json.dumps + |safe)
         'unread_notifications_count': unread_notifications_count,

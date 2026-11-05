@@ -230,11 +230,6 @@ button:disabled {
   margin-top: 4px;
 }
 
-.workspace-caret {
-  margin-left: auto;
-  color: #b9c7dc;
-  font-size: 20px;
-}
 
 .nav-label {
   font-size: 10px;

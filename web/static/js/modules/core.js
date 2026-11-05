@@ -302,7 +302,7 @@
         const pill = $(`#user-role-pill-${userId}`);
         if (pill) {
           pill.textContent = res.new_role_display;
-          pill.className = `status-pill ${newRole === 'admin' || newRole === 'gerente' ? 'critica' : newRole === 'capitan' ? 'moderada' : 'normal'}`;
+          pill.className = `status-pill staff-role-pill ${newRole === 'admin' || newRole === 'gerente' ? 'critica' : newRole === 'capitan' ? 'moderada' : 'normal'}`;
         }
       } catch (err) {
         toast(err.message || 'No se pudo actualizar el rol.', 'error');

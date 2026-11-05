@@ -1,5 +1,6 @@
 import json
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,10 +8,12 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from optiflow import urls
 
 from .models import Profile, RouteConsultation, TableState, VisionAnalysis, Zone
 from .services import ServiceUnavailable
+from .views.helpers import zones_with_details
 
 NO_STORAGE = {'storage': 'none', 'key': '', 'bucket': '', 'error': ''}
 S3_DISABLED = {'state': 'disabled', 'icon': '⚪', 'label': 'No configurado', 'bucket': '', 'region': '', 'reason': ''}
@@ -1160,3 +1163,61 @@ class LocalMediaAccessTests(TestCase):
     def test_path_traversal_is_rejected(self):
         self.client.force_login(User.objects.create_user('foto_user2', password='x'))
         self.assertEqual(self.client.get('/media/../settings.py').status_code, 400)
+
+
+class OperationalScreensTests(TestCase):
+    """Los paneles cuentan solo el día actual y muestran datos legibles."""
+
+    def setUp(self):
+        Zone.objects.create(code='A', level='normal', dwell_minutes=0.8)
+        self.manager = User.objects.create_user('gerente_ops', password='x')
+        Profile.objects.update_or_create(user=self.manager, defaults={'role': 'gerente'})
+        self.client.force_login(self.manager)
+
+    def _route(self, days_ago=0, **fields):
+        route = RouteConsultation.objects.create(
+            user=self.manager, origin='cocina', destination='mesa08', distance=5, **fields
+        )
+        if days_ago:
+            RouteConsultation.objects.filter(pk=route.pk).update(
+                created_at=timezone.now() - timedelta(days=days_ago)
+            )
+        return route
+
+    def test_dashboard_counts_only_todays_routes(self):
+        self._route(completed=True)
+        self._route()
+        self._route(days_ago=3, completed=True)
+        context = self.client.get(reverse('dashboard')).context
+        self.assertEqual(context['total_routes'], 2)
+        self.assertEqual(context['completed_routes'], 1)
+        self.assertEqual(context['open_routes'], 1)
+
+    def test_analytics_counts_only_todays_routes(self):
+        self._route(recalculated=True)
+        self._route(days_ago=2)
+        context = self.client.get(reverse('analytics')).context
+        self.assertEqual(context['total_routes'], 1)
+        self.assertEqual(context['recalculated'], 1)
+        self.assertEqual(context['direct_routes'], 0)
+
+    def test_route_labels_are_readable(self):
+        self.assertEqual(RouteConsultation(origin='cocina', destination='mesa08').destination_label, 'Mesa 08')
+        self.assertEqual(RouteConsultation(origin='cocina', destination='mesa_01_02').destination_label, 'Mesa 01+02')
+        self.assertEqual(RouteConsultation(origin='cocina', destination='mesa08').origin_label, 'Cocina')
+
+    def test_zone_details_use_current_layout_tables(self):
+        layout = {'tables': [
+            {'id': 'mesa01', 'label': 'Mesa 01', 'zone': 'A'},
+            {'id': 'mesa_05_06', 'label': 'Mesa 05+06 (Grupo)', 'zone': 'A'},
+            {'id': 'mesa02', 'label': 'Mesa 02', 'zone': 'B'},
+        ]}
+        zone = zones_with_details(layout)[0]
+        self.assertEqual(zone.display_name, 'Salón Jardín')
+        self.assertEqual(zone.tables_label, 'Mesas 01, 05+06')
+        self.assertEqual(zone.saturation_pct, 16)
+
+    def test_saturation_shows_minutes_with_one_decimal(self):
+        html = self.client.get(reverse('saturation')).content.decode()
+        self.assertIn('value="0.8"', html)
+        self.assertNotIn('0.800000', html)

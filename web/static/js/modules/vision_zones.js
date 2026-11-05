@@ -290,8 +290,8 @@
         banner.innerHTML = `
           <svg class="ic"><use href="#i-alert"/></svg>
           <div>
-            <strong>Congestión crítica · Nodo de la zona ${escapeHtml(code)}</strong>
-            <span>Permanencia registrada: ${Number(dwell).toFixed(1)} minutos. Supera el umbral de 4 minutos.</span>
+            <strong>Zona ${escapeHtml(code)} con congestión crítica</strong>
+            <span>${Number(dwell).toFixed(1)} minutos de permanencia: supera el límite de 4 minutos.</span>
           </div>
         `;
         alertsContainer.prepend(banner);
@@ -457,6 +457,13 @@
     $('#vision-aws-warning').textContent = data.aws_warning || '';
   }
 
+  // Los mismos límites valida el servidor al guardar una zona.
+  const ZONE_NORMAL_MAX_MIN = 2;
+  const ZONE_MODERATE_MAX_MIN = 4;
+  const ZONE_MAX_MINUTES = 240;
+  const ZONE_LEVEL_DEFAULT_MIN = { normal: 1, moderada: 3, critica: 4.5 };
+  const ZONE_SAVE_DELAY_MS = 500;
+
   /** Inicializa formularios de saturación zonal y captura/carga de imágenes OpenCV. */
   function initVisionZones() {
     window.switchVisionTab = function switchVisionTab(mode) {
@@ -477,70 +484,80 @@
       }
     };
 
-    $$('.zone-save').forEach((btn) =>
-      btn.addEventListener('click', async () => {
-        const code = btn.dataset.zone;
-        const levelVal = $(`#level-${code}`).value;
-        const dwellVal = Number($(`#dwell-${code}`).value);
+    const zoneSaveTimers = {};
 
-        if (levelVal === 'critica' && dwellVal <= 4.0) {
-          toast('Una zona solo puede clasificarse como Crítica si supera 4.0 minutos.', 'error');
-          $(`#dwell-${code}`).focus();
-          return;
-        }
-        if (levelVal === 'normal' && dwellVal > 2.0) {
-          toast('Una zona con permanencia superior a 2.0 min no puede ser Normal.', 'error');
-          $(`#dwell-${code}`).focus();
-          return;
-        }
-        if (levelVal === 'moderada' && (dwellVal <= 2.0 || dwellVal > 4.0)) {
-          toast('Una zona Moderada debe estar entre 2.1 y 4.0 minutos.', 'error');
-          $(`#dwell-${code}`).focus();
-          return;
-        }
+    const showZoneState = (code, message, stateClass = '') => {
+      const state = $(`#zone-state-${code}`);
+      if (!state) return;
+      state.textContent = message;
+      state.className = `zone-save-state ${stateClass}`.trim();
+    };
 
-        try {
-          const res = await postJSON(`/api/zonas/${code}/`, {
-            level: levelVal,
-            dwell_minutes: dwellVal,
-          });
-          toast(`Zona ${code} actualizada correctamente.`, 'success');
-          updateZoneUI(code, levelVal, dwellVal, res.alert);
-        } catch (err) {
-          toast(err.message, 'error');
-        }
-      })
-    );
+    const syncLevelButtons = (code) => {
+      const level = $(`#level-${code}`)?.value;
+      $$(`.level-segment[data-zone="${code}"] .level-option`).forEach((option) => {
+        option.setAttribute('aria-pressed', String(option.dataset.level === level));
+      });
+    };
 
+    const saveZone = async (code) => {
+      const level = $(`#level-${code}`).value;
+      const dwell = Number($(`#dwell-${code}`).value);
+      showZoneState(code, 'Guardando…');
+      try {
+        const res = await postJSON(`/api/zonas/${code}/`, { level, dwell_minutes: dwell });
+        updateZoneUI(code, level, dwell, res.alert);
+        showZoneState(code, `✓ Guardado: ${dwell.toFixed(1)} min`, 'is-saved');
+      } catch (err) {
+        showZoneState(code, 'No se pudo guardar', 'is-error');
+        toast(err.message, 'error');
+      }
+    };
+
+    const scheduleZoneSave = (code) => {
+      clearTimeout(zoneSaveTimers[code]);
+      showZoneState(code, 'Guardando…');
+      zoneSaveTimers[code] = setTimeout(() => saveZone(code), ZONE_SAVE_DELAY_MS);
+    };
+
+    const levelForMinutes = (minutes) => {
+      if (minutes <= ZONE_NORMAL_MAX_MIN) return 'normal';
+      return minutes <= ZONE_MODERATE_MAX_MIN ? 'moderada' : 'critica';
+    };
+
+    // Los minutos determinan el nivel; elegir un nivel lleva a un valor típico de su rango.
     $$('input[id^="dwell-"]').forEach((input) => {
+      const code = input.id.replace('dwell-', '');
       input.addEventListener('input', () => {
-        const val = parseFloat(input.value);
-        const code = input.id.replace('dwell-', '');
+        const minutes = parseFloat(input.value);
         const select = $(`#level-${code}`);
-        if (!Number.isNaN(val) && select) {
-          if (val <= 2.0) select.value = 'normal';
-          else if (val <= 4.0) select.value = 'moderada';
-          else select.value = 'critica';
-        }
+        if (Number.isNaN(minutes) || minutes < 0 || !select) return;
+        select.value = levelForMinutes(minutes);
+        syncLevelButtons(code);
+        scheduleZoneSave(code);
       });
     });
 
-    $$('select[id^="level-"]').forEach((select) => {
-      select.addEventListener('change', () => {
-        const code = select.id.replace('level-', '');
-        const dwellInput = $(`#dwell-${code}`);
-        if (!dwellInput) return;
-        const dwell = parseFloat(dwellInput.value);
-        if (select.value === 'critica' && (Number.isNaN(dwell) || dwell <= 4.0)) {
-          dwellInput.value = '4.5';
-          toast(`Zona ${code}: tiempo ajustado a 4.5 min para rango Crítico (> 4 min).`, 'info');
-        } else if (select.value === 'moderada' && (Number.isNaN(dwell) || dwell <= 2.0 || dwell > 4.0)) {
-          dwellInput.value = '3.0';
-          toast(`Zona ${code}: tiempo ajustado a 3.0 min para rango Moderado (2.1 a 4 min).`, 'info');
-        } else if (select.value === 'normal' && (Number.isNaN(dwell) || dwell > 2.0)) {
-          dwellInput.value = '1.0';
-          toast(`Zona ${code}: tiempo ajustado a 1.0 min para rango Normal (<= 2 min).`, 'info');
+    $$('.dwell-step').forEach((step) => {
+      step.addEventListener('click', () => {
+        const input = $(`#dwell-${step.dataset.zone}`);
+        const next = (parseFloat(input.value) || 0) + Number(step.dataset.step);
+        input.value = Math.min(ZONE_MAX_MINUTES, Math.max(0, next)).toFixed(1);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
+
+    $$('.level-option').forEach((option) => {
+      option.addEventListener('click', () => {
+        const code = option.closest('.level-segment').dataset.zone;
+        const input = $(`#dwell-${code}`);
+        const level = option.dataset.level;
+        $(`#level-${code}`).value = level;
+        if (levelForMinutes(parseFloat(input.value) || 0) !== level) {
+          input.value = ZONE_LEVEL_DEFAULT_MIN[level].toFixed(1);
         }
+        syncLevelButtons(code);
+        scheduleZoneSave(code);
       });
     });
 

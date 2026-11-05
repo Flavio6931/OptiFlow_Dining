@@ -5,7 +5,7 @@
   <div>
     <div class="eyebrow dark-eyebrow">M3 · CONTROL DE CONGESTIÓN</div>
     <h1>Saturación del salón</h1>
-    <p>Supervisa niveles, tiempos de permanencia y puntos críticos.</p>
+    <p>Elige el nivel o ajusta los minutos de cada zona. Los cambios se guardan solos.</p>
   </div>
   <span class="header-pill">● 3 zonas monitoreadas</span>
 </div>
@@ -15,11 +15,8 @@
     <div class="alert-banner" id="alert-banner-{{ zone.code }}">
       <svg class="ic"><use href="#i-alert"/></svg>
       <div>
-        <strong>Congestión crítica · Nodo de la zona {{ zone.code }}</strong>
-        <span>
-          Permanencia registrada: {{ zone.dwell_minutes|floatformat:1 }} minutos.
-          Supera el umbral de 4 minutos definido en los requisitos.
-        </span>
+        <strong>Zona {{ zone.code }} con congestión crítica</strong>
+        <span>{{ zone.dwell_minutes|floatformat:1 }} minutos de permanencia: supera el límite de 4 minutos.</span>
       </div>
     </div>
   {% endfor %}
@@ -31,9 +28,8 @@
     <div class="card-heading">
       <div>
         <h2>Control por zonas</h2>
-        <p>Información operacional registrada</p>
+        <p>Normal hasta 2 min · Moderada hasta 4 min · Crítica más de 4 min</p>
       </div>
-      <span class="step-bubble">M3</span>
     </div>
 
     <div class="zone-control-list">
@@ -42,46 +38,36 @@
           <div class="zone-item-head">
             <span class="zone-letter">{{ zone.code }}</span>
             <div>
-              <strong>
-                Zona {{ zone.code }} · 
-                {% if zone.code == 'A' %}Salón Jardín{% elif zone.code == 'B' %}Pasillo Central{% else %}Salón Terraza{% endif %}
-              </strong>
-              <small>
-                {% if zone.code == 'A' %}Sector izquierdo · Mesas 01 y 05{% elif zone.code == 'B' %}Sector central · Mesas 02 y 06{% else %}Sector derecho · Mesas 03, 04, 07 y 08{% endif %}
-              </small>
+              <strong>Zona {{ zone.code }} · {{ zone.display_name }}</strong>
+              <small>{{ zone.tables_label }}</small>
             </div>
             <span class="status-pill {{ zone.level }}" id="zone-pill-{{ zone.code }}">{{ zone.get_level_display }}</span>
           </div>
 
-          <div class="zone-item-fields">
-            <label for="level-{{ zone.code }}">
-              Nivel de saturación
-              <select id="level-{{ zone.code }}" {% if role != 'capitan' and role != 'admin' %}disabled{% endif %}>
-                <option value="normal" {% if zone.level == 'normal' %}selected{% endif %}>Normal</option>
-                <option value="moderada" {% if zone.level == 'moderada' %}selected{% endif %}>Moderada</option>
-                <option value="critica" {% if zone.level == 'critica' %}selected{% endif %}>Crítica</option>
+          <div class="zone-control-row">
+            <div>
+              <span class="zone-control-label" id="level-label-{{ zone.code }}">Nivel</span>
+              <div class="level-segment" role="group" aria-labelledby="level-label-{{ zone.code }}" data-zone="{{ zone.code }}">
+                {% for value, label in zone.LEVEL_CHOICES %}
+                  <button type="button" class="level-option is-{{ value }}" data-level="{{ value }}" aria-pressed="{% if zone.level == value %}true{% else %}false{% endif %}" {% if role != 'capitan' and role != 'admin' %}disabled{% endif %}>{{ label }}</button>
+                {% endfor %}
+              </div>
+              <select id="level-{{ zone.code }}" hidden aria-hidden="true" tabindex="-1">
+                {% for value, label in zone.LEVEL_CHOICES %}
+                  <option value="{{ value }}" {% if zone.level == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
               </select>
-            </label>
-
-            <label for="dwell-{{ zone.code }}">
-              Permanencia (min)
-              <input
-                id="dwell-{{ zone.code }}"
-                type="number"
-                min="0"
-                max="240"
-                step="0.1"
-                value="{{ zone.dwell_minutes|stringformat:'f' }}"
-                {% if role != 'capitan' and role != 'admin' %}disabled{% endif %}
-              >
-            </label>
+            </div>
+            <div>
+              <label class="zone-control-label" for="dwell-{{ zone.code }}">Minutos</label>
+              <div class="dwell-stepper">
+                <button type="button" class="dwell-step" data-zone="{{ zone.code }}" data-step="-0.5" aria-label="Restar medio minuto a la zona {{ zone.code }}" {% if role != 'capitan' and role != 'admin' %}disabled{% endif %}>−</button>
+                <input id="dwell-{{ zone.code }}" type="number" min="0" max="240" step="0.1" value="{{ zone.dwell_minutes|stringformat:'.1f' }}" {% if role != 'capitan' and role != 'admin' %}disabled{% endif %}>
+                <button type="button" class="dwell-step" data-zone="{{ zone.code }}" data-step="0.5" aria-label="Sumar medio minuto a la zona {{ zone.code }}" {% if role != 'capitan' and role != 'admin' %}disabled{% endif %}>+</button>
+              </div>
+            </div>
           </div>
-
-          {% if role == 'capitan' or role == 'admin' %}
-            <button class="btn btn-ghost zone-save" type="button" data-zone="{{ zone.code }}">
-              Guardar cambios ↗
-            </button>
-          {% endif %}
+          <span class="zone-save-state" id="zone-state-{{ zone.code }}" role="status">{% if role != 'capitan' and role != 'admin' %}Solo lectura{% endif %}</span>
         </div>
       {% endfor %}
     </div>
@@ -103,15 +89,11 @@
           <div class="heat-zone heat-{{ zone.level }}" id="heat-zone-{{ zone.code }}" data-zone="{{ zone.code }}">
             <div class="heat-zone-header">
               <span class="heat-code">ZONA {{ zone.code }}</span>
-              <span class="heat-name">
-                {% if zone.code == 'A' %}Salón Jardín{% elif zone.code == 'B' %}Pasillo Central{% else %}Salón Terraza{% endif %}
-              </span>
+              <span class="heat-name">{{ zone.display_name }}</span>
             </div>
             <strong class="heat-level-text" id="heat-level-{{ zone.code }}">{{ zone.get_level_display }}</strong>
             <small class="heat-dwell-text" id="heat-dwell-{{ zone.code }}">{{ zone.dwell_minutes|floatformat:1 }} min de permanencia</small>
-            <div class="heat-tables-hint">
-              {% if zone.code == 'A' %}Mesas 01, 05{% elif zone.code == 'B' %}Mesas 02, 06{% else %}Mesas 03, 04, 07, 08{% endif %}
-            </div>
+            <div class="heat-tables-hint">{{ zone.tables_label }}</div>
           </div>
         {% endfor %}
       </div>
@@ -126,8 +108,8 @@
     <div class="info-box">
       <svg class="ic"><use href="#i-alert"/></svg>
       <p>
-        Una alerta se activa automáticamente cuando una zona registra más de 4 minutos de permanencia.
-        El algoritmo de ruteo Dijkstra evitará pasar por las zonas que se encuentren en estado Crítico.
+        Más de 4 minutos activa una alerta. Al calcular una ruta que cruce una zona crítica,
+        el mesero se detiene y puedes recalcularla para evitarla.
       </p>
     </div>
   </div>
