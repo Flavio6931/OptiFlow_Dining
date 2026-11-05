@@ -7094,3 +7094,38 @@ select,
     justify-content: center;
   }
 }
+
+/* Insignias: siempre en una sola línea, con icono y texto alineados. */
+.live-pill,
+.lan-topbar-pill,
+.system-status-indicator,
+.header-status-pill,
+.header-pill,
+.traffic-pill,
+.live-beacon-tag,
+.table-zone-pill,
+.kpi-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+  width: auto;
+}
+
+.live-pill {
+  gap: 7px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+
+.live-pill .radar-dot {
+  flex-shrink: 0;
+  margin: 0;
+}
