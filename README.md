@@ -8,12 +8,16 @@ Proyecto académico de **Construcción de Software**, construido sobre los docum
 
 Necesitas **Docker Desktop** (Windows, macOS) o Docker Engine con Compose.
 
+**En Windows:** da doble clic a `abrir_optiflow.cmd`. Abre Docker Desktop, levanta la aplicación y abre el navegador. La primera vez puede tardar varios minutos.
+
+**En otros sistemas, o desde una terminal:**
+
 ```bash
 # Desde la carpeta OptiFlow_Dining:
-python scripts/generate_env.py
-# Crea automáticamente .env con secretos aleatorios.
 docker compose up --build -d
 ```
+
+No hace falta un archivo `.env`: sin él la app funciona con **S3 desactivado** y las fotos se guardan solo en el servidor. Para activar S3, crear un administrador inicial o cambiar otros ajustes, genera el archivo con `python scripts/generate_env.py`, complétalo y vuelve a ejecutar `docker compose up -d --force-recreate`. Las claves de AWS nunca se suben a Git.
 
 Abre **http://localhost:8000**. Presiona **«Crear cuenta»** y regístrate. Un usuario nuevo tiene rol **Mesero / Runner**. Luego inicia sesión, entra a «Rutas de servicio», selecciona «Zona de cocina» y «Mesa 08» y calcula la ruta. Verás el mensaje de congestión; pulsa **«Recalcular ruta»** y después **«Finalizar tarea»**. El resultado queda guardado en la base de datos.
 

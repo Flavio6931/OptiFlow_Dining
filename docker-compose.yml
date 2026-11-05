@@ -3,7 +3,9 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false # Opcional: sin .env la app arranca con S3 desactivado.
     environment:
       ROUTING_SERVICE_URL: http://routing:8001
       VISION_SERVICE_URL: http://vision:8002
