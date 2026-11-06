@@ -148,7 +148,6 @@ Necesitas iniciar sesión y enviar la cookie de sesión y el token CSRF. En la i
 OptiFlow_Dining/
   docker-compose.yml         Orquestación de microservicios (Docker)
   iniciar.cmd                Lanzador automático local en Windows (Django + 2 FastAPI)
-  docs/                      Documentación (ARQUITECTURA.md) y guías de inicio
   scripts/generate_env.py    Crea el archivo .env
   .env.example               Variables de entorno de ejemplo
   .gitignore                 Exclusión de entorno local, cachés y variables sensibles
