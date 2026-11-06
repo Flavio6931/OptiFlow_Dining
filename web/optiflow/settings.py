@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / '.env')
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
 if not SECRET_KEY:
-    raise RuntimeError('Falta DJANGO_SECRET_KEY. Ejecuta python scripts/generate_env.py')
+    raise RuntimeError('Falta DJANGO_SECRET_KEY. Ejecuta python web/generate_env.py')
 DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 ALLOWED_HOSTS = [s.strip() for s in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if s.strip()]
 CSRF_TRUSTED_ORIGINS = [s.strip() for s in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',') if s.strip()]

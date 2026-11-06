@@ -19,7 +19,7 @@ Necesitas **Docker Desktop** (Windows, macOS) o Docker Engine con Compose.
 docker compose up --build -d
 ```
 
-No hace falta un archivo `.env`. Para activar S3, crear un administrador inicial o cambiar otros ajustes, genera el archivo con `python scripts/generate_env.py`, complétalo y vuelve a ejecutar `docker compose up -d --force-recreate`. Las claves de AWS nunca se suben a Git.
+No hace falta un archivo `.env`. Para activar S3, crear un administrador inicial o cambiar otros ajustes, genera el archivo con `python web/generate_env.py`, complétalo y vuelve a ejecutar `docker compose up -d --force-recreate`. Las claves de AWS nunca se suben a Git.
 
 Abre **http://localhost:8000**. Presiona **«Crear cuenta»** y regístrate. Un usuario nuevo tiene rol **Mesero / Runner**. Luego inicia sesión, entra a «Rutas de servicio», selecciona «Zona de cocina» y «Mesa 08» y calcula la ruta. Verás el mensaje de congestión; pulsa **«Recalcular ruta»** y después **«Finalizar tarea»**. El resultado queda guardado en la base de datos.
 
@@ -93,7 +93,7 @@ No coloques `AWS_ACCESS_KEY_ID` ni `AWS_SECRET_ACCESS_KEY` en archivos versionad
 Con Python 3.11 o superior, desde el directorio raíz:
 
 ```bash
-python scripts/generate_env.py
+python web/generate_env.py
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
@@ -148,11 +148,11 @@ Necesitas iniciar sesión y enviar la cookie de sesión y el token CSRF. En la i
 OptiFlow_Dining/
   docker-compose.yml         Orquestación de microservicios (Docker)
   iniciar.cmd                Lanzador automático local en Windows (Django + 2 FastAPI)
-  scripts/generate_env.py    Crea el archivo .env
   .env.example               Variables de entorno de ejemplo
   .gitignore                 Exclusión de entorno local, cachés y variables sensibles
   config/salon.json          Distribución y nodos del plano
   web/
+    generate_env.py         Crea el archivo .env
     optiflow/               Configuración y settings de Django
     core/views/             Paquete modular de vistas HTML, permisos y APIs REST DRF
     core/tests/             Pruebas automatizadas por tema

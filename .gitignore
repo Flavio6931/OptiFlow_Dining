@@ -10,6 +10,7 @@ staticfiles/
 .venv/
 scratch/
 docs/
+scripts/
 
 # Herramientas locales de desarrollo, memoria IA y editor
 .agents/

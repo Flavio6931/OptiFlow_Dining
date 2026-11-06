@@ -34,7 +34,7 @@ type nul > ".venv\.instalado"
 
 :env_check
 if exist ".env" goto port_check
-.venv\Scripts\python.exe scripts\generate_env.py --demo
+.venv\Scripts\python.exe web\generate_env.py --demo
 if errorlevel 1 goto install_error
 
 :port_check
