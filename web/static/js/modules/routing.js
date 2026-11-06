@@ -7,7 +7,49 @@
 
   let lastRouteId = null;
 
-  /** Despliega el modal explicativo de congestión con evidencia fotográfica OpenCV. */
+  /** Tarjeta con la última foto analizada, o un aviso si todavía no hay ninguna. */
+  function buildVisionEvidence(vision, zoneCode, zoneName) {
+    const heading = `
+      <div class="evidence-title">
+        <span class="evidence-icon">📷</span>
+        <strong>Evidencia Visual · Análisis OpenCV</strong>
+      </div>
+    `;
+    if (!vision?.image_url) {
+      return `
+        <div class="evidence-header">${heading}</div>
+        <p class="evidence-empty">Aún no hay una foto analizada. Cuando se analice una en Análisis OpenCV, aparecerá aquí.</p>
+      `;
+    }
+    const peopleInZone = vision.zone_counts?.[zoneCode] ?? 0;
+    return `
+      <div class="evidence-header">
+        ${heading}
+        <span class="evidence-tag">Afluencia: ${escapeHtml(peopleInZone)} en Sector ${escapeHtml(zoneCode)}</span>
+      </div>
+      <div class="evidence-image-frame">
+        <img src="${escapeHtml(vision.image_url)}" alt="Última foto analizada por OpenCV" class="evidence-img">
+        <div class="evidence-zone-overlay">
+          <span>Sector: <strong>${escapeHtml(zoneName)}</strong></span>
+          <small>${escapeHtml(vision.people_count)} personas en total · ${escapeHtml(vision.created_at)}</small>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Trae la foto más reciente por si otra cuenta analizó una después de cargar esta página. */
+  async function refreshVisionEvidence(zoneCode, zoneName) {
+    const evidence = $('#congestion-evidence');
+    try {
+      const response = await fetch('/api/vision/ultima/', { headers: { Accept: 'application/json' } });
+      if (!response.ok || !evidence?.isConnected) return;
+      evidence.innerHTML = buildVisionEvidence(await response.json(), zoneCode, zoneName);
+    } catch (err) {
+      console.warn('No se pudo actualizar la foto del aviso de congestión.', err);
+    }
+  }
+
+  /** Abre el modal explicativo de un nodo congestionado con su evidencia visual. */
   function openCongestionModal(node) {
     const modal = $('#congestion-modal');
     const modalBody = $('#congestion-modal-body');
@@ -50,10 +92,6 @@
       if (vEl) visionData = JSON.parse(vEl.textContent);
     } catch (_) {}
 
-    const peopleInZone = visionData?.zone_counts?.[zoneCode] ?? 1;
-    const totalPeople = visionData?.people_count ?? 1;
-    const visionImgUrl = visionData?.image_url || '/static/img/latest_vision_capture.jpg';
-
     modalBody.innerHTML = `
       <div class="congestion-alert-banner-status">
         <div class="alert-status-badge">🔴 ESTADO CRÍTICO DETECTADO</div>
@@ -61,21 +99,8 @@
           <strong>Motivo de la Alerta:</strong> Alta afluencia peatonal en este pasillo, superando el límite seguro de tránsito para meseros.
         </p>
       </div>
-      <div class="congestion-evidence-card">
-        <div class="evidence-header">
-          <div class="evidence-title">
-            <span class="evidence-icon">📷</span>
-            <strong>Evidencia Visual · Análisis OpenCV</strong>
-          </div>
-          <span class="evidence-tag">Afluencia: ${escapeHtml(peopleInZone)} en Sector ${escapeHtml(zoneCode)}</span>
-        </div>
-        <div class="evidence-image-frame">
-          <img src="${escapeHtml(visionImgUrl)}" alt="Captura analizada por OpenCV" class="evidence-img">
-          <div class="evidence-zone-overlay">
-            <span>Sector analizado: <strong>${escapeHtml(meta.name)}</strong></span>
-            <small>Detección computacional activa (${escapeHtml(totalPeople)} total)</small>
-          </div>
-        </div>
+      <div class="congestion-evidence-card" id="congestion-evidence">
+        ${buildVisionEvidence(visionData, zoneCode, meta.name)}
       </div>
       <div class="congestion-info-card">
         <div class="congestion-detail-row">
@@ -96,6 +121,7 @@
       </div>
     `;
     modal.classList.remove('is-hidden');
+    refreshVisionEvidence(zoneCode, meta.name);
   }
 
   /** Cierra el modal explicativo de congestión. */

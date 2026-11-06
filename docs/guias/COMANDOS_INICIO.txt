@@ -10,13 +10,9 @@ OPCION 1: INICIO AUTOMATICO (RECOMENDADO)
 --------------------------------------------------------------------
 Puedes iniciar los 3 servicios al mismo tiempo con un solo clic:
 
-A) Desde el Explorador de Archivos de Windows:
+Desde el Explorador de Archivos de Windows:
    - Haz DOBLE CLIC en el archivo:
      iniciar.cmd
-
-B) Desde PowerShell:
-   - Abre PowerShell en esta carpeta y ejecuta:
-     .\iniciar.ps1
 
 Esto abrira 3 ventanas de terminal independientes, una para cada servicio.
 
@@ -68,7 +64,7 @@ en la pagina principal).
 --------------------------------------------------------------------
 COMO DETENER LOS SERVICIOS
 --------------------------------------------------------------------
-- Si usaste iniciar.cmd o iniciar.ps1:
+- Si usaste iniciar.cmd:
   Simplemente cierra las 3 ventanas de terminal que se abrieron.
 
 - Si los iniciaste manualmente:

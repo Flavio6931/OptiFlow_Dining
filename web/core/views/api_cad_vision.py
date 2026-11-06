@@ -1,8 +1,4 @@
 """APIs REST de gestión CAD del plano de mesas y análisis computacional OpenCV + AWS S3."""
-import base64
-import logging
-
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -16,9 +12,8 @@ import core.views as views_pkg
 from ..layout import add_table, move_table, separate_table, unify_tables, update_dimensions
 from ..models import TableState, VisionAnalysis, Zone
 from ..serializers import TableStateUpdateSerializer, VisionUploadSerializer
-from .helpers import drf_role_required
-
-logger = logging.getLogger(__name__)
+from ..services import save_latest_vision_image
+from .helpers import drf_role_required, latest_vision_payload
 
 
 @api_view(['POST'])
@@ -309,17 +304,7 @@ def api_vision(request):
     else:
         result['s3_status'] = 'No se pudo guardar la imagen'
 
-    annotated_b64 = result.get('annotated_image', '')
-    if annotated_b64 and ',' in annotated_b64:
-        try:
-            b64_part = annotated_b64.split(',', 1)[1]
-            if len(b64_part) > 40:
-                b64_part += '=' * (-len(b64_part) % 4)
-                img_bytes = base64.b64decode(b64_part)
-                target_path = settings.BASE_DIR / 'static' / 'img' / 'latest_vision_capture.jpg'
-                target_path.write_bytes(img_bytes)
-        except Exception as write_err:
-            logger.debug('No se pudo escribir latest_vision_capture.jpg: %s', write_err)
+    save_latest_vision_image(result.get('annotated_image', ''))
 
     result['updated_zones'] = updated_zones_info
     result['sync_notice'] = (
@@ -332,12 +317,5 @@ def api_vision(request):
 @login_required
 def api_latest_vision(request):
     """Retorna metadatos y ruta de la última captura procesada por OpenCV para el modal de alertas."""
-    recent_vision = VisionAnalysis.objects.order_by('-created_at').first()
-    return JsonResponse({
-        'image_url': '/static/img/latest_vision_capture.jpg',
-        'people_count': recent_vision.people_count if recent_vision else 1,
-        'zone_counts': recent_vision.zone_counts if recent_vision else {'A': 0, 'B': 1, 'C': 0},
-        'filename': recent_vision.filename if recent_vision else 'captura_salon.jpg',
-        'created_at': recent_vision.created_at.strftime('%d/%m/%Y %H:%M') if recent_vision else '',
-    })
+    return JsonResponse(latest_vision_payload())
 

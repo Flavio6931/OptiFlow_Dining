@@ -147,18 +147,21 @@ Necesitas iniciar sesión y enviar la cookie de sesión y el token CSRF. En la i
 ```text
 OptiFlow_Dining/
   docker-compose.yml         Orquestación de microservicios (Docker)
-  iniciar.cmd / iniciar.ps1  Lanzadores automáticos locales en Windows (Django + 2 FastAPI)
-  docs/                      Documentación (ARQUITECTURA.md), guías de inicio y vista previa interactiva
+  iniciar.cmd                Lanzador automático local en Windows (Django + 2 FastAPI)
+  docs/                      Documentación (ARQUITECTURA.md) y guías de inicio
+  scripts/generate_env.py    Crea el archivo .env
   .env.example               Variables de entorno de ejemplo
   .gitignore                 Exclusión de entorno local, cachés y variables sensibles
   config/salon.json          Distribución y nodos del plano
   web/
     optiflow/               Configuración y settings de Django
     core/views/             Paquete modular de vistas HTML, permisos y APIs REST DRF
-    templates/              Plantillas HTML modulares (limpias de CSS y JS incrustados)
+    core/tests/             Pruebas automatizadas por tema
+    templates/              Plantillas: layouts/, auth/, pages/ y partials/
     static/
       css/
         app.css             Estilos globales y componentes principales
+        operations.css      Pantallas operativas
       img/                  Activos gráficos activos de producción (logos y fondos)
       js/
         app.js              Lógica de cliente, formularios, rutas y OpenCV en Django

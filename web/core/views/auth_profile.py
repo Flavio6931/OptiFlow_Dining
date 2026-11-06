@@ -27,7 +27,7 @@ def landing(request):
     """Página pública de bienvenida."""
     if request.user.is_authenticated:
         return redirect('dashboard')
-    return render(request, 'landing.html', {'page_title': 'Bienvenido'})
+    return render(request, 'auth/landing.html', {'page_title': 'Bienvenido'})
 
 
 def register_view(request):
@@ -41,7 +41,7 @@ def register_view(request):
         login(request, user)
         messages.success(request, 'Tu cuenta se creó correctamente. Bienvenido a OptiFlow.')
         return redirect('dashboard')
-    return render(request, 'register.html', {'form': form, 'page_title': 'Crear cuenta'})
+    return render(request, 'auth/register.html', {'form': form, 'page_title': 'Crear cuenta'})
 
 
 def login_view(request):
@@ -60,7 +60,7 @@ def login_view(request):
         form = LoginForm(request)
     return render(
         request,
-        'login.html',
+        'auth/login.html',
         {
             'form': form,
             'page_title': 'Iniciar sesión',
@@ -141,7 +141,7 @@ def profile_view(request):
         'staff_users': staff_users,
         'available_roles': Profile.ROLE_CHOICES,
     })
-    return render(request, 'profile.html', context)
+    return render(request, 'pages/profile.html', context)
 
 
 @api_view(['POST'])

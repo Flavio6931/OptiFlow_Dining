@@ -29,6 +29,12 @@
 
 .card-footer-link { display: inline-block; margin-top: 14px; }
 
+/* --- Evidencia en el aviso de congestión: la foto se ve completa --- */
+.evidence-image-frame { max-height: none; }
+.evidence-img { height: auto; max-height: 320px; object-fit: contain; }
+.evidence-zone-overlay { flex-direction: column; align-items: flex-start; gap: 2px; }
+.evidence-empty { margin: 0; padding: 18px 16px; color: var(--ink-secondary); font-size: 13px; line-height: 1.5; }
+
 /* --- Avisos --- */
 .profile-notif-card { flex-direction: column; align-items: stretch; gap: 8px; }
 

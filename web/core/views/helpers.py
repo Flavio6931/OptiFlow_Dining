@@ -4,6 +4,7 @@ import re
 import socket
 from functools import wraps
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponseForbidden
@@ -12,7 +13,8 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from ..layout import get_layout
-from ..models import AdminNotification, Profile, RouteConsultation, TableState, Zone
+from ..models import AdminNotification, Profile, RouteConsultation, TableState, VisionAnalysis, Zone
+from ..services import LATEST_VISION_RELATIVE_PATH, latest_vision_path
 
 SUPERVISOR_ROLES = ('admin', 'capitan', 'gerente')
 
@@ -92,6 +94,23 @@ def zones_with_details(layout: dict) -> list:
 def routes_today():
     """Consultas de ruta creadas hoy en la zona horaria del restaurante."""
     return RouteConsultation.objects.filter(created_at__date=timezone.localdate())
+
+
+def latest_vision_payload() -> dict:
+    """Última foto analizada y sus conteos; image_url va vacío si todavía no existe ninguna."""
+    recent = VisionAnalysis.objects.order_by('-created_at').first()
+    path = latest_vision_path()
+    image_url = ''
+    if path.exists():
+        # La versión obliga a los navegadores a pedir la foto nueva tras cada análisis.
+        image_url = f'{settings.MEDIA_URL}{LATEST_VISION_RELATIVE_PATH}?v={path.stat().st_mtime_ns}'
+    return {
+        'image_url': image_url,
+        'people_count': recent.people_count if recent else 0,
+        'zone_counts': recent.zone_counts if recent else {},
+        'filename': recent.filename if recent else '',
+        'created_at': timezone.localtime(recent.created_at).strftime('%d/%m/%Y %H:%M') if recent else '',
+    }
 
 
 def resolve_lan_ip() -> str:

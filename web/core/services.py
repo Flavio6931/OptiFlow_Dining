@@ -1,5 +1,7 @@
 """Servicios de comunicación e integración con microservicios externos y AWS S3."""
+import base64
 import logging
+import os
 from pathlib import Path
 import sys
 from typing import Any, Dict, Tuple
@@ -277,6 +279,33 @@ def s3_connection_status(refresh: bool = False) -> Dict[str, str]:
         logger.warning('Comprobación de AWS S3 fallida (s3://%s): %s', bucket, exc)
         status = _s3_status(_s3_state_from_error(exc), bucket, _aws_error_reason(exc))
     return _remember_s3_status(status)
+
+
+LATEST_VISION_RELATIVE_PATH = 'vision/latest_capture.jpg'
+MIN_ANNOTATED_BASE64_LENGTH = 40
+
+
+def latest_vision_path() -> Path:
+    """Ruta de la última foto analizada, compartida por todas las cuentas y dispositivos."""
+    return Path(settings.MEDIA_ROOT) / LATEST_VISION_RELATIVE_PATH
+
+
+def save_latest_vision_image(annotated_data_url: str) -> bool:
+    """Guarda la foto anotada por OpenCV; se reemplaza de forma atómica para no servirla a medias."""
+    encoded = annotated_data_url.partition(',')[2]
+    if len(encoded) <= MIN_ANNOTATED_BASE64_LENGTH:
+        return False
+    target = latest_vision_path()
+    temporary = target.with_suffix('.tmp')
+    try:
+        image = base64.b64decode(encoded + '=' * (-len(encoded) % 4))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary.write_bytes(image)
+        os.replace(temporary, target)
+    except (OSError, ValueError) as exc:
+        logger.warning('No se pudo guardar la última foto analizada: %s', exc)
+        return False
+    return True
 
 
 def optional_upload_s3(raw: bytes, name: str, mime: str) -> Dict[str, str]:

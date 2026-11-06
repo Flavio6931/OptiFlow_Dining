@@ -24,9 +24,9 @@ OptiFlow_Dining/
 │   └── salon.json                 # Topología compartida (dimensiones, zonas, orígenes, mesas)
 ├── docs/
 │   ├── ARQUITECTURA.md            # Especificación arquitectónica y de módulos
-│   ├── guias/                     # Guías paso a paso de arranque (INICIAR_AQUI, COMANDOS_INICIO)
-│   ├── preview/                   # Prototipo interactivo autónomo (vista_previa.*)
-│   └── assets_archive/            # Respaldo histórico de bocetos e iconos preliminares
+│   └── guias/                     # Guías paso a paso de arranque (INICIAR_AQUI, COMANDOS_INICIO)
+├── scripts/
+│   └── generate_env.py            # Crea el archivo .env
 ├── services/
 │   ├── routing/                   # Microservicio FastAPI Dijkstra (:8001) + pruebas unitarias
 │   └── vision/                    # Microservicio FastAPI OpenCV (:8002)
@@ -44,16 +44,19 @@ OptiFlow_Dining/
 │   │   │   ├── pages.py           # Vistas HTML de los 6 módulos operativos
 │   │   │   ├── api_routing.py     # APIs de rutas, cierre de asignaciones y saturación
 │   │   │   └── api_cad_vision.py  # APIs CAD de mesas/dimensiones y visión OpenCV
-│   │   └── tests.py               # Suite integral de 26 pruebas automatizadas
-│   ├── templates/                 # Plantillas Django desacopladas
+│   │   └── tests/                 # Pruebas por tema (cuentas, rutas, zonas, plano, visión, pantallas, seguridad)
+│   ├── templates/
+│   │   ├── layouts/               # Estructura común (base y páginas públicas)
+│   │   ├── auth/                  # Bienvenida, inicio de sesión y registro
+│   │   ├── pages/                 # Pantallas operativas
+│   │   └── partials/              # Fragmentos reutilizables
 │   └── static/
-│       ├── css/app.css            # Sistema de diseño Dark Hospitality
-│       ├── img/                   # Solo los 5 activos gráficos de producción en uso
+│       ├── css/                   # app.css (sistema de diseño) y operations.css (pantallas operativas)
+│       ├── img/                   # Activos gráficos de producción en uso
 │       └── js/
 │           ├── app.js             # Punto de entrada ligero (bootstrap)
 │           └── modules/           # Módulos JS por dominio (core, floor_plan, routing, cad_tables, vision_zones)
 ├── iniciar.cmd                    # Lanzador Windows CMD (1 clic)
-├── iniciar.ps1                    # Lanzador Windows PowerShell
 └── docker-compose.yml             # Orquestación de contenedores
 ```
 

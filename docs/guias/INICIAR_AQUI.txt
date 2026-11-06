@@ -8,7 +8,6 @@ Bienvenido a OptiFlow Dining. Tienes dos formas de iniciar el sistema:
    Haz doble clic sobre el archivo:
    iniciar.cmd
 
-   (O si usas PowerShell, ejecuta: .\iniciar.ps1)
    Esto levantará automáticamente en ventanas separadas:
    - Web Django (:8000)
    - Rutas Dijkstra FastAPI (:8001)

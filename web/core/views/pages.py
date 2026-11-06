@@ -9,7 +9,7 @@ from django.shortcuts import render
 
 from ..models import RouteConsultation, TableState, VisionAnalysis, Zone
 from ..services import LOCAL_KEY_PREFIX, get_s3_presigned_url, s3_connection_status
-from .helpers import SUPERVISOR_ROLES, page_context, role_required, routes_today
+from .helpers import SUPERVISOR_ROLES, latest_vision_payload, page_context, role_required, routes_today
 
 DASHBOARD_FEED_SIZE = 6
 
@@ -68,7 +68,7 @@ def dashboard(request):
         'recent_vision': recent_vision,
         'recent_people_count': recent_vision.people_count if recent_vision else 0,
     })
-    return render(request, 'dashboard.html', context)
+    return render(request, 'pages/dashboard.html', context)
 
 
 @role_required('mesero', 'capitan', 'gerente')
@@ -102,22 +102,13 @@ def routes_view(request):
         for task in assigned_to_me:
             task.path_json = json.dumps(task.path or [], ensure_ascii=False)
 
-    recent_vision = VisionAnalysis.objects.order_by('-created_at').first()
-    latest_vision_payload = {
-        'image_url': '/static/img/latest_vision_capture.jpg',
-        'people_count': recent_vision.people_count if recent_vision else 1,
-        'zone_counts': recent_vision.zone_counts if recent_vision else {'A': 0, 'B': 1, 'C': 0},
-        'filename': recent_vision.filename if recent_vision else 'captura_salon.jpg',
-        'created_at': recent_vision.created_at.strftime('%d/%m/%Y %H:%M') if recent_vision else '',
-    }
-
     context.update({
         'waiters': waiters,
         'recent_routes': recent_routes,
         'assigned_to_me': assigned_to_me,
-        'latest_vision': latest_vision_payload,
+        'latest_vision': latest_vision_payload(),
     })
-    return render(request, 'routes.html', context)
+    return render(request, 'pages/routes.html', context)
 
 
 @role_required('gerente')
@@ -125,7 +116,7 @@ def saturation_view(request):
     """Vista de monitoreo y calibración de saturación de zonas."""
     context = page_context(request, 'Saturación del salón', 'saturation')
     context['critical_zones'] = Zone.objects.filter(level='critica', dwell_minutes__gt=4)
-    return render(request, 'saturation.html', context)
+    return render(request, 'pages/saturation.html', context)
 
 
 @role_required('gerente', 'capitan')
@@ -201,7 +192,7 @@ def analytics_view(request):
         'optiflow_score': optiflow_score,
         'last_routes': RouteConsultation.objects.select_related('user', 'assigned_waiter').order_by('-created_at')[:8],
     })
-    return render(request, 'analytics.html', context)
+    return render(request, 'pages/analytics.html', context)
 
 
 @role_required('capitan', 'gerente')
@@ -253,7 +244,7 @@ def layout_view(request):
         'occupied_count': occupied_count,
         'occupancy_pct': occupancy_pct,
     })
-    return render(request, 'layout.html', context)
+    return render(request, 'pages/layout.html', context)
 
 
 @role_required('gerente')
@@ -266,4 +257,4 @@ def vision_view(request):
         item.is_local_copy = item.s3_key.startswith(LOCAL_KEY_PREFIX)
     context['analysis_history'] = history
     context['s3'] = s3_connection_status(refresh=request.GET.get('verificar_s3') == '1')
-    return render(request, 'vision.html', context)
+    return render(request, 'pages/vision.html', context)

@@ -1,0 +1,121 @@
+{% extends 'layouts/public.html' %}
+{% load static %}
+
+{% block content %}
+<div class="auth-split-wrapper">
+  <div class="auth-split-inner">
+    <!-- Columna Izquierda: Branding & Propuesta Operativa -->
+    <div class="auth-split-hero">
+      <a class="auth-brand-lockup" href="{% url 'landing' %}" aria-label="Inicio OptiFlow Dining">
+        <div class="brand-spiral-icon">
+          <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" width="52" height="52" class="brand-logo-img">
+        </div>
+        <div class="brand-text-stack">
+          <span class="brand-name">OPTIFLOW</span>
+          <span class="brand-tag">DINING</span>
+        </div>
+      </a>
+
+      <div class="auth-hero-main">
+        <div class="auth-eyebrow">
+          <span class="auth-eyebrow-dot"></span> SISTEMA OPERATIVO DE SALÓN
+        </div>
+
+        <h1 class="auth-headline">
+          Accede a tu<br>
+          <span class="text-orange-glow">Panel de Control</span>
+        </h1>
+
+        <div class="auth-accent-line"></div>
+
+        <p class="auth-hero-description">
+          Supervisión en tiempo real de salones, optimización de recorridos con algoritmo Dijkstra y control inteligente de capacidad por zonas.
+        </p>
+
+        <div class="auth-feature-pills" aria-label="Capacidades principales">
+          <span class="auth-feature-pill"><i class="pill-dot"></i> Rutas Dijkstra</span>
+          <span class="auth-feature-pill"><i class="pill-dot"></i> Zonas en vivo</span>
+          <span class="auth-feature-pill"><i class="pill-dot"></i> Visión OpenCV</span>
+        </div>
+
+        <div class="auth-hero-action">
+          <a href="{% url 'landing' %}" class="btn-info-pill">
+            Conocer plataforma <span class="arrow-pill">→</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="auth-hero-foot">
+        <span>OPTIFLOW DINING · HOSPITALITY SUITE</span>
+        <span>© 2026</span>
+      </div>
+    </div>
+
+    <!-- Columna Derecha: Tarjeta Glassmorphism de Inicio de Sesión -->
+    <div class="auth-split-card-area">
+      <div class="auth-floating-card">
+        <div class="auth-card-brand-header">
+          <div class="auth-card-logo-wrap">
+            <img src="{% static 'img/optiflow_icon.png' %}" alt="OptiFlow Dining Logo" width="68" height="68" class="auth-card-logo">
+          </div>
+        </div>
+        <h2 class="auth-card-heading">Iniciar Sesión</h2>
+        <p class="auth-card-subtitle">Ingresa tus credenciales operativas para continuar</p>
+
+        <form method="post" class="auth-modern-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+
+          {% if form.non_field_errors %}
+            <div class="alert-error-box" role="alert">
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
+
+          <div class="form-field-group">
+            <label for="id_username">Usuario</label>
+            <div class="input-icon-wrap">
+              <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              {{ form.username }}
+            </div>
+            {{ form.username.errors }}
+          </div>
+
+          <div class="form-field-group">
+            <label for="id_password">Contraseña</label>
+            <div class="password-pill-wrap">
+              <svg class="field-lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              {{ form.password }}
+              <button type="button" class="btn-toggle-eye" data-toggle-password aria-label="Mostrar u ocultar contraseña">
+                <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            {{ form.password.errors }}
+          </div>
+
+          <button type="submit" class="btn-orange-pill">
+            <span>Ingresar al panel</span>
+            <span class="btn-pill-arrow" aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <div class="auth-bottom-nav">
+          <span class="auth-switch-prompt">¿Aún no tienes una cuenta?</span>
+          <a href="{% url 'register' %}" class="auth-switch-link">
+            Regístrate aquí <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
