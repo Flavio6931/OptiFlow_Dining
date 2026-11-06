@@ -4,33 +4,20 @@ Proyecto académico de **Construcción de Software**, construido sobre los docum
 
 > **Importante:** es un MVP funcional/de demostración, **no** un sistema desplegado en AWS ni una solución de visión artificial validada para estimar ocupación real del restaurante.
 
-## 1. Ejecutar en Windows, sin Docker (recomendado)
+## 1. Ejecutar en Windows
 
 Necesitas **Python 3.11 o superior**. Al instalarlo, marca «Add python.exe to PATH».
 
 Da doble clic a `iniciar.cmd`. La primera vez instala lo necesario y puede tardar varios minutos; después abre la aplicación en el navegador. Para detenerla, cierra las tres ventanas de los servicios. Sin claves de AWS, S3 queda desactivado y las fotos se guardan solo en tu equipo. Para abrirla desde un móvil en la misma red, escanea el QR de la aplicación y, si Windows lo pregunta, permite el acceso a Python. La ventana del lanzador muestra los usuarios de prueba `mesero_demo`, `capitan_demo` y `gerente_demo` con su contraseña, generada al azar en cada equipo; el análisis de fotos requiere `gerente_demo`.
 
-## 1.1. Ejecutar con Docker (alternativa)
-
-Necesitas **Docker Desktop** (Windows, macOS) o Docker Engine con Compose.
-
-```bash
-# Desde la carpeta OptiFlow_Dining:
-docker compose up --build -d
-```
-
-No hace falta un archivo `.env`. Para activar S3, crear un administrador inicial o cambiar otros ajustes, genera el archivo con `python web/generate_env.py`, complétalo y vuelve a ejecutar `docker compose up -d --force-recreate`. Las claves de AWS nunca se suben a Git.
-
 Abre **http://localhost:8000**. Presiona **«Crear cuenta»** y regístrate. Un usuario nuevo tiene rol **Mesero / Runner**. Luego inicia sesión, entra a «Rutas de servicio», selecciona «Zona de cocina» y «Mesa 08» y calcula la ruta. Verás el mensaje de congestión; pulsa **«Recalcular ruta»** y después **«Finalizar tarea»**. El resultado queda guardado en la base de datos.
-
-Para detener: `docker compose down`. La base de datos se mantiene en el volumen `optiflow_db` (no usar `docker compose down -v` si quieres conservarla).
 
 ### Probar los otros perfiles
 
 Por seguridad, el registro público solo crea usuarios **Mesero**. Para administrar los perfiles, primero crea un superusuario:
 
 ```bash
-docker compose exec web python manage.py createsuperuser
+.venv\Scripts\python web\manage.py createsuperuser
 ```
 
 Accede a `http://localhost:8000/admin/`, abre **Profiles**, selecciona el usuario y cambia el rol a **Capitán de meseros** o **Gerente general**. También puedes habilitar usuarios demo **solo en un entorno local** con `ENABLE_DEMO_USERS=1` y una clave `DEMO_PASSWORD` robusta en `.env` (mínimo 12 caracteres); reinicia la app. Se crearán `mesero_demo`, `capitan_demo` y `gerente_demo` con la misma contraseña configurada por ti. No habilites cuentas de demostración en producción.
@@ -67,28 +54,28 @@ flowchart LR
     D -.->|opcional: boto3 + IAM| S3[(Amazon S3 privado)]
 ```
 
-Contenedores Docker Compose:
+Servicios:
 
 - **web**: Django + Django Templates + JS/CSS; REST JSON propio, validación, base de datos, autenticación, roles y AWS SDK (`8000`).
 - **routing**: FastAPI independiente; `POST /route`, `GET /layout`, `GET /health` (`8001`, no expuesto públicamente).
 - **vision**: FastAPI + OpenCV DNN (YOLOX-S); `POST /analyze` (foto con imagen anotada), `POST /detect` (fotograma de la cámara en vivo: solo cajas y conteo; `?mode=rapido|normal|preciso`, de más fluido a más preciso), `GET /health` (`8002`, no expuesto públicamente).
-- **base de datos**: SQLite guardada en volumen Docker para desarrollo. Puede migrarse a PostgreSQL mediante `DATABASE_URL` para producción.
+- **base de datos**: SQLite local para desarrollo. Puede migrarse a PostgreSQL mediante `DATABASE_URL` para producción.
 
-La carpeta `config/salon.json` define las coordenadas iniciales, las mesas y nodos congestionados. **Django es la única fuente de verdad del plano**: lo edita (crear, mover, unificar o separar mesas) y lo envía en cada petición `POST /route` (campo `layout`), así el microservicio de rutas siempre calcula sobre el plano vigente aunque no comparta disco con Django. En Docker, el plano editado persiste en el volumen `optiflow_config`, que se inicializa con el `salon.json` del repositorio la primera vez; si cambias ese archivo en el repo y quieres aplicarlo, elimina el volumen (`docker volume rm optiflow_dining_optiflow_config`).
+La carpeta `config/salon.json` define las coordenadas iniciales, las mesas y nodos congestionados. **Django es la única fuente de verdad del plano**: lo edita (crear, mover, unificar o separar mesas) y lo envía en cada petición `POST /route` (campo `layout`), así el microservicio de rutas siempre calcula sobre el plano vigente aunque no comparta disco con Django.
 
 ## 4. Usar AWS en producción
 
 Se proporciona integración de **Amazon S3**; el programa **no crea cuentas, servidores ni recursos cloud por sí solo**. Para probar en AWS:
 
 1. Crea un bucket S3 con acceso público bloqueado (p. ej. `optiflow-evidencias-privadas`) y cifrado habilitado.
-2. Crea una instancia **EC2**, instala Docker y asigna un **rol IAM** a la instancia, con permiso `s3:PutObject` **limitado** a `arn:aws:s3:::TU_BUCKET/optiflow/analisis/*`.
+2. Crea una instancia **EC2**, instala Python y asigna un **rol IAM** a la instancia, con permiso `s3:PutObject` **limitado** a `arn:aws:s3:::TU_BUCKET/optiflow/analisis/*`.
 3. Clona/copia este proyecto al servidor, genera `.env` y configura `AWS_S3_BUCKET=TU_BUCKET`, `AWS_REGION=us-east-1` (o la región elegida).
 4. Configura `ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` y `DJANGO_SECRET_KEY` correctamente. Sitúa la app detrás de un proxy/ALB con **HTTPS** y activa `DJANGO_SECURE_SSL_REDIRECT=1`. No expongas los microservicios a Internet.
 5. Para persistencia escalable, crea **Amazon RDS PostgreSQL** con acceso privado y define `DATABASE_URL=postgresql://usuario:contraseña@host:5432/basedatos` en tu gestor de secretos / entorno. Haz `python manage.py migrate` al cambiar la base de datos.
 
 No coloques `AWS_ACCESS_KEY_ID` ni `AWS_SECRET_ACCESS_KEY` en archivos versionados. El SDK `boto3` usa automáticamente credenciales temporales del rol IAM de EC2. La foto original solo se almacena en S3 si está configurado `AWS_S3_BUCKET`; Django guarda únicamente los metadatos, y la respuesta anotada se envía al navegador. Se recomienda obtener consentimiento antes de procesar fotografías de personas y definir políticas de retención en S3.
 
-## 5. Ejecución local sin Docker (alternativa)
+## 5. Ejecución manual (Linux, macOS o sin el lanzador)
 
 Con Python 3.11 o superior, desde el directorio raíz:
 
@@ -123,12 +110,8 @@ La variable `DATABASE_URL` permite PostgreSQL; de lo contrario Django crea SQLit
 ## 6. Pruebas y validación
 
 ```bash
-# Con Docker activo:
-docker compose exec web python manage.py test core
-
-docker compose exec routing python -c "from service.main import route,RouteRequest; print(route(RouteRequest(zone_levels={'C':'critica'})))"
-
-docker compose exec vision python -c "import cv2; print('OpenCV', cv2.__version__)"
+cd web
+python manage.py test core
 ```
 
 Se incluyen pruebas automáticas para registro, restricción de roles, recálculo y almacenamiento de consultas. Se pueden probar directamente las funciones de ruteo de `services/routing/test_routing.py` si tienes pytest. **Es necesario ejecutar estas pruebas completas en un entorno con Django y las dependencias instaladas**.
@@ -146,7 +129,6 @@ Necesitas iniciar sesión y enviar la cookie de sesión y el token CSRF. En la i
 
 ```text
 OptiFlow_Dining/
-  docker-compose.yml         Orquestación de microservicios (Docker)
   iniciar.cmd                Lanzador automático local en Windows (Django + 2 FastAPI)
   .env.example               Variables de entorno de ejemplo
   .gitignore                 Exclusión de entorno local, cachés y variables sensibles

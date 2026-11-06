@@ -17,11 +17,7 @@ app = FastAPI(
     description='Cálculo de trayectos óptimos y recalculo dinámico ante zonas críticas.',
 )
 
-CONFIG_PATH = (
-    Path('/app/config/salon.json')
-    if Path('/app/config/salon.json').exists()
-    else Path(__file__).resolve().parents[2] / 'config' / 'salon.json'
-)
+CONFIG_PATH = Path(__file__).resolve().parents[2] / 'config' / 'salon.json'
 LAYOUT: Dict[str, Any] = json.loads(CONFIG_PATH.read_text(encoding='utf-8'))
 ORIGINS: Dict[str, str] = {o['id']: o['node'] for o in LAYOUT['origins']}
 TABLES: Dict[str, str] = {t['id']: t['node'] for t in LAYOUT['tables']}
@@ -163,8 +159,7 @@ def layout() -> Dict[str, Any]:
 @app.post('/route')
 def route(request: RouteRequest) -> Dict[str, Any]:
     """Calcula la ruta óptima entre dos puntos, considerando la congestión operativa y topología dinámica."""
-    # Django es la fuente de verdad del plano: en Docker cada contenedor tiene su propia copia
-    # de salon.json, así que se usa el plano recibido y solo como respaldo el archivo local.
+    # Django es la fuente de verdad del plano: se usa el recibido y solo como respaldo el archivo local.
     cur_layout = _validate_layout(request.layout) if request.layout is not None else get_current_layout()
     cur_origins = {o['id']: o['node'] for o in cur_layout.get('origins', [])}
     cur_tables = {t['id']: t['node'] for t in cur_layout.get('tables', [])}

@@ -56,7 +56,7 @@ class Command(BaseCommand):
     def _ensure_admin(self):
         """Crea el superusuario inicial solo si se define ADMIN_PASSWORD; nunca cambia uno existente.
 
-        Este comando se ejecuta en cada arranque del contenedor, así que jamás debe fijar
+        Este comando se ejecuta en cada arranque, así que jamás debe fijar
         ni restablecer contraseñas: si el administrador ya existe, se respeta su clave.
         """
         username = os.environ.get('ADMIN_USERNAME', 'admin').strip() or 'admin'

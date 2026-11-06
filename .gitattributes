@@ -1,7 +1,3 @@
-# Los scripts que se ejecutan dentro de contenedores Linux deben conservar LF
-# aunque git use core.autocrlf=true en Windows (si no: "exec ...: no such file or directory").
-*.sh text eol=lf
-
 # Los .cmd de Windows con finales LF pueden fallar en bloques if (...) de cmd.exe.
 *.cmd text eol=crlf
 

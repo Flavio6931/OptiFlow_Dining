@@ -41,14 +41,11 @@ if errorlevel 1 goto install_error
 rem La app queda visible en la red para el acceso movil: nunca en modo desarrollo.
 set "DJANGO_DEBUG=0"
 
-rem Si Docker (docker compose) ya ocupa el puerto 8000, runserver no puede arrancar y el
-rem navegador abriria la version de Docker en lugar de la local.
+rem Si otro programa ya ocupa el puerto 8000, runserver no puede arrancar.
 netstat -ano | findstr /R /C:":8000 .*LISTENING" /C:":8000 .*ESCUCHANDO" >nul
 if not errorlevel 1 (
-    echo [AVISO] El puerto 8000 ya esta en uso, probablemente por Docker.
-    echo         Si sigues, veras la version de Docker y no la de este lanzador.
-    echo         Detenlo con:  docker compose down
-    echo         y vuelve a ejecutar iniciar.cmd.
+    echo [AVISO] El puerto 8000 ya esta en uso, quiza por otra ventana de OptiFlow.
+    echo         Cierrala y vuelve a ejecutar iniciar.cmd.
     goto fail
 )
 

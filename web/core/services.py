@@ -45,7 +45,7 @@ def calculate_route(payload: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
             "Fallo al contactar el microservicio de ruteo HTTP (%s). Intentando fallback local.",
             exc,
         )
-        # Fallback local automático para desarrollo sin Docker
+        # Si el microservicio no responde, se ejecuta su código localmente
         try:
             root = Path(__file__).resolve().parents[2]
             if str(root) not in sys.path:
@@ -68,7 +68,7 @@ def calculate_route(payload: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
             )
 
         raise ServiceUnavailable(
-            'El microservicio de rutas no está disponible. Verifica Docker Compose.'
+            'El microservicio de rutas no está disponible. Verifica que su ventana siga abierta.'
         ) from exc
 
 
@@ -100,7 +100,7 @@ def analyze_image(name: str, raw: bytes, mime: str) -> Tuple[int, Dict[str, Any]
             "Fallo al contactar el microservicio de visión HTTP (%s). Intentando fallback local.",
             exc,
         )
-        # Fallback local automático para desarrollo sin Docker
+        # Si el microservicio no responde, se ejecuta su código localmente
         try:
             root = Path(__file__).resolve().parents[2]
             if str(root) not in sys.path:
@@ -146,7 +146,7 @@ def detect_live_frame(raw: bytes, mime: str, mode: str = 'rapido') -> Tuple[int,
         response.raise_for_status()
         return 200, data
     except (requests.RequestException, ValueError) as exc:
-        # Fallback local automático para desarrollo sin Docker
+        # Si el microservicio no responde, se ejecuta su código localmente
         try:
             root = Path(__file__).resolve().parents[2]
             if str(root) not in sys.path:
