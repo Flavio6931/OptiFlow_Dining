@@ -1,0 +1,252 @@
+/* Sistema visual de OptiFlow: unifica texto, espacios y estados sobre app.css.
+   Conserva la paleta de marca (azul marino + naranja) definida en :root de app.css. */
+
+:root {
+  --text-page: 28px;
+  --text-card: 15px;
+  --text-body: 14px;
+  --text-small: 12.5px;
+  --text-label: 11px;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --surface-hover: rgba(255, 255, 255, 0.035);
+  --orange-tint: rgba(255, 105, 56, 0.12);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--orange);
+
+  --ease: 150ms ease;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* --- Encabezado de página --- */
+.page-header h1 {
+  font-size: var(--text-page);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+}
+
+.page-header p {
+  color: var(--ink-secondary);
+  font-size: var(--text-body);
+}
+
+.eyebrow {
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+
+.micro-label {
+  color: var(--muted);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.6px;
+}
+
+/* --- Superficies: la profundidad la da el borde, no la sombra --- */
+.panel-card,
+.simple-kpi-card {
+  border-color: var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+}
+
+.panel-card { padding: 22px; }
+.simple-kpi-card { padding: 20px; transition: border-color var(--ease), background var(--ease); }
+
+.simple-kpi-card:hover {
+  border-color: var(--line-strong);
+  background: linear-gradient(0deg, var(--surface-hover), var(--surface-hover)), var(--panel);
+  transform: none;
+}
+
+.card-heading h2,
+.card-heading h3 {
+  font-size: var(--text-card);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.15px;
+}
+
+.card-heading p {
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+}
+
+/* --- Tarjetas de cifras --- */
+.simple-kpi-number {
+  font-size: 32px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.simple-kpi-number .denom {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.simple-kpi-title { font-size: 13.5px; font-weight: 600; }
+.simple-kpi-desc { color: var(--ink-secondary); font-size: var(--text-small); line-height: 1.45; }
+
+.kpi-badge {
+  border-radius: 6px;
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+/* --- Botones --- */
+.btn {
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  transition: background var(--ease), border-color var(--ease), color var(--ease), filter var(--ease);
+}
+
+.btn:hover { transform: none; }
+
+.btn-primary {
+  background: var(--orange);
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  background: var(--orange-dark);
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-hover);
+  border-color: var(--orange);
+  color: var(--ink);
+}
+
+.btn-outline { box-shadow: none; }
+.btn-outline:hover { border-color: var(--orange); }
+
+/* --- Campos --- */
+.form-input,
+.role-picker-select,
+.panel-card input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.panel-card select,
+.panel-card textarea {
+  border-radius: var(--radius-control);
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.form-input:focus,
+.role-picker-select:focus,
+.panel-card input:focus,
+.panel-card select:focus,
+.panel-card textarea:focus {
+  border-color: var(--orange);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--orange-tint);
+}
+
+.dwell-stepper input:focus { box-shadow: none; }
+
+/* --- Navegación lateral --- */
+.nav-link {
+  border-radius: var(--radius-control);
+  font-weight: 500;
+  transition: background var(--ease), color var(--ease);
+}
+
+.nav-link:hover { background: var(--surface-hover); }
+
+.nav-link.active {
+  background: var(--orange-tint);
+  box-shadow: inset 3px 0 0 var(--orange);
+  color: #ffb08f;
+  font-weight: 600;
+}
+
+/* --- Listas y tablas --- */
+.simple-feed-row,
+.zone-traffic-item,
+.zone-edit-item,
+.profile-notif-card,
+.profile-kpi-card {
+  border-radius: var(--radius-control);
+  box-shadow: none;
+}
+
+.simple-feed-row { transition: background var(--ease), border-color var(--ease); }
+.simple-feed-row:hover { background: var(--surface-hover); transform: none; }
+.zone-traffic-item:hover { transform: none; border-color: var(--line-strong); }
+
+.simple-feed-row strong { font-weight: 600; }
+.feed-time { font-variant-numeric: tabular-nums; }
+
+.simple-table th {
+  color: var(--muted);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.simple-table td { font-size: 13px; }
+.simple-table tbody tr { transition: background var(--ease); }
+.simple-table tbody tr:hover { background: var(--surface-hover); }
+
+.profile-kpi-val { font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+.profile-kpi-lbl { font-size: var(--text-label); font-weight: 600; letter-spacing: 0.4px; }
+
+.status-pill,
+.badge-tag,
+.traffic-pill { font-weight: 600; }
+
+/* --- Plano: ocupa su marco sin dejar espacio vacío --- */
+.map-surface {
+  min-height: 0;
+  padding: 10px;
+  border-radius: var(--radius-control);
+}
+
+/* --- Foco visible con teclado en todo lo interactivo --- */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Móvil: controles fáciles de tocar --- */
+@media (max-width: 720px) {
+  .lan-topbar-pill { align-self: center; width: 38px; height: 38px; }
+  .page-header h1 { font-size: 24px; letter-spacing: -0.4px; }
+  .panel-card { padding: 18px; }
+  .btn { min-height: 44px; }
+  .level-option,
+  .dwell-step,
+  .dwell-stepper input { min-height: 44px; }
+  .dwell-step { width: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simple-kpi-card,
+  .btn,
+  .nav-link,
+  .simple-feed-row,
+  .simple-table tbody tr { transition: none; }
+}
