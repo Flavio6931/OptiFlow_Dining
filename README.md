@@ -13,7 +13,7 @@ Plataforma web inteligente para la **gestión operativa de salón y rutas de ser
 2. Espera unos segundos a que se abra tu navegador en **`http://127.0.0.1:8000`**.
 3. **Acceso desde celular o tablet:** Conecta el móvil al mismo Wi-Fi, abre el botón de **QR** en la barra superior de la app y escanéalo *(permite el acceso a Python si Windows Firewall lo solicita)*.
 
-> Para detener todo el sistema, simplemente cierra las 3 ventanas de consola que abrió `iniciar.cmd`.
+> Para detener los 3 servicios a la vez, simplemente presiona `Ctrl + C` o cierra la consola de `iniciar.cmd`.
 
 ---
 
@@ -78,6 +78,7 @@ OptiFlow_Dining/
 └── web/
     ├── manage.py
     ├── generate_env.py          # Genera .env local con claves seguras
+    ├── run_local.py             # Ejecuta y supervisa los 3 servicios en una sola consola
     ├── optiflow/                # Configuración global de Django (settings, urls)
     ├── core/                    # Modelos, layout CAD, servicios S3, views/ y tests/
     ├── templates/               # Vistas HTML (auth/, layouts/, pages/, partials/)
