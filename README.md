@@ -28,19 +28,19 @@ Accede a `http://localhost:8000/admin/`, abre **Profiles**, selecciona el usuari
 |---|---|---|
 | Registro y login | Django Auth, sesiones protegidas, formularios, contraseñas hash y CSRF | Público |
 | Panel principal | Estado del salón y contadores persistidos | Todos |
-| M1 Plano y mesas | Esquema de 8 mesas, cambio y persistencia de estados (disponible/activa/ocupada) | Capitán |
-| M2 Rutas | Motor Dijkstra en microservicio FastAPI: consulta, detección de nodos congestionados y alternativa; registro y finalización de tareas | Mesero, Capitán |
-| M3 Saturación | Modificación de nivel y permanencia, alertas cuando la zona crítica supera 4 minutos | Capitán (edición), Gerente (lectura) |
-| M3 Indicadores | Conteos reales de rutas consultadas, recalculadas, finalizadas y zonas críticas | Capitán, Gerente |
-| OpenCV | Conteo de personas (sentadas, de pie, de espaldas o en ángulo) con OpenCV DNN y el modelo YOLOX-S de OpenCV Zoo en fotografía JPEG/PNG/WebP, y división del resultado en tres sectores | Capitán |
-| AWS S3 | Resguardo privado opcional de fotografías cuando se configura un bucket e identidad IAM | Capitán |
+| M1 Plano y mesas | Editor CAD en cuadrícula (crear, mover, unificar, separar mesas y dimensiones del salón) y gestión de estados (`disponible/activa/ocupada`) | Estados: Capitán, Gerente, Admin · Edición CAD: Gerente, Admin |
+| M2 Rutas | Motor Dijkstra en microservicio FastAPI: consulta, detección de nodos congestionados, desvío óptimo, asignación a meseros y cierre con notificación al supervisor | Mesero, Capitán, Gerente, Admin |
+| M3 Saturación | Modificación de nivel y permanencia, alertas cuando la zona crítica supera 4 minutos | Gerente, Admin |
+| M3 Indicadores | Conteos reales de rutas consultadas, recalculadas, finalizadas y zonas críticas | Capitán, Gerente, Admin |
+| OpenCV | Conteo de personas (sentadas, de pie, de espaldas o en ángulo) con OpenCV DNN y el modelo YOLOX-S de OpenCV Zoo en fotografía JPEG/PNG/WebP, división en tres sectores y propagación automática de afluencia a las zonas para desvío en Dijkstra | Gerente, Admin |
+| AWS S3 | Resguardo privado opcional de fotografías cuando se configura un bucket e identidad IAM | Gerente, Admin |
 
 ### Límites de esta iteración
 
-- El **plano es esquemático y precargado**. Aún no existe un editor geométrico completo ni zonificación dinámica automática de mesas.
-- El **ruteo** utiliza una red de pasillos de ejemplo (5×5), no sensores físicos ni una representación milimétrica del restaurante. Los estados de congestión se registran manualmente.
+- El **plano es esquemático** con un **editor CAD en cuadrícula** (`columns × rows`) con muros dimensionales estrictos, detección de colisiones, reubicación automática por zona y fusión/separación de mesas.
+- El **ruteo** utiliza una red de pasillos adaptable (`columns × rows`), no sensores físicos ni una representación milimétrica del restaurante.
 - Los indicadores reflejan **registros realmente almacenados**, no métricas inventadas. Los tiempos físicos de desplazamiento, cruces reales y alertas automáticas por sensores necesitarían fuentes de datos adicionales.
-- **OpenCV DNN + YOLOX-S** (`services/vision/models/object_detection_yolox_2022nov.onnx`, OpenCV Zoo, Apache-2.0) se ejecuta con `cv2.dnn`, sin otras librerías de IA. Analiza la foto completa y un mosaico de recortes solapados para no perder personas lejanas. El conteo es una estimación: puede omitir personas muy tapadas o fuera de cuadro. No se usa reconocimiento facial. Si falta el modelo ONNX, el servicio vuelve al ensamble anterior (MobileNet-SSD + Haar + HOG). La estimación visual **no modifica automáticamente** la saturación operativa del salón.
+- **OpenCV DNN + YOLOX-S** (`services/vision/models/object_detection_yolox_2022nov.onnx`, OpenCV Zoo, Apache-2.0) se ejecuta con `cv2.dnn`, sin otras librerías de IA. Analiza la foto completa y un mosaico de recortes solapados para no perder personas lejanas. El conteo es una estimación: puede omitir personas muy tapadas o fuera de cuadro. No se usa reconocimiento facial. Si falta el modelo ONNX, el servicio vuelve al ensamble anterior (MobileNet-SSD + Haar + HOG). La estimación visual **actualiza automáticamente** los niveles de saturación de las zonas para que el motor Dijkstra evite pasillos congestionados.
 - El diseño es responsive y sigue la identidad azul marino/naranja del prototipo suministrado.
 
 ## 3. Arquitectura de microservicios

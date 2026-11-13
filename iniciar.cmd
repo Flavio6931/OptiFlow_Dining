@@ -33,6 +33,8 @@ if errorlevel 1 goto install_error
 type nul > ".venv\.instalado"
 
 :env_check
+if not exist ".env" if exist ".env.txt" copy /y ".env.txt" ".env" >nul
+if not exist ".env" if exist "env" copy /y "env" ".env" >nul
 if exist ".env" goto port_check
 .venv\Scripts\python.exe web\generate_env.py --demo
 if errorlevel 1 goto install_error
