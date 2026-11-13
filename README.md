@@ -15,6 +15,13 @@ Plataforma web inteligente para la **gestión operativa de salón y rutas de ser
 
 > Para detener los 3 servicios a la vez, simplemente presiona `Ctrl + C` o cierra la consola de `iniciar.cmd`.
 
+> [!NOTE]
+> **¿Prefieres arrancar desde la terminal?** Con `.venv` ya creado, ejecuta todo el sistema en una sola consola con:
+> ```powershell
+> .\.venv\Scripts\python.exe web\run_local.py
+> ```
+> Más abajo tienes la guía completa en [**Comandos de ejecución**](#-comandos-de-ejecución).
+
 ---
 
 ## 👥 Roles y usuarios de prueba
@@ -104,34 +111,57 @@ Con el entorno virtual creado, ejecuta desde la raíz del proyecto:
 
 ---
 
-<details>
-<summary>⚙️ <b>Ejecución manual (Linux / macOS / sin lanzador)</b></summary>
+## 💻 Comandos de ejecución
 
-1. Crea el archivo `.env` y el entorno virtual:
-   ```bash
-   python web/generate_env.py --demo
-   python -m venv .venv
-   # Windows: .venv\Scripts\activate
-   # Linux/macOS: source .venv/bin/activate
-   pip install -r web/requirements.txt -r services/routing/requirements.txt -r services/vision/requirements.txt
-   ```
-2. Abre 3 terminales con el entorno activado en la raíz del proyecto:
-   ```bash
-   # Terminal 1 - Ruteo
-   python -m uvicorn services.routing.main:app --port 8001
+> [!NOTE]
+> Todos los comandos siguientes se ejecutan desde la **raíz del proyecto** (`OptiFlow_Dining/`). Si usas tu propio archivo `.env` (por ejemplo con claves AWS), cópialo en la raíz antes de iniciar.
 
-   # Terminal 2 - Visión
-   python -m uvicorn services.vision.main:app --port 8002
+### 1. Inicio automático en Windows (recomendado)
 
-   # Terminal 3 - Web Django
-   cd web
-   python manage.py collectstatic --noinput
-   python manage.py migrate
-   python manage.py seed_demo
-   python manage.py runserver 0.0.0.0:8000
-   ```
+```cmd
+.\iniciar.cmd
+```
 
-</details>
+### 2. Instalación y arranque manual paso a paso (Windows PowerShell / CMD)
+
+```powershell
+# 1) Crear entorno virtual e instalar dependencias (solo la primera vez)
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r web\requirements.txt -r services\routing\requirements.txt -r services\vision\requirements.txt
+
+# 2) Generar .env si no tienes uno propio (con usuarios demo habilitados)
+.\.venv\Scripts\python.exe web\generate_env.py --demo
+
+# 3) Compilar estáticos, aplicar migraciones y crear usuarios demo
+.\.venv\Scripts\python.exe web\manage.py collectstatic --noinput
+.\.venv\Scripts\python.exe web\manage.py migrate
+.\.venv\Scripts\python.exe web\manage.py seed_demo
+
+# 4) Levantar los 3 servicios en una sola consola
+.\.venv\Scripts\python.exe web\run_local.py
+```
+
+* **Crear usuario administrador adicional:** `.\.venv\Scripts\python.exe web\manage.py createsuperuser`
+
+### 3. Ejecución por separado (Linux / macOS / depuración)
+
+Activa el entorno (`source .venv/bin/activate` en Linux/macOS o `.venv\Scripts\activate` en Windows) y abre 3 terminales en la raíz del proyecto:
+
+```bash
+# Terminal 1 - Microservicio de Ruteo Dijkstra (:8001)
+python -m uvicorn services.routing.main:app --port 8001
+
+# Terminal 2 - Microservicio de Visión OpenCV (:8002)
+python -m uvicorn services.vision.main:app --port 8002
+
+# Terminal 3 - Aplicación Web Django (:8000)
+python web/manage.py collectstatic --noinput
+python web/manage.py migrate
+python web/manage.py seed_demo
+python web/manage.py runserver 0.0.0.0:8000
+```
+
+---
 
 <details>
 <summary>☁️ <b>Configuración de Amazon S3 y PostgreSQL (Producción / Cloud)</b></summary>
