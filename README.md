@@ -1,162 +1,141 @@
-# OptiFlow Dining · Aplicación web
+# OptiFlow Dining
 
-Proyecto académico de **Construcción de Software**, construido sobre los documentos de requerimientos, Scrum y prototipo de OptiFlow Dining. Esta entrega contiene una aplicación **Django**, dos microservicios **FastAPI**, análisis de fotografías con **OpenCV** e integración **opcional** con **Amazon S3**.
+Plataforma web inteligente para la **gestión operativa de salón y rutas de servicio en restaurantes**. Combina un panel web en **Django**, cálculo de trayectorias óptimas con **Dijkstra (FastAPI)**, conteo de personas por visión artificial con **OpenCV** y respaldo opcional en **Amazon S3**.
 
-> **Importante:** es un MVP funcional/de demostración, **no** un sistema desplegado en AWS ni una solución de visión artificial validada para estimar ocupación real del restaurante.
+---
 
-## 1. Ejecutar en Windows
+## 🚀 Inicio rápido (Windows)
 
-Necesitas **Python 3.11 o superior**. Al instalarlo, marca «Add python.exe to PATH».
+**Requisito:** Python **3.11 o superior** instalado con la opción *"Add python.exe to PATH"* marcada.
 
-Da doble clic a `iniciar.cmd`. La primera vez instala lo necesario y puede tardar varios minutos; después abre la aplicación en el navegador. Para detenerla, cierra las tres ventanas de los servicios. Sin claves de AWS, S3 queda desactivado y las fotos se guardan solo en tu equipo. Para abrirla desde un móvil en la misma red, escanea el QR de la aplicación y, si Windows lo pregunta, permite el acceso a Python. La ventana del lanzador muestra los usuarios de prueba `mesero_demo`, `capitan_demo` y `gerente_demo` con su contraseña, generada al azar en cada equipo; el análisis de fotos requiere `gerente_demo`.
+1. Haz doble clic en **`iniciar.cmd`**.
+   > La primera vez crea el entorno virtual `.venv`, instala dependencias, prepara `.env`, aplica migraciones, compila archivos estáticos y levanta los 3 servicios automáticamente.
+2. Espera unos segundos a que se abra tu navegador en **`http://127.0.0.1:8000`**.
+3. **Acceso desde celular o tablet:** Conecta el móvil al mismo Wi-Fi, abre el botón de **QR** en la barra superior de la app y escanéalo *(permite el acceso a Python si Windows Firewall lo solicita)*.
 
-Abre **http://localhost:8000**. Presiona **«Crear cuenta»** y regístrate. Un usuario nuevo tiene rol **Mesero / Runner**. Luego inicia sesión, entra a «Rutas de servicio», selecciona «Zona de cocina» y «Mesa 08» y calcula la ruta. Verás el mensaje de congestión; pulsa **«Recalcular ruta»** y después **«Finalizar tarea»**. El resultado queda guardado en la base de datos.
+> Para detener todo el sistema, simplemente cierra las 3 ventanas de consola que abrió `iniciar.cmd`.
 
-### Probar los otros perfiles
+---
 
-Por seguridad, el registro público solo crea usuarios **Mesero**. Para administrar los perfiles, primero crea un superusuario:
+## 👥 Roles y usuarios de prueba
 
-```bash
-.venv\Scripts\python web\manage.py createsuperuser
-```
+Al iniciar con `ENABLE_DEMO_USERS=1` en `.env`, la consola de `iniciar.cmd` muestra automáticamente los usuarios demo y su contraseña (`DEMO_PASSWORD`):
 
-Accede a `http://localhost:8000/admin/`, abre **Profiles**, selecciona el usuario y cambia el rol a **Capitán de meseros** o **Gerente general**. También puedes habilitar usuarios demo **solo en un entorno local** con `ENABLE_DEMO_USERS=1` y una clave `DEMO_PASSWORD` robusta en `.env` (mínimo 12 caracteres); reinicia la app. Se crearán `mesero_demo`, `capitan_demo` y `gerente_demo` con la misma contraseña configurada por ti. No habilites cuentas de demostración en producción.
-
-## 2. Módulos disponibles
-
-| Vista / función | Tecnología y comportamiento | Roles |
+| Usuario | Rol | Qué puede hacer |
 |---|---|---|
-| Registro y login | Django Auth, sesiones protegidas, formularios, contraseñas hash y CSRF | Público |
-| Panel principal | Estado del salón y contadores persistidos | Todos |
-| M1 Plano y mesas | Editor CAD en cuadrícula (crear, mover, unificar, separar mesas y dimensiones del salón) y gestión de estados (`disponible/activa/ocupada`) | Estados: Capitán, Gerente, Admin · Edición CAD: Gerente, Admin |
-| M2 Rutas | Motor Dijkstra en microservicio FastAPI: consulta, detección de nodos congestionados, desvío óptimo, asignación a meseros y cierre con notificación al supervisor | Mesero, Capitán, Gerente, Admin |
-| M3 Saturación | Modificación de nivel y permanencia, alertas cuando la zona crítica supera 4 minutos | Gerente, Admin |
-| M3 Indicadores | Conteos reales de rutas consultadas, recalculadas, finalizadas y zonas críticas | Capitán, Gerente, Admin |
-| OpenCV | Conteo de personas (sentadas, de pie, de espaldas o en ángulo) con OpenCV DNN y el modelo YOLOX-S de OpenCV Zoo en fotografía JPEG/PNG/WebP, división en tres sectores y propagación automática de afluencia a las zonas para desvío en Dijkstra | Gerente, Admin |
-| AWS S3 | Resguardo privado opcional de fotografías cuando se configura un bucket e identidad IAM | Gerente, Admin |
+| `mesero_demo` | **Mesero** | Ver panel, atender rutas urgentes asignadas, consultar trayectos y finalizar tareas. |
+| `capitan_demo` | **Capitán** | Todo lo de Mesero + cambiar estado de mesas, asignar rutas a meseros y ver indicadores/avisos. |
+| `gerente_demo` | **Gerente** | Todo lo de Capitán + editar el plano CAD (mesas/dimensiones), gestionar saturación de zonas y usar Cámara/Visión OpenCV + S3. |
+| *(Superusuario)* | **Administrador** | Control total del sistema, incluida la gestión y promoción de roles del personal en `/perfil/`. |
 
-### Límites de esta iteración
+* El registro público (`Crear cuenta`) crea cuentas con rol inicial **Mesero**.
+* Para crear un administrador manualmente: `.venv\Scripts\python.exe web\manage.py createsuperuser`.
 
-- El **plano es esquemático** con un **editor CAD en cuadrícula** (`columns × rows`) con muros dimensionales estrictos, detección de colisiones, reubicación automática por zona y fusión/separación de mesas.
-- El **ruteo** utiliza una red de pasillos adaptable (`columns × rows`), no sensores físicos ni una representación milimétrica del restaurante.
-- Los indicadores reflejan **registros realmente almacenados**, no métricas inventadas. Los tiempos físicos de desplazamiento, cruces reales y alertas automáticas por sensores necesitarían fuentes de datos adicionales.
-- **OpenCV DNN + YOLOX-S** (`services/vision/models/object_detection_yolox_2022nov.onnx`, OpenCV Zoo, Apache-2.0) se ejecuta con `cv2.dnn`, sin otras librerías de IA. Analiza la foto completa y un mosaico de recortes solapados para no perder personas lejanas. El conteo es una estimación: puede omitir personas muy tapadas o fuera de cuadro. No se usa reconocimiento facial. Si falta el modelo ONNX, el servicio vuelve al ensamble anterior (MobileNet-SSD + Haar + HOG). La estimación visual **actualiza automáticamente** los niveles de saturación de las zonas para que el motor Dijkstra evite pasillos congestionados.
-- El diseño es responsive y sigue la identidad azul marino/naranja del prototipo suministrado.
+---
 
-## 3. Arquitectura de microservicios
+## 🧩 Módulos principales
+
+| Módulo | Función |
+|---|---|
+| **Panel principal** | Resumen en tiempo real del salón: mesas libres/ocupadas, tráfico por zona, recorridos del día y afluencia detectada. |
+| **Plano y mesas** | Mapa 2D interactivo tipo CAD (`columns × rows`) para cambiar estados (`disponible`, `activa`, `ocupada`) y crear, mover, unificar o separar mesas sin colisiones. |
+| **Rutas de servicio** | Motor **Dijkstra** que calcula el camino más corto desde Cocina o Entrada hacia cualquier mesa, evitando pasillos saturados y mesas intermedias. |
+| **Saturación** | Semáforo por zonas (`A` Jardín, `B` Central, `C` Terraza) según minutos de permanencia: Normal (`≤ 2 min`), Moderada (`2.1–4 min`) y Crítica (`> 4 min`). |
+| **Indicadores** | Reporte claro de viajes realizados (directos vs. desvíos), entregas/retiros y tiempos por zona. |
+| **Visión OpenCV** | Conteo de personas desde foto o cámara en vivo (**YOLOX-S** de OpenCV Zoo con respaldo MobileNet-SSD/Haar/HOG). Actualiza automáticamente la saturación de las zonas para que Dijkstra esquive cuellos de botella. |
+| **Cloud AWS S3** | Resguardo opcional de las fotografías analizadas en un bucket S3 privado (si no hay claves AWS configuradas, opera en modo local sin bloquear la app). |
+
+---
+
+## 🏗️ Arquitectura
 
 ```mermaid
 flowchart LR
-    U[Usuario en navegador] -->|HTTPS en producción| D[Django web + autenticación]
-    D --> DB[(SQLite local / RDS PostgreSQL)]
-    D -->|REST interno| R[FastAPI: motor de rutas]
-    D -->|REST interno + foto| V[FastAPI: OpenCV]
-    D -.->|opcional: boto3 + IAM| S3[(Amazon S3 privado)]
+    U[Navegador Web / Móvil] --> D[Django Web :8000]
+    D --> DB[(SQLite / PostgreSQL)]
+    D -->|REST| R[FastAPI Ruteo Dijkstra :8001]
+    D -->|REST + Imagen| V[FastAPI Visión OpenCV :8002]
+    D -.->|Opcional boto3| S3[(Amazon S3)]
 ```
 
-Servicios:
+* **`web/` (Puerto `8000`):** Interfaz, autenticación, roles, APIs REST (DRF), gestión del plano (`config/salon.json`) y conexión con AWS S3.
+* **`services/routing/` (Puerto `8001`):** Microservicio FastAPI con algoritmo Dijkstra (`/route`, `/layout`, `/health`).
+* **`services/vision/` (Puerto `8002`):** Microservicio FastAPI con OpenCV DNN (`/analyze`, `/detect`, `/health`).
 
-- **web**: Django + Django Templates + JS/CSS; REST JSON propio, validación, base de datos, autenticación, roles y AWS SDK (`8000`).
-- **routing**: FastAPI independiente; `POST /route`, `GET /layout`, `GET /health` (`8001`, no expuesto públicamente).
-- **vision**: FastAPI + OpenCV DNN (YOLOX-S); `POST /analyze` (foto con imagen anotada), `POST /detect` (fotograma de la cámara en vivo: solo cajas y conteo; `?mode=rapido|normal|preciso`, de más fluido a más preciso), `GET /health` (`8002`, no expuesto públicamente).
-- **base de datos**: SQLite local para desarrollo. Puede migrarse a PostgreSQL mediante `DATABASE_URL` para producción.
+---
 
-La carpeta `config/salon.json` define las coordenadas iniciales, las mesas y nodos congestionados. **Django es la única fuente de verdad del plano**: lo edita (crear, mover, unificar o separar mesas) y lo envía en cada petición `POST /route` (campo `layout`), así el microservicio de rutas siempre calcula sobre el plano vigente aunque no comparta disco con Django.
-
-## 4. Usar AWS en producción
-
-Se proporciona integración de **Amazon S3**; el programa **no crea cuentas, servidores ni recursos cloud por sí solo**. Para probar en AWS:
-
-1. Crea un bucket S3 con acceso público bloqueado (p. ej. `optiflow-evidencias-privadas`) y cifrado habilitado.
-2. Crea una instancia **EC2**, instala Python y asigna un **rol IAM** a la instancia, con permiso `s3:PutObject` **limitado** a `arn:aws:s3:::TU_BUCKET/optiflow/analisis/*`.
-3. Clona/copia este proyecto al servidor, genera `.env` y configura `AWS_S3_BUCKET=TU_BUCKET`, `AWS_REGION=us-east-1` (o la región elegida).
-4. Configura `ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` y `DJANGO_SECRET_KEY` correctamente. Sitúa la app detrás de un proxy/ALB con **HTTPS** y activa `DJANGO_SECURE_SSL_REDIRECT=1`. No expongas los microservicios a Internet.
-5. Para persistencia escalable, crea **Amazon RDS PostgreSQL** con acceso privado y define `DATABASE_URL=postgresql://usuario:contraseña@host:5432/basedatos` en tu gestor de secretos / entorno. Haz `python manage.py migrate` al cambiar la base de datos.
-
-No coloques `AWS_ACCESS_KEY_ID` ni `AWS_SECRET_ACCESS_KEY` en archivos versionados. El SDK `boto3` usa automáticamente credenciales temporales del rol IAM de EC2. La foto original solo se almacena en S3 si está configurado `AWS_S3_BUCKET`; Django guarda únicamente los metadatos, y la respuesta anotada se envía al navegador. Se recomienda obtener consentimiento antes de procesar fotografías de personas y definir políticas de retención en S3.
-
-## 5. Ejecución manual (Linux, macOS o sin el lanzador)
-
-Con Python 3.11 o superior, desde el directorio raíz:
-
-```bash
-python web/generate_env.py
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Linux/macOS: source .venv/bin/activate
-python -m pip install -r web/requirements.txt
-python -m pip install -r services/routing/requirements.txt
-python -m pip install -r services/vision/requirements.txt
-```
-
-Abre **tres terminales**, todas con el entorno virtual activado y situadas en `OptiFlow_Dining`:
-
-```bash
-# Terminal 1 (rutas)
-python -m uvicorn services.routing.main:app --port 8001
-
-# Terminal 2 (visión)
-python -m uvicorn services.vision.main:app --port 8002
-
-# Terminal 3 (web)
-cd web
-python manage.py migrate
-python manage.py seed_demo
-python manage.py runserver 8000
-```
-
-La variable `DATABASE_URL` permite PostgreSQL; de lo contrario Django crea SQLite local. Para configurar contraseñas secretas no se requiere un servicio externo.
-
-## 6. Pruebas y validación
-
-```bash
-cd web
-python manage.py test core
-```
-
-Se incluyen pruebas automáticas para registro, restricción de roles, recálculo y almacenamiento de consultas. Se pueden probar directamente las funciones de ruteo de `services/routing/test_routing.py` si tienes pytest. **Es necesario ejecutar estas pruebas completas en un entorno con Django y las dependencias instaladas**.
-
-### Endpoints de ejemplo
-
-```json
-POST /api/rutas/
-{"origin":"cocina","destination":"mesa08","task_type":"entrega","avoid_congestion":false}
-```
-
-Necesitas iniciar sesión y enviar la cookie de sesión y el token CSRF. En la interfaz web esto se gestiona automáticamente.
-
-## 7. Estructura del proyecto
+## 📂 Estructura del proyecto
 
 ```text
 OptiFlow_Dining/
-  iniciar.cmd                Lanzador automático local en Windows (Django + 2 FastAPI)
-  .env.example               Variables de entorno de ejemplo
-  .gitignore                 Exclusión de entorno local, cachés y variables sensibles
-  config/salon.json          Distribución y nodos del plano
-  web/
-    generate_env.py         Crea el archivo .env
-    optiflow/               Configuración y settings de Django
-    core/views/             Paquete modular de vistas HTML, permisos y APIs REST DRF
-    core/tests/             Pruebas automatizadas por tema
-    templates/              Plantillas: layouts/, auth/, pages/ y partials/
-    static/
-      css/
-        app.css             Estilos globales y componentes principales
-        operations.css      Pantallas operativas
-      img/                  Activos gráficos activos de producción (logos y fondos)
-      js/
-        app.js              Lógica de cliente, formularios, rutas y OpenCV en Django
-        modules/            Módulos JS desacoplados (core, floor_plan, routing, cad_tables, vision_zones)
-  services/
-    routing/                 Microservicio FastAPI de trayectorias
-    vision/                  Microservicio FastAPI de análisis OpenCV
+├── iniciar.cmd                  # Arranca entorno, BD y los 3 servicios en Windows
+├── .env.example                 # Plantilla de variables de entorno
+├── config/
+│   └── salon.json               # Dimensiones del salón, zonas, accesos y mesas
+├── services/
+│   ├── routing/                 # Microservicio de rutas Dijkstra + tests
+│   └── vision/                  # Microservicio OpenCV + modelos + tests
+└── web/
+    ├── manage.py
+    ├── generate_env.py          # Genera .env local con claves seguras
+    ├── optiflow/                # Configuración global de Django (settings, urls)
+    ├── core/                    # Modelos, layout CAD, servicios S3, views/ y tests/
+    ├── templates/               # Vistas HTML (auth/, layouts/, pages/, partials/)
+    └── static/                  # CSS, imágenes y módulos JS desacoplados
 ```
 
-## 8. Relación con las entregas adjuntas
+---
 
-- **Requerimientos (Tarea 2):** se conservan los 3 módulos M1/M2/M3, los actores y la comunicación REST, y se implementan parcialmente las historias HU-01 a HU-05.
-- **Scrum/Jira (Tarea 3):** la alerta de saturación contiene la **zona/nodo afectado y el tiempo de permanencia**, como recoge la modificación a HU-04.
-- **Prototipo (Tarea 4):** se conserva la navegación *login → panel → tarea → ruta → congestión → alternativa → finalizar*, así como el código de color azul/naranja y las pantallas de saturación e indicadores.
-- **Extensión solicitada en este encargo:** Django, registro de usuarios, microservicios, Amazon S3 y OpenCV.
+## 🧪 Pruebas automatizadas
 
-**Aclaración:** Este paquete contiene el código fuente y la configuración de arranque. La ejecución integral y el despliegue en una cuenta AWS dependen del entorno y de las credenciales del usuario.
+Con el entorno virtual creado, ejecuta desde la raíz del proyecto:
+
+```powershell
+# 1. Suite principal de Django (61 pruebas)
+.\.venv\Scripts\python.exe web\manage.py test core
+
+# 2. Microservicio de Ruteo Dijkstra (7 pruebas)
+.\.venv\Scripts\python.exe -m unittest discover -s services\routing -p "test_*.py"
+
+# 3. Microservicio de Visión OpenCV (12 pruebas)
+.\.venv\Scripts\python.exe -m unittest discover -s services\vision -p "test_*.py"
+```
+
+---
+
+<details>
+<summary>⚙️ <b>Ejecución manual (Linux / macOS / sin lanzador)</b></summary>
+
+1. Crea el archivo `.env` y el entorno virtual:
+   ```bash
+   python web/generate_env.py --demo
+   python -m venv .venv
+   # Windows: .venv\Scripts\activate
+   # Linux/macOS: source .venv/bin/activate
+   pip install -r web/requirements.txt -r services/routing/requirements.txt -r services/vision/requirements.txt
+   ```
+2. Abre 3 terminales con el entorno activado en la raíz del proyecto:
+   ```bash
+   # Terminal 1 - Ruteo
+   python -m uvicorn services.routing.main:app --port 8001
+
+   # Terminal 2 - Visión
+   python -m uvicorn services.vision.main:app --port 8002
+
+   # Terminal 3 - Web Django
+   cd web
+   python manage.py collectstatic --noinput
+   python manage.py migrate
+   python manage.py seed_demo
+   python manage.py runserver 0.0.0.0:8000
+   ```
+
+</details>
+
+<details>
+<summary>☁️ <b>Configuración de Amazon S3 y PostgreSQL (Producción / Cloud)</b></summary>
+
+* **Amazon S3:** Crea un bucket S3 privado con cifrado y define en `.env` las variables `AWS_STORAGE_BUCKET_NAME`, `AWS_S3_BUCKET`, `AWS_REGION` (y credenciales IAM o rol de instancia EC2). Nunca subas tu archivo `.env` real a GitHub.
+* **Base de datos:** Usa SQLite por defecto en local. Para migrar a PostgreSQL (p. ej. Amazon RDS), configura `DATABASE_URL=postgresql://usuario:clave@host:5432/basedatos` y ejecuta `python web/manage.py migrate`.
+
+</details>
